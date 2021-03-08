@@ -5,6 +5,11 @@ import (
 )
 
 func Test(t *testing.T) {
-	chunked()
-	t.Error("error")
+	t.Error("done", cc)
 }
+
+type Event interface{}
+type chann struct {
+	C chan Event
+}
+

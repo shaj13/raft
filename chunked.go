@@ -3,38 +3,21 @@ package raft
 import (
 	"fmt"
 
-	"go.etcd.io/etcd/raft/raftpb"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-const maxMsgSize = 4 << 20
+const maxMsgSize = 4 << 20 // TODO: read me from cfg
 
-func chunked() {
-	m := raftpb.Message{
-		Entries: []raftpb.Entry{
-			{
-				Index: 0,
-				Data:  []byte{'1', '2', '3', '4', '5'},
-			},
-		},
+func chunkedMsg(m raftpb.Message) []raftpb.Message {
+	if m.Size() > maxMsgSize && m.Type == raftpb.MsgSnap {
+		return splitSnap(&m)
 	}
-	m2 := raftpb.Message{
-		Entries: []raftpb.Entry{
-			{
-				Index: 0,
-				Data:  []byte{'6', '7', '8', '9', '0'},
-			},
-			// {
-			// 	Index: 1,
-			// 	Data:  []byte{'6', '7', '8', '9', '0'},
-			// },
-		},
+
+	if m.Size() > maxMsgSize {
+		return splitEntries(&m)
 	}
-	mm := []raftpb.Message{m, m2}
-	t, err := assembleEntries(mm)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(t.Entries)
+
+	return []raftpb.Message{m}
 }
 
 func assembleEntries(msgs []raftpb.Message) (*raftpb.Message, error) {
@@ -53,7 +36,7 @@ func assembleEntries(msgs []raftpb.Message) (*raftpb.Message, error) {
 
 		if msg.Index != m.Index {
 			return nil, fmt.Errorf(
-				"raftkit: message chunk with index %d is different from the previously received raft message index %d",
+				"raftkit: Message chunk with index %d is different from the previously received raft message index %d",
 				m.Index,
 				msg.Index,
 			)

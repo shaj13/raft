@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package api;
+
+import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
+import "gogoproto/gogo.proto";
+
+// Raft defines the RPC communication between raft nodes.
+service Raft {
+	// rpc StreamMessage (stream raftpb.Message) returns (StreamResponse) {}
+  rpc StreamMessage (MessageRequest) returns (StreamResponse) {}
+  rpc Join (Member) returns (JoinResponse) {}
+}
+
+// TODO: replace with google empty 
+message StreamResponse {}
+
+message JoinResponse {
+	// ID specifies the ID assigned to the new member.
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	// Pool specifies the the cluster pool members.
+	repeated Member pool = 2 [(gogoproto.nullable) = false];
+}
+
+message Member {
+	// ID specifies the cluster memeber id.
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	// Address specifies the address of the cluster member.
+	string addr = 2 [(gogoproto.customname) = "Address" ];
+
+	MemberType type = 3;
+}
+
+message Replicate {
+	// CID specifies the transaction change id. 
+	uint64 cid = 1 [(gogoproto.customname) = "CID" ];
+	// Data specifies the raw replicate data.
+	bytes  data  = 2;
+}
+
+message Snapshot {
+	// Pool specifies the the cluster pool members.
+	repeated Member pool = 1 [(gogoproto.nullable) = false];
+	// Data specifies the raw replicate data.
+	bytes  data  = 2 ;
+}
+
+enum MemberType {
+	option (gogoproto.goproto_enum_prefix) = false;
+	option (gogoproto.enum_customname) = "MemberType";
+	Remote = 0 [(gogoproto.enumvalue_customname) = "RemoteMember"];
+	Removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
+	Self = 2 [(gogoproto.enumvalue_customname) = "SelfMember"];
+}
+
+// Workaround
+message MessageRequest {
+	raftpb.Message message = 1;
+}
