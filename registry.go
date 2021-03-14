@@ -23,7 +23,7 @@ type registry struct {
 	mcons         membersConstructors
 	memoryStorage *raft.MemoryStorage
 	snapshoter    Snapshoter
-	msgbus        *wait
+	msgbus        *msgbus
 	server        *server
 }
 
@@ -43,7 +43,7 @@ func (r *registry) init() *registry {
 	r.snapshoter = &disk{
 		cfg: r.config,
 	}
-	r.msgbus = newWait()
+	r.msgbus = new(msgbus)
 	r.server = new(server)
 	return r
 }
@@ -57,14 +57,15 @@ func registryFromCtx(ctx context.Context) *registry {
 }
 
 func New() {
-	// join()
-	firstrun()
+	join()
+	// firstrun()
 }
 
 func firstrun() {
 	r := (&registry{}).init()
 	ctx := ctxWithRegistry(context.Background(), r)
 	inits := []func(context.Context){
+		initMsgBus,
 		initFactory,
 		initPool,
 		initProcessor,
@@ -102,6 +103,7 @@ func join() {
 	r := (&registry{}).init()
 	ctx := ctxWithRegistry(context.Background(), r)
 	inits := []func(context.Context){
+		initMsgBus,
 		initFactory,
 		initPool,
 		initProcessor,

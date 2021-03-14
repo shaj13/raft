@@ -36,7 +36,7 @@ func initProcessor(ctx context.Context) {
 	p.propwg = sync.WaitGroup{}
 	p.storg = r.memoryStorage
 	p.sshot = r.snapshoter
-	p.wait = r.msgbus
+	p.msgbus = r.msgbus
 	p.repoc = r.reportc
 	p.propc = make(chan raftpb.Message)
 	p.recvc = make(chan raftpb.Message)
@@ -51,4 +51,9 @@ func initServer(ctx context.Context) {
 	s.processor = r.processor
 	s.cfg = r.config
 	s.UnimplementedRaftServer = api.UnimplementedRaftServer{}
+}
+
+func initMsgBus(ctx context.Context) {
+	r := registryFromCtx(ctx)
+	r.msgbus.chans = make(map[uint64][]chan interface{})
 }

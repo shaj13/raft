@@ -71,7 +71,7 @@ func (p *pool) update(m api.Member) error {
 func (p *pool) remove(m api.Member) error {
 	mem, ok := p.get(m.ID)
 	if !ok {
-		return fmt.Errorf("raft: member %d not found", m.ID)
+		return fmt.Errorf("raft: member %x not found", m.ID)
 	}
 
 	if isRemoved(mem) {
@@ -106,7 +106,7 @@ func (p *pool) snapshot() []api.Member {
 func (p *pool) recover(membs []api.Member) {
 	for _, m := range membs {
 		if err := p.add(m); err != nil {
-			p.cfg.logger.Errorf("raft: Failed to add member %d, Err: %s", m.ID, err)
+			p.cfg.logger.Errorf("raft: Failed to add member %x, Err: %s", m.ID, err)
 		}
 	}
 }

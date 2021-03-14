@@ -39,7 +39,7 @@ type processor struct {
 	propwg       sync.WaitGroup
 	storg        *raft.MemoryStorage
 	sshot        Snapshoter
-	wait         *wait // TODO: change this to msg-bus
+	msgbus       *msgbus
 	repoc        chan report
 	propc        chan raftpb.Message
 	recvc        chan raftpb.Message
@@ -81,6 +81,7 @@ func (p *processor) eventLoop() error {
 		select {
 		case <-p.ticker.C:
 			p.node.Tick()
+			p.cfg.logger.Infof("leader id is %x", p.status().Lead)
 		case rd := <-p.node.Ready():
 			if err := p.sshot.SaveEntries(rd.HardState, rd.Entries); err != nil {
 				return err
@@ -200,7 +201,7 @@ func (p *processor) publishReplicate(ent raftpb.Entry) {
 	var err error
 	r := new(api.Replicate)
 	defer func() {
-		p.wait.trigger(r.CID, err)
+		p.msgbus.trigger(r.CID, err)
 		if err != nil {
 			p.cfg.logger.Warningf("raft: An error occured while publish replicate data, Err: %s", err)
 		}
@@ -218,7 +219,7 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 	mem := new(api.Member)
 
 	defer func() {
-		p.wait.trigger(cc.ID, err)
+		p.msgbus.trigger(cc.ID, err)
 		if err != nil {
 			p.cfg.logger.Warningf("raft: An error occured while publish conf change, Err: %s", err)
 		}
@@ -314,7 +315,8 @@ func (p *processor) proposeConfChange(ctx context.Context, m *api.Member, t raft
 	}
 
 	// wait for changes to be done
-	ch := p.wait.register(cc.ID, nil, nil)
+	ch := p.msgbus.subscribe(cc.ID)
+	defer p.msgbus.cancel(cc.ID)
 
 	select {
 	case v := <-ch:
@@ -346,7 +348,8 @@ func (p *processor) proposeReplicate(ctx context.Context, data []byte) error {
 	}
 
 	// wait for changes to be done
-	ch := p.wait.register(r.CID, nil, nil)
+	ch := p.msgbus.subscribe(r.CID)
+	defer p.msgbus.cancel(r.CID)
 
 	select {
 	case err := <-ch:
