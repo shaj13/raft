@@ -2,11 +2,8 @@ package raft
 
 import (
 	"context"
-	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -17,53 +14,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type MemberID uint64
-
-// String return's MemberID as a base 16 string.
-func (m MemberID) String() string {
-	return fmt.Sprintf("%x", uint64(m))
-}
-
-// MarshalJSON converts MemberID into a base 16 string.
-func (m MemberID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.String())
-}
-
-// UnmarshalJSON inflates MemberID from base16 string.
-func (m *MemberID) UnmarshalJSON(b []byte) error {
-	u, err := strconv.ParseUint(string(b), 16, 64)
-	*m = MemberID(u)
-	return err
-}
-
-// Size returns the size of this datum in protobuf. It is always 8 bytes.
-func (m *MemberID) Size() int {
-	return 8
-}
-
-// Marshal converts MemberID into a binary representation. Called by protobuf serialization.
-func (m MemberID) Marshal() ([]byte, error) {
-	b := make([]byte, m.Size())
-	_, err := m.MarshalTo(b)
-	return b, err
-}
-
-// MarshalTo converts MemberID into a binary representation. Called by protobuf serialization.
-func (m *MemberID) MarshalTo(data []byte) (n int, err error) {
-	var b [8]byte
-	binary.BigEndian.PutUint64(b[:], uint64(*m))
-	return copy(data, b[:]), nil
-}
-
-// Unmarshal inflates MemberID from a binary representation. Called by protobuf serialization.
-func (m *MemberID) Unmarshal(data []byte) error {
-	if len(data) < 8 {
-		return fmt.Errorf("buffer is too short")
-	}
-	*m = MemberID(binary.BigEndian.Uint64(data))
-	return nil
-}
 
 type Member interface {
 	ID() uint64
@@ -248,7 +198,7 @@ func (r *remote) send(msg raftpb.Message) (err error) {
 		return r.ctx.Err()
 	default:
 		// TODO: report unrecahble
-		return fmt.Errorf("Cluster member %d is unreachable", r.id)
+		return fmt.Errorf("Cluster member %x is unreachable", r.id)
 	}
 
 	return
@@ -329,12 +279,6 @@ func (r *remote) drain() error {
 
 func (r *remote) run() {
 	for {
-		defer r.cfg.logger.Debug(
-			"Member %d context done, ctx.Err: %s",
-			r.id,
-			r.ctx.Err(),
-		)
-
 		// check ctx to exist immediately,
 		// otherwise, will continue to send msg without drain timeouts.
 		if r.ctx.Err() != nil {
@@ -346,7 +290,7 @@ func (r *remote) run() {
 			err := r.stream(r.ctx, msg)
 			if err != nil {
 				r.cfg.logger.Errorf(
-					"An error occurred while streaming the message to member %d, Err: %s",
+					"An error occurred while streaming the message to member %x, Err: %s",
 					r.id,
 					err,
 				)
@@ -358,6 +302,12 @@ func (r *remote) run() {
 
 	}
 
+	r.cfg.logger.Debug(
+		"raft: Member %x context done, ctx.Err: %s",
+		r.id,
+		r.ctx.Err(),
+	)
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.active = false
@@ -367,7 +317,7 @@ func (r *remote) run() {
 	// drain msgc and exit
 	if err := r.drain(); err != nil {
 		r.cfg.logger.Warningf(
-			"An error occurred while draining the member %d message queue, Err: %s",
+			"An error occurred while draining the member %x message queue, Err: %s",
 			r.id,
 			err,
 		)

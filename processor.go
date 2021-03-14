@@ -82,7 +82,6 @@ func (p *processor) eventLoop() error {
 		case <-p.ticker.C:
 			p.node.Tick()
 		case rd := <-p.node.Ready():
-			fmt.Println(rd.MustSync)
 			if err := p.sshot.SaveEntries(rd.HardState, rd.Entries); err != nil {
 				return err
 			}
@@ -363,7 +362,7 @@ func (p *processor) status() raft.Status {
 
 func (p *processor) send(msgs []raftpb.Message) {
 	log := func(m raftpb.Message, str string) {
-		p.cfg.logger.Warningf("raft: Failed to send message %s to member %d, Err: %s", m.Type, m.To, str)
+		p.cfg.logger.Warningf("raft: Failed to send message %s to member %x, Err: %s", m.Type, m.To, str)
 	}
 
 	p.cfg.logger.Debug("raft: Sending messages to raft cluster members")

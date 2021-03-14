@@ -57,8 +57,8 @@ func registryFromCtx(ctx context.Context) *registry {
 }
 
 func New() {
-	join()
-	// firstrun()
+	// join()
+	firstrun()
 }
 
 func firstrun() {
