@@ -200,7 +200,12 @@ func (p *processor) publishCommitted(ents []raftpb.Entry) {
 func (p *processor) publishReplicate(ent raftpb.Entry) {
 	var err error
 	r := new(api.Replicate)
-	defer p.wait.trigger(r.CID, err)
+	defer func() {
+		p.wait.trigger(r.CID, err)
+		if err != nil {
+			p.cfg.logger.Warningf("raft: An error occured while publish replicate data, Err: %s", err)
+		}
+	}()
 	if err = r.Unmarshal(ent.Data); err != nil {
 		return
 	}
@@ -214,8 +219,9 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 	mem := new(api.Member)
 
 	defer func() {
+		p.wait.trigger(cc.ID, err)
 		if err != nil {
-			p.cfg.logger.Warningf("raft: An error occured while publish conf change %s", err)
+			p.cfg.logger.Warningf("raft: An error occured while publish conf change, Err: %s", err)
 		}
 	}()
 
@@ -237,7 +243,6 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 		err = p.pool.remove(*mem)
 	}
 
-	p.wait.trigger(cc.ID, err)
 	p.cState = *p.node.ApplyConfChange(cc)
 }
 

@@ -10,7 +10,7 @@ import (
 type pool struct {
 	factory *factory
 	cfg     *config
-	mu      sync.Mutex // protects active
+	mu      sync.Mutex // protects membs
 	membs   map[uint64]Member
 }
 
