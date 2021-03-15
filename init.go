@@ -40,6 +40,7 @@ func initProcessor(ctx context.Context) {
 	p.repoc = r.reportc
 	p.propc = make(chan raftpb.Message)
 	p.recvc = make(chan raftpb.Message)
+	p.started = new(atomicBool)
 	p.pool = r.pool
 }
 

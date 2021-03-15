@@ -2,16 +2,11 @@ package raft
 
 import (
 	"errors"
-	"sync"
 	"time"
 )
 
 type cluster struct {
 	pool      *pool
-	amu       sync.Mutex // protects active
-	active    map[uint64]*remote
-	rmu       sync.Mutex
-	removed   map[uint64]struct{}
 	processor *processor
 }
 
@@ -64,6 +59,7 @@ func (c *cluster) LongestActive() (Member, error) {
 	if longest == nil {
 		return nil, errors.New("raft: failed to find longest active peer")
 	}
+
 	return longest, nil
 }
 
@@ -100,9 +96,11 @@ func (c *cluster) IsMember(id uint64) bool {
 }
 
 func (c *cluster) Whoami() uint64 {
-	return c.processor.status().ID
+	s, _ := c.processor.status()
+	return s.ID
 }
 
 func (c *cluster) Leader() uint64 {
-	return c.processor.status().Lead
+	s, _ := c.processor.status()
+	return s.Lead
 }

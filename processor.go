@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,6 +11,10 @@ import (
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+)
+
+var (
+	errReadyProcessor = errors.New("raft: processor not ready yet or has been stopped")
 )
 
 const (
@@ -46,6 +51,7 @@ type processor struct {
 	idgen        *idutil.Generator
 	pool         *pool
 	cState       raftpb.ConfState
+	started      *atomicBool
 	snapIndex    uint64
 	appliedIndex uint64
 }
@@ -63,6 +69,7 @@ func (p *processor) run(id uint64) error {
 		MaxUncommittedEntriesSize: 1 << 30,
 	}
 	p.node = raft.StartNode(c, []raft.Peer{peer})
+	p.started.set()
 	go p.report()
 	go p.process(p.propc)
 	go p.process(p.recvc)
@@ -81,7 +88,6 @@ func (p *processor) eventLoop() error {
 		select {
 		case <-p.ticker.C:
 			p.node.Tick()
-			p.cfg.logger.Infof("leader id is %x", p.status().Lead)
 		case rd := <-p.node.Ready():
 			if err := p.sshot.SaveEntries(rd.HardState, rd.Entries); err != nil {
 				return err
@@ -284,17 +290,44 @@ func (p *processor) report() {
 	}
 }
 
+func (p *processor) send(msgs []raftpb.Message) {
+	log := func(m raftpb.Message, str string) {
+		p.cfg.logger.Warningf("raft: Failed to send message %s to member %x, Err: %s", m.Type, m.To, str)
+	}
+
+	p.cfg.logger.Debug("raft: Sending messages to raft cluster members")
+
+	for _, m := range msgs {
+		mem, ok := p.pool.get(m.To)
+		if !ok {
+			log(m, "unknown member")
+			continue
+		}
+
+		if err := mem.send(m); err != nil {
+			log(m, err.Error())
+		}
+	}
+}
+
 // push msg to proccessor queue.
 // its used by the current node server.
-func (p *processor) push(m raftpb.Message) {
+func (p *processor) push(m raftpb.Message) error {
+	if !p.started.isSet() {
+		return errReadyProcessor
+	}
 	ch := p.recvc
 	if m.Type == raftpb.MsgProp {
 		ch = p.propc
 	}
 	ch <- m
+	return nil
 }
 
 func (p *processor) proposeConfChange(ctx context.Context, m *api.Member, t raftpb.ConfChangeType) error {
+	if !p.started.isSet() {
+		return errReadyProcessor
+	}
 	p.propwg.Add(1)
 	defer p.propwg.Done()
 
@@ -330,6 +363,10 @@ func (p *processor) proposeConfChange(ctx context.Context, m *api.Member, t raft
 }
 
 func (p *processor) proposeReplicate(ctx context.Context, data []byte) error {
+	if !p.started.isSet() {
+		return errReadyProcessor
+	}
+
 	p.propwg.Add(1)
 	defer p.propwg.Done()
 
@@ -359,32 +396,17 @@ func (p *processor) proposeReplicate(ctx context.Context, data []byte) error {
 	}
 }
 
-func (p *processor) status() raft.Status {
-	return p.node.Status()
-}
-
-func (p *processor) send(msgs []raftpb.Message) {
-	log := func(m raftpb.Message, str string) {
-		p.cfg.logger.Warningf("raft: Failed to send message %s to member %x, Err: %s", m.Type, m.To, str)
+func (p *processor) status() (raft.Status, error) {
+	if !p.started.isSet() {
+		return raft.Status{}, errReadyProcessor
 	}
 
-	p.cfg.logger.Debug("raft: Sending messages to raft cluster members")
-
-	for _, m := range msgs {
-		mem, ok := p.pool.get(m.To)
-		if !ok {
-			log(m, "unknown member")
-			continue
-		}
-
-		if err := mem.send(m); err != nil {
-			log(m, err.Error())
-		}
-	}
+	return p.node.Status(), nil
 }
 
 func (p *processor) close() {
 	p.cancel()
+	p.started.unSet()
 	p.wg.Done()
 	p.propwg.Done()
 	p.node.Stop()
