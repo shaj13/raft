@@ -2,10 +2,8 @@ package raft
 
 import (
 	"context"
-	"math/rand"
 
 	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type server struct {
@@ -13,6 +11,7 @@ type server struct {
 	cfg       *config
 	processor *processor
 	pool      *pool
+	cluster   *cluster
 }
 
 func (s *server) StreamMessage(ctx context.Context, m *api.MessageRequest) (*api.StreamResponse, error) {
@@ -48,19 +47,14 @@ func (s *server) StreamMessage(ctx context.Context, m *api.MessageRequest) (*api
 
 func (s *server) Join(ctx context.Context, m *api.Member) (*api.JoinResponse, error) {
 	s.cfg.logger.Infof("raft: A new memebr requested to join Addr %s", m.Address)
-	for {
-		m.ID = uint64(rand.Int63()) + 1
-		if _, ok := s.pool.get(m.ID); !ok {
-			break
-		}
+	memb, err := s.cluster.AddMember(ctx, m.Address)
+	if err != nil {
+		return &api.JoinResponse{}, err
 	}
 
-	// TODO: validate address etc
-	s.processor.proposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
-
-	s.cfg.logger.Infof("raft: A new memebr joined %x", m.ID)
+	s.cfg.logger.Infof("raft: A new memebr joined %x", memb.ID())
 	resp := new(api.JoinResponse)
-	resp.ID = m.ID
+	resp.ID = memb.ID()
 	resp.Pool = s.pool.snapshot()
 	return resp, nil
 }

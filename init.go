@@ -51,10 +51,18 @@ func initServer(ctx context.Context) {
 	s.pool = r.pool
 	s.processor = r.processor
 	s.cfg = r.config
+	s.cluster = r.cluster
 	s.UnimplementedRaftServer = api.UnimplementedRaftServer{}
 }
 
 func initMsgBus(ctx context.Context) {
 	r := registryFromCtx(ctx)
 	r.msgbus.chans = make(map[uint64][]chan interface{})
+}
+
+func initCluster(ctx context.Context) {
+	r := registryFromCtx(ctx)
+	c := r.cluster
+	c.pool = r.pool
+	c.processor = r.processor
 }

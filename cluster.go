@@ -21,9 +21,19 @@ func (c *cluster) MemberSubscribe() {}
 
 func (c *cluster) StepDown() {}
 func (c *cluster) Join()     {}
-func (c *cluster) Leave()    {}
+
+func (c *cluster) Leave(ctx context.Context) error {
+	return c.RemoveMember(
+		ctx,
+		c.Whoami(),
+	)
+}
 
 func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) error {
+	if c.Whoami() == 0 {
+		return fmt.Errorf("raft: node is not yet part of a raft cluster")
+	}
+
 	if !c.IsAvailable() {
 		return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
 	}
@@ -49,6 +59,10 @@ func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) erro
 }
 
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
+	if c.Whoami() == 0 {
+		return fmt.Errorf("raft: node is not yet part of a raft cluster")
+	}
+
 	if !c.IsAvailable() {
 		return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
 	}
@@ -70,6 +84,10 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 }
 
 func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
+	if c.Whoami() == 0 {
+		return nil, fmt.Errorf("raft: node is not yet part of a raft cluster")
+	}
+
 	if !c.IsAvailable() {
 		return nil, fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
 	}
@@ -158,26 +176,12 @@ func (c *cluster) LongestActive() (Member, error) {
 	return longest, nil
 }
 
-// func (c *cluster) CanMemberLeave(id uint64) bool {
-// 	mid := c.Whoami()
-// 	mems := c.Members()
-// 	q := (len(mems)-1)/2 + 1
-// 	n := 0
-
-// 	if mid != id {
-// 		n++
-// 	}
-
-// 	return n >= q
-// }
-
-
 func (c *cluster) quorum() (int, int) {
 	cond := func(m Member) bool {
 		return m.IsActive()
 	}
 
-	q := (len(c.Members())-1)/2 + 1
+	q := (len(c.Members()))/2 + 1
 	n := len(c.members(cond))
 
 	return n, q

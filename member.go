@@ -179,15 +179,6 @@ func (r *remote) kind() api.MemberType {
 	return api.RemoteMember
 }
 func (r *remote) send(msg raftpb.Message) (err error) {
-	r.mu.Lock()
-	defer func() {
-		if err != nil {
-			r.active = false
-			r.activeSince = time.Time{}
-		}
-	}()
-	defer r.mu.Unlock()
-
 	if err := r.ctx.Err(); err != nil {
 		return err
 	}
@@ -295,7 +286,7 @@ func (r *remote) run() {
 					err,
 				)
 			}
-			r.setStatus(err != nil)
+			r.setStatus(err == nil)
 		case <-r.ctx.Done():
 			break
 		}
@@ -371,6 +362,7 @@ func (r *remote) Since() time.Time {
 func (r *remote) setStatus(active bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	switch {
 	case !r.active && active:
 		r.activeSince = time.Now()

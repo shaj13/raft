@@ -25,6 +25,7 @@ type registry struct {
 	snapshoter    Snapshoter
 	msgbus        *msgbus
 	server        *server
+	cluster       *cluster
 }
 
 func (r *registry) init() *registry {
@@ -35,6 +36,7 @@ func (r *registry) init() *registry {
 	r.factory = new(factory)
 	r.config = defaultConfig()
 	r.reportc = make(chan report)
+	r.cluster = new(cluster)
 	r.mcons = membersConstructors{
 		api.RemoteMember:  newRemote,
 		api.RemovedMember: newRemoved,
@@ -69,6 +71,7 @@ func firstrun() {
 		initFactory,
 		initPool,
 		initProcessor,
+		initCluster,
 		initServer,
 	}
 
@@ -107,6 +110,7 @@ func join() {
 		initFactory,
 		initPool,
 		initProcessor,
+		initCluster,
 		initServer,
 	}
 
