@@ -2,16 +2,33 @@ package raft
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/shaj13/raftkit/api"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 type pool struct {
 	factory *factory
 	cfg     *config
 	mu      sync.Mutex // protects membs
 	membs   map[uint64]Member
+}
+
+func (p *pool) nextID() uint64 {
+	var id uint64
+	for {
+		id = uint64(rand.Int63()) + 1
+		if _, ok := p.get(id); !ok {
+			break
+		}
+	}
+	return id
 }
 
 func (p *pool) members() []Member {
