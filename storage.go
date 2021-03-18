@@ -2,8 +2,11 @@ package raft
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -11,6 +14,12 @@ import (
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 	"go.uber.org/zap"
+)
+
+const (
+	snapExt = ".snap"
+	walExt  = ".wal"
+	format  = "%016x-%016x"
 )
 
 // TODO: remove this
@@ -37,9 +46,11 @@ type Snapshoter interface {
 }
 
 type disk struct {
-	cfg  *config
-	wal  *wal.WAL
-	snap *snap.Snapshotter
+	cfg     *config
+	wal     *wal.WAL
+	walDir  string
+	snapDir string
+	snap    *snap.Snapshotter
 }
 
 // SaveSnapshot saves a given snapshot to both the WAL and the snapshot.
@@ -143,4 +154,100 @@ func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
 	d.wal = w
 
 	return meta, st, ents, nil
+}
+
+// TODO: need to be run in standlalone go
+func (d *disk) clean() error {
+	// TODO: move to config
+	target := 3
+
+	files, err := list(d.snapDir, snapExt)
+	if err != nil || len(files) < target {
+		return err
+	}
+
+	// snapshots.
+	var (
+		current = files[0]
+		oldest  string
+	)
+
+	for i, f := range files {
+		if f != current && i >= target {
+			path := filepath.Join(d.snapDir, f)
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+			continue
+		}
+		oldest = f
+	}
+
+	// oldest snapshot term and index.
+	var st, si uint64
+	_, err = fmt.Sscanf(oldest, format+snapExt, &st, &si)
+	if err != nil {
+		return err
+	}
+
+	files, err = list(d.walDir, walExt)
+	if err != nil {
+		return err
+	}
+
+	var (
+		mark int
+	)
+
+	for i, f := range files {
+		// wal sequence and index.
+		var ws, wi uint64
+		_, err = fmt.Sscanf(f, format+walExt, &ws, &wi)
+		if err != nil {
+			return err
+		}
+
+		if wi >= si {
+			mark = i
+		}
+	}
+
+	// if there only one wal then skip the cleaning
+	if mark < 1 {
+		return nil
+	}
+
+	for i := 0; i < mark; i++ {
+		path := filepath.Join(d.walDir, files[i])
+		lock, err := fileutil.TryLockFile(path, os.O_WRONLY, fileutil.PrivateFileMode)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(path)
+		lock.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func list(path, ext string) ([]string, error) {
+	ls, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	for _, f := range ls {
+		if strings.HasSuffix(f.Name(), ext) {
+			files = append(files, f.Name())
+		}
+	}
+
+	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+	return files, nil
 }
