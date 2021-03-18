@@ -2,8 +2,8 @@ package raft
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"time"
 
@@ -40,11 +40,10 @@ func (r *registry) init() *registry {
 	r.mcons = membersConstructors{
 		api.RemoteMember:  newRemote,
 		api.RemovedMember: newRemoved,
+		api.SelfMember:    newSelf,
 	}
 	r.memoryStorage = raft.NewMemoryStorage()
-	r.snapshoter = &disk{
-		cfg: r.config,
-	}
+	r.snapshoter = new(disk)
 	r.msgbus = new(msgbus)
 	r.server = new(server)
 	return r
@@ -73,21 +72,26 @@ func firstrun() {
 		initProcessor,
 		initCluster,
 		initServer,
+		initDisk,
 	}
 
 	for _, init := range inits {
 		init(ctx)
 	}
 
-	_, _, _, err := r.snapshoter.(*disk).bootstrap()
-	if err != nil {
-		panic(err)
-	}
-
-	id := uint64(rand.Int63()) + 1
 	go func() {
-		if err := r.processor.run(id); err != nil {
+		if err := r.processor.run(ctx, "", ":50051"); err != nil {
 			panic(err)
+		}
+	}()
+
+	go func() {
+		for {
+			fmt.Println("IN LOOP")
+			time.Sleep(time.Second)
+			for _, m := range r.pool.members() {
+				fmt.Println(m.ID(), m.Address())
+			}
 		}
 	}()
 
@@ -104,6 +108,8 @@ func firstrun() {
 
 func join() {
 	r := (&registry{}).init()
+	r.config.stateDir = "/tmp/3nd/"
+
 	ctx := ctxWithRegistry(context.Background(), r)
 	inits := []func(context.Context){
 		initMsgBus,
@@ -112,16 +118,11 @@ func join() {
 		initProcessor,
 		initCluster,
 		initServer,
+		initDisk,
 	}
 
-	r.config.stateDir = "/tmp/2nd/"
 	for _, init := range inits {
 		init(ctx)
-	}
-
-	_, _, _, err := r.snapshoter.(*disk).bootstrap()
-	if err != nil {
-		panic(err)
 	}
 
 	go func() {
@@ -136,23 +137,8 @@ func join() {
 		}
 	}()
 
-	time.Sleep(time.Second)
-	conn, err := grpc.Dial(":50051", r.config.memberDialOptions...)
-	if err != nil {
-		panic(err)
-	}
-
-	c := api.NewRaftClient(conn)
-	resp, err := c.Join(ctx, &api.Member{
-		Address: ":50052",
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	r.pool.recover(resp.Pool)
-	if err := r.processor.run(resp.ID); err != nil {
+	// time.Sleep(time.Second * 100)
+	if err := r.processor.run(ctx, ":50051", ":50052"); err != nil {
 		panic(err)
 	}
 }

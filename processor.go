@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -43,7 +45,7 @@ type processor struct {
 	wg           sync.WaitGroup
 	propwg       sync.WaitGroup
 	storg        *raft.MemoryStorage
-	sshot        Snapshoter
+	sshot        *disk
 	msgbus       *msgbus
 	repoc        chan report
 	propc        chan raftpb.Message
@@ -56,8 +58,99 @@ type processor struct {
 	appliedIndex uint64
 }
 
-func (p *processor) run(id uint64) error {
-	peer := raft.Peer{ID: id, Context: nil}
+func (p *processor) join(ctx context.Context, m *api.Member, cluster string) ([]api.Member, error) {
+	conn, err := grpc.Dial(cluster, p.cfg.memberDialOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	c := api.NewRaftClient(conn)
+	resp, err := c.Join(ctx, m)
+
+	if err != nil {
+		return nil, err
+	}
+
+	m.ID = resp.ID
+	m.Type = api.SelfMember
+
+	return resp.Pool, nil
+}
+
+func (p *processor) jj(ctx context.Context, cluster, addr string) (uint64, error) {
+	var (
+		err  error
+		pool []api.Member
+	)
+
+	exist := p.sshot.exist()
+	m := &api.Member{
+		ID:      uint64(rand.Int63()) + 1,
+		Address: addr,
+		Type:    api.SelfMember,
+	}
+
+	if !exist && len(cluster) > 0 {
+		m.ID = 0
+		pool, err = p.join(ctx, m, cluster)
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	buf, err := m.Marshal()
+	if err != nil {
+		return 0, err
+	}
+
+	meta, hs, ents, snap, err := p.sshot.bootstrap(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	if !exist {
+		p.pool.add(*m)
+		p.pool.recover(pool)
+		return m.ID, err
+	}
+
+	if err := m.Unmarshal(meta); err != nil {
+		return 0, err
+	}
+
+	if exist && len(cluster) > 0 && m.Address != addr {
+		pool, err = p.join(ctx, m, cluster)
+	}
+
+	if pool != nil {
+		s := new(api.Snapshot)
+		if err := s.Unmarshal(snap.Data); err != nil {
+			return 0, err
+		}
+		s.Pool = pool
+
+		data, err := s.Marshal()
+		if err != nil {
+			return 0, err
+		}
+
+		snap.Data = data
+	}
+
+	p.publishSnapshot(*snap)
+	p.storg.Append(ents)
+	p.storg.SetHardState(hs)
+	p.pool.add(*m)
+	return m.ID, err
+}
+
+func (p *processor) run(ctx context.Context, cluster, addr string) error {
+	exist := p.sshot.exist()
+	id, err := p.jj(ctx, cluster, addr)
+	if err != nil {
+		return err
+	}
 	p.idgen = idutil.NewGenerator(uint16(id), time.Now())
 	c := &raft.Config{
 		ID:                        id,
@@ -68,7 +161,12 @@ func (p *processor) run(id uint64) error {
 		MaxInflightMsgs:           256,
 		MaxUncommittedEntriesSize: 1 << 30,
 	}
-	p.node = raft.StartNode(c, []raft.Peer{peer})
+	if exist {
+		p.node = raft.RestartNode(c)
+	} else {
+		peer := raft.Peer{ID: id}
+		p.node = raft.StartNode(c, []raft.Peer{peer})
+	}
 	p.started.set()
 	go p.report()
 	go p.process(p.propc)
@@ -232,6 +330,11 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 	}()
 
 	if err = cc.Unmarshal(ent.Data); err != nil {
+		return
+	}
+
+	if len(cc.Context) == 0 {
+		// TODO: add debug msg
 		return
 	}
 

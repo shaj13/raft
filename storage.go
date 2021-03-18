@@ -78,33 +78,30 @@ func (d *disk) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
 	return d.wal.Save(st, entries)
 }
 
-// TODO: need to split boot from disk and create.
-func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
+func (d *disk) bootstrap(b []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *raftpb.Snapshot, error) {
 	// TODO: get zap looger from cfg
-	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, error) {
-		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, err
+	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *raftpb.Snapshot, error) {
+		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}
-	waldir := filepath.Join(d.cfg.stateDir, "wal")
-	snapdir := filepath.Join(d.cfg.stateDir, "snap")
 
-	if !fileutil.Exist(snapdir) {
-		if err := os.Mkdir(snapdir, 0750); err != nil {
+	if !fileutil.Exist(d.snapDir) {
+		if err := os.Mkdir(d.snapDir, 0750); err != nil {
 			return fail(
 				fmt.Errorf("raft: failed to create snapshot dir, Err: %s", err),
 			)
 		}
 	}
 
-	d.snap = snap.New(zap.NewExample(), snapdir)
+	tempsnap := snap.New(zap.NewExample(), d.snapDir)
 
-	if !wal.Exist(waldir) {
-		if err := os.Mkdir(waldir, 0750); err != nil {
+	if !wal.Exist(d.walDir) {
+		if err := os.Mkdir(d.walDir, 0750); err != nil {
 			return fail(
 				fmt.Errorf("raft: failed to create WAL dir, Err: %s", err),
 			)
 		}
 
-		w, err := wal.Create(zap.NewExample(), waldir, nil)
+		w, err := wal.Create(zap.NewExample(), d.walDir, b)
 		if err != nil {
 			return fail(
 				fmt.Errorf("raft: failed to create WAL dir, Err: %s", err),
@@ -112,10 +109,11 @@ func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
 		}
 
 		d.wal = w
-		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil
+		d.snap = tempsnap
+		return b, raftpb.HardState{}, []raftpb.Entry{}, nil, nil
 	}
 
-	walSnaps, err := wal.ValidSnapshotEntries(zap.NewExample(), waldir)
+	walSnaps, err := wal.ValidSnapshotEntries(zap.NewExample(), d.walDir)
 
 	if err != nil {
 		return fail(
@@ -123,7 +121,7 @@ func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
 		)
 	}
 
-	snapshot, err := d.snap.LoadNewestAvailable(walSnaps)
+	snapshot, err := tempsnap.LoadNewestAvailable(walSnaps)
 	if err == snap.ErrNoSnapshot {
 		snapshot = new(raftpb.Snapshot)
 	} else if err != nil {
@@ -137,7 +135,7 @@ func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
 		Term:  snapshot.Metadata.Term,
 	}
 
-	w, err := wal.Open(zap.NewExample(), waldir, walsnap)
+	w, err := wal.Open(zap.NewExample(), d.walDir, walsnap)
 	if err != nil {
 		return fail(
 			fmt.Errorf("raft: failed to open WAL, Err: %s", err),
@@ -152,8 +150,9 @@ func (d *disk) bootstrap() ([]byte, raftpb.HardState, []raftpb.Entry, error) {
 	}
 
 	d.wal = w
+	d.snap = tempsnap
 
-	return meta, st, ents, nil
+	return meta, st, ents, snapshot, nil
 }
 
 // TODO: need to be run in standlalone go
@@ -233,6 +232,10 @@ func (d *disk) clean() error {
 	}
 
 	return nil
+}
+
+func (d *disk) exist() bool {
+	return wal.Exist(d.walDir)
 }
 
 func list(path, ext string) ([]string, error) {

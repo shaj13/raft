@@ -37,8 +37,9 @@ type memberConstructor func(ctx context.Context, id uint64, addr string) (Member
 
 func newSelf(_ context.Context, id uint64, addr string) (Member, error) {
 	return self{
-		id:   id,
-		addr: addr,
+		id:     id,
+		addr:   addr,
+		active: time.Now(),
 	}, nil
 }
 

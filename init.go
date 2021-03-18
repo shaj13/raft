@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -35,7 +36,7 @@ func initProcessor(ctx context.Context) {
 	p.wg = sync.WaitGroup{}
 	p.propwg = sync.WaitGroup{}
 	p.storg = r.memoryStorage
-	p.sshot = r.snapshoter
+	p.sshot = r.snapshoter.(*disk)
 	p.msgbus = r.msgbus
 	p.repoc = r.reportc
 	p.propc = make(chan raftpb.Message)
@@ -65,4 +66,13 @@ func initCluster(ctx context.Context) {
 	c := r.cluster
 	c.pool = r.pool
 	c.processor = r.processor
+}
+
+func initDisk(ctx context.Context) {
+	r := registryFromCtx(ctx)
+	cfg := r.config
+	d := r.snapshoter.(*disk)
+	d.cfg = cfg
+	d.walDir = filepath.Join(cfg.stateDir, "wal")
+	d.snapDir = filepath.Join(cfg.stateDir, "snap")
 }

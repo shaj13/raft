@@ -47,14 +47,41 @@ func (s *server) StreamMessage(ctx context.Context, m *api.MessageRequest) (*api
 
 func (s *server) Join(ctx context.Context, m *api.Member) (*api.JoinResponse, error) {
 	s.cfg.logger.Infof("raft: A new memebr requested to join Addr %s", m.Address)
-	memb, err := s.cluster.AddMember(ctx, m.Address)
+	var (
+		memb Member
+		err  error
+	)
+
+	if mm, _ := s.cluster.GetMemebr(m.ID); mm == nil {
+		memb, err = s.cluster.AddMember(ctx, m.Address)
+	} else {
+		err = s.cluster.UpdateMember(ctx, m.ID, m.Address)
+		memb, _ = s.cluster.GetMemebr(m.ID)
+	}
+
 	if err != nil {
 		return &api.JoinResponse{}, err
 	}
 
 	s.cfg.logger.Infof("raft: A new memebr joined %x", memb.ID())
-	resp := new(api.JoinResponse)
+	resp := &api.JoinResponse{}
 	resp.ID = memb.ID()
 	resp.Pool = s.pool.snapshot()
+
+	//
+	for i, m := range resp.Pool {
+		if m.Type == api.SelfMember {
+			(&m).Type = api.RemoteMember
+			resp.Pool[i] = m
+			continue
+		}
+
+		if m.ID == memb.ID() {
+			(&m).Type = api.SelfMember
+			resp.Pool[i] = m
+			continue
+		}
+	}
+
 	return resp, nil
 }

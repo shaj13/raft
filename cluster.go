@@ -20,7 +20,9 @@ func (c *cluster) StateSubscribe()  {}
 func (c *cluster) MemberSubscribe() {}
 
 func (c *cluster) StepDown() {}
-func (c *cluster) Join()     {}
+func (c *cluster) Join(caddr, maddr string) error {
+	return nil
+}
 
 func (c *cluster) Leave(ctx context.Context) error {
 	return c.RemoveMember(
