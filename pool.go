@@ -91,7 +91,7 @@ func (p *pool) remove(m api.Member) error {
 		return fmt.Errorf("raft: member %x not found", m.ID)
 	}
 
-	if isRemoved(mem) {
+	if mem.kind() == m.Type {
 		return nil
 	}
 

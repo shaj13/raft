@@ -39,6 +39,7 @@ type report struct {
 type processor struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
+	campaignOnce sync.Once
 	cfg          *config
 	node         raft.Node
 	ticker       *time.Ticker
@@ -77,7 +78,7 @@ func (p *processor) join(ctx context.Context, m *api.Member, cluster string) ([]
 	return resp.Pool, nil
 }
 
-func (p *processor) jj(ctx context.Context, cluster, addr string) (uint64, error) {
+func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member, []api.Member, error) {
 	var (
 		err  error
 		pool []api.Member
@@ -85,6 +86,7 @@ func (p *processor) jj(ctx context.Context, cluster, addr string) (uint64, error
 
 	exist := p.sshot.exist()
 	m := &api.Member{
+		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: addr,
 		Type:    api.SelfMember,
@@ -96,64 +98,61 @@ func (p *processor) jj(ctx context.Context, cluster, addr string) (uint64, error
 	}
 
 	if err != nil {
-		return 0, err
+		return nil, nil, err
 	}
 
-	buf, err := m.Marshal()
+	meta, hs, ents, snap, err := p.sshot.bootstrap(mustMarshal(m))
 	if err != nil {
-		return 0, err
-	}
-
-	meta, hs, ents, snap, err := p.sshot.bootstrap(buf)
-	if err != nil {
-		return 0, err
+		return nil, nil, err
 	}
 
 	if !exist {
-		p.pool.add(*m)
-		p.pool.recover(pool)
-		return m.ID, err
+		return m, pool, nil
 	}
 
-	if err := m.Unmarshal(meta); err != nil {
-		return 0, err
+	mustUnmarshal(meta, m)
+
+	// find the current member from wal conf-change entries,
+	// metadata isn't up to date, need to get the latest previous address.
+	for _, ent := range ents {
+		if ent.Type != raftpb.EntryConfChange {
+			continue
+		}
+		cc := new(raftpb.ConfChange)
+		old := new(api.Member)
+		mustUnmarshal(ent.Data, cc)
+		mustUnmarshal(cc.Context, old)
+		if m.ID == old.ID {
+			m = old
+		}
 	}
 
-	if exist && len(cluster) > 0 && m.Address != addr {
+	// current member address changed, re-join the cluster.
+	if len(cluster) > 0 && m.Address != addr {
 		pool, err = p.join(ctx, m, cluster)
 	}
 
-	if pool != nil {
-		s := new(api.Snapshot)
-		if err := s.Unmarshal(snap.Data); err != nil {
-			return 0, err
-		}
-		s.Pool = pool
-
-		data, err := s.Marshal()
-		if err != nil {
-			return 0, err
-		}
-
-		snap.Data = data
+	if err != nil {
+		return nil, nil, err
 	}
 
 	p.publishSnapshot(*snap)
-	p.storg.Append(ents)
 	p.storg.SetHardState(hs)
-	p.pool.add(*m)
-	return m.ID, err
+	p.storg.Append(ents)
+	return m, pool, nil
 }
 
 func (p *processor) run(ctx context.Context, cluster, addr string) error {
 	exist := p.sshot.exist()
-	id, err := p.jj(ctx, cluster, addr)
+	m, pool, err := p.boot(ctx, cluster, addr)
 	if err != nil {
 		return err
 	}
-	p.idgen = idutil.NewGenerator(uint16(id), time.Now())
+
+	p.idgen = idutil.NewGenerator(uint16(m.ID), time.Now())
+	// TODO: load this from the config object.
 	c := &raft.Config{
-		ID:                        id,
+		ID:                        m.ID,
 		ElectionTick:              10,
 		HeartbeatTick:             1,
 		Storage:                   p.storg,
@@ -161,12 +160,18 @@ func (p *processor) run(ctx context.Context, cluster, addr string) error {
 		MaxInflightMsgs:           256,
 		MaxUncommittedEntriesSize: 1 << 30,
 	}
-	if exist {
+
+	if exist && len(pool) == 0 {
 		p.node = raft.RestartNode(c)
 	} else {
-		peer := raft.Peer{ID: id}
-		p.node = raft.StartNode(c, []raft.Peer{peer})
+		pool = append(pool, *m)
+		peers := make([]raft.Peer, len(pool))
+		for i, m := range pool {
+			peers[i] = raft.Peer{ID: m.ID, Context: mustMarshal(&m)}
+		}
+		p.node = raft.StartNode(c, peers)
 	}
+
 	p.started.set()
 	go p.report()
 	go p.process(p.propc)
@@ -207,6 +212,10 @@ func (p *processor) eventLoop() error {
 			}
 
 			p.node.Advance()
+
+			p.campaignOnce.Do(func() {
+				p.node.Campaign(p.ctx)
+			})
 
 		case <-p.ctx.Done():
 			return p.ctx.Err()
@@ -352,6 +361,7 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 		err = p.pool.remove(*mem)
 	}
 
+	fmt.Println("adding new meme", mem.Address)
 	p.cState = *p.node.ApplyConfChange(cc)
 }
 

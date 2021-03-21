@@ -26,12 +26,6 @@ type Member interface {
 	close()
 }
 
-// TODO: add a memeber factory
-func isRemoved(m Member) bool {
-	_, ok := m.(removed)
-	return ok
-}
-
 type membersConstructors map[api.MemberType]memberConstructor
 type memberConstructor func(ctx context.Context, id uint64, addr string) (Member, error)
 
@@ -60,7 +54,7 @@ func newRemote(ctx context.Context, id uint64, addr string) (Member, error) {
 	mem.addr = addr
 	mem.cfg = r.config
 	mem.reportc = r.reportc
-	mem.msgc = make(chan raftpb.Message)
+	mem.msgc = make(chan raftpb.Message, 4096) //TODO: read this from an cfg
 	mem.done = make(chan struct{})
 	// assuming member is active.
 	mem.active = true
@@ -180,6 +174,15 @@ func (r *remote) kind() api.MemberType {
 	return api.RemoteMember
 }
 func (r *remote) send(msg raftpb.Message) (err error) {
+	defer func() {
+		if err != nil {
+			r.reportc <- report{
+				signal: unreachable,
+				id:     r.id,
+			}
+		}
+	}()
+
 	if err := r.ctx.Err(); err != nil {
 		return err
 	}
@@ -189,10 +192,9 @@ func (r *remote) send(msg raftpb.Message) (err error) {
 	case <-r.ctx.Done():
 		return r.ctx.Err()
 	default:
-		// TODO: report unrecahble
-		return fmt.Errorf("Cluster member %x is unreachable", r.id)
-	}
+		return fmt.Errorf("Cluster member %x, buffer is full (overloaded network)", r.id)
 
+	}
 	return
 }
 
