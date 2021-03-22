@@ -7,7 +7,7 @@ import "gogoproto/gogo.proto";
 
 // Raft defines the RPC communication between raft nodes.
 service Raft {
-	// rpc StreamMessage (stream raftpb.Message) returns (StreamResponse) {}
+  rpc Message (stream Chunk) returns (StreamResponse) {}
   rpc StreamMessage (MessageRequest) returns (StreamResponse) {}
   rpc Join (Member) returns (JoinResponse) {}
 }
@@ -59,6 +59,13 @@ message MessageRequest {
 }
 
 // Pool specifies the the cluster pool members.
-message pool {
+message Pool {
 	repeated Member members = 1 [(gogoproto.nullable) = false];
+}
+
+message Chunk {
+	// Index specifies the chunk index.
+	uint64  index = 1; 
+	// Data specifies the raw chunk data.
+	bytes  data  = 2 ;
 }

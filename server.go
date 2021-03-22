@@ -1,9 +1,12 @@
 package raft
 
 import (
+	"bytes"
 	"context"
+	"io"
 
 	"github.com/shaj13/raftkit/api"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type server struct {
@@ -12,6 +15,32 @@ type server struct {
 	processor *processor
 	pool      *pool
 	cluster   *cluster
+}
+
+func (s *server) Message(stream api.Raft_MessageServer) error {
+	a := new(assembler)
+	a.writer = new(bytes.Buffer)
+
+	for {
+		c, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			s.cfg.logger.Warningf("raft: An error occurred while reading from grpc stream, Err: %s", err)
+			return err
+		}
+		err = a.Write(c)
+		if err != nil {
+			return err
+		}
+	}
+
+	buf := a.writer.(*bytes.Buffer).Bytes()
+	msg := new(raftpb.Message)
+	mustUnmarshal(buf, msg)
+	s.processor.push(*msg)
+	return stream.SendAndClose(&api.StreamResponse{})
 }
 
 func (s *server) StreamMessage(ctx context.Context, m *api.MessageRequest) (*api.StreamResponse, error) {

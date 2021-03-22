@@ -1,6 +1,8 @@
 package raft
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -232,10 +234,29 @@ func (r *remote) stream(ctx context.Context, msg raftpb.Message) (err error) {
 	}()
 
 	cc := r.conn()
-	xx := api.MessageRequest{
-		Message: &msg,
+	// xx := api.MessageRequest{
+	// 	Message: &msg,
+	// }
+	// _, err = api.NewRaftClient(cc).StreamMessage(ctx, &xx)
+	buf := mustMarshal(&msg)
+	st := new(streamer)
+	st.scanner = bufio.NewScanner(bytes.NewBuffer(buf))
+	st.scanner.Split(st.scan)
+
+	stream, err := api.NewRaftClient(cc).Message(ctx)
+	if err != nil {
+		return err
 	}
-	_, err = api.NewRaftClient(cc).StreamMessage(ctx, &xx)
+
+	defer stream.CloseAndRecv()
+
+	for st.Next() {
+		c := st.Chunck()
+		if err := stream.Send(c); err != nil {
+			return err
+		}
+	}
+
 	// for _, msg := range chunkedMsg(msg) {
 	// 	err = stream.Send(&msg)
 	// 	if err != nil {
@@ -250,7 +271,7 @@ func (r *remote) stream(ctx context.Context, msg raftpb.Message) (err error) {
 	// // err = stream.Send(&msg)
 
 	// _, err = stream.CloseAndRecv()
-	return
+	return st.Err()
 }
 
 func (r *remote) drain() error {
