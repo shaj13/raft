@@ -57,3 +57,8 @@ enum MemberType {
 message MessageRequest {
 	raftpb.Message message = 1;
 }
+
+// Pool specifies the the cluster pool members.
+message pool {
+	repeated Member members = 1 [(gogoproto.nullable) = false];
+}
