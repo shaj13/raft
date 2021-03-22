@@ -20,6 +20,8 @@ type Disk struct {
 }
 
 // SaveSnapshot saves a given snapshot into the WAL.
+// The raw snapshot must be saved into disk during the,
+// network transportation.
 func (d *Disk) SaveSnapshot(snap raftpb.Snapshot) error {
 	walSnap := walpb.Snapshot{
 		Index: snap.Metadata.Index,
@@ -39,7 +41,7 @@ func (d *Disk) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
 }
 
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
-// Otherwise, it create new wal from given metadata alongside snapshot dir.
+// Otherwise, it create new wal from given metadata alongside snapshots dir.
 func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *raftpb.Snapshot, error) {
 	// TODO: get zap looger from cfg
 	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *raftpb.Snapshot, error) {
