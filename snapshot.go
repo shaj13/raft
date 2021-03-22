@@ -62,7 +62,26 @@ func readNewestAvailableSnap(dir string, snaps []walpb.Snapshot) (*snapshotFile,
 	return readSnap(filepath.Join(dir, target))
 }
 
-func readSnap(path string) (s *snapshotFile, err error) {
+func readSnap(path string) (sf *snapshotFile, err error) {
+	sf = new(snapshotFile)
+	sf.Snap = new(raftpb.Snapshot)
+	sf.Pool = new(api.Pool)
+	sf.Data, err = readSnapByblocks(path, sf.Snap, sf.Pool)
+	return
+}
+
+func peekSnap(path string) (*raftpb.Snapshot, error) {
+	sf := new(snapshotFile)
+	sf.Snap = new(raftpb.Snapshot)
+	r, err := readSnapByblocks(path, sf.Snap)
+	if err != nil {
+		return nil, err
+	}
+	r.Close()
+	return sf.Snap, nil
+}
+
+func readSnapByblocks(path string, blocks ...proto.Message) (rc io.ReadCloser, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -79,15 +98,6 @@ func readSnap(path string) (s *snapshotFile, err error) {
 		}
 	}()
 
-	snapFile := new(snapshotFile)
-	snapFile.Snap = new(raftpb.Snapshot)
-	snapFile.Pool = new(api.Pool)
-	snapFile.Data = r
-	blocks := []proto.Message{
-		snapFile.Snap,
-		snapFile.Pool,
-	}
-
 	for _, b := range blocks {
 		data, err := r.ReadBytes(delim)
 		if err != nil {
@@ -101,7 +111,7 @@ func readSnap(path string) (s *snapshotFile, err error) {
 		}
 	}
 
-	return snapFile, nil
+	return r, nil
 }
 
 func writeSnap(path string, s *snapshotFile) (err error) {
