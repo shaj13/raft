@@ -3,7 +3,6 @@ package disk
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -114,86 +113,6 @@ func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *raf
 
 	d.wal = w
 	return meta, st, ents, snapshot, nil
-}
-
-// TODO: need to be run in standlalone go
-// TODO: extract all logic to GC struct
-func (d *Disk) clean() error {
-	// TODO: move to config
-	target := 3
-
-	files, err := list(d.snapdir, snapExt)
-	if err != nil || len(files) < target {
-		return err
-	}
-
-	// snapshots.
-	var (
-		current = files[0]
-		oldest  string
-	)
-
-	for i, f := range files {
-		if f != current && i >= target {
-			path := filepath.Join(d.snapdir, f)
-			if err := os.Remove(path); err != nil {
-				return err
-			}
-			continue
-		}
-		oldest = f
-	}
-
-	// oldest snapshot term and index.
-	var st, si uint64
-	_, err = fmt.Sscanf(oldest, format+snapExt, &st, &si)
-	if err != nil {
-		return err
-	}
-
-	files, err = list(d.waldir, walExt)
-	if err != nil {
-		return err
-	}
-
-	var (
-		mark int
-	)
-
-	for i, f := range files {
-		// wal sequence and index.
-		var ws, wi uint64
-		_, err = fmt.Sscanf(f, format+walExt, &ws, &wi)
-		if err != nil {
-			return err
-		}
-
-		if wi >= si {
-			mark = i
-		}
-	}
-
-	// if there only one wal then skip the cleaning
-	if mark < 1 {
-		return nil
-	}
-
-	for i := 0; i < mark; i++ {
-		path := filepath.Join(d.waldir, files[i])
-		lock, err := fileutil.TryLockFile(path, os.O_WRONLY, fileutil.PrivateFileMode)
-		if err != nil {
-			return err
-		}
-
-		err = os.Remove(path)
-		lock.Close()
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (d *Disk) Exist() bool {
