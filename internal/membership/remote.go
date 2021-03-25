@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/log"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -172,11 +173,11 @@ func (r *remote) run() {
 		case msg := <-r.msgc:
 			err := r.stream(r.ctx, msg)
 			if err != nil {
-				// r.cfg.logger.Errorf(
-				// 	"An error occurred while streaming the message to member %x, Err: %s",
-				// 	r.id,
-				// 	err,
-				// )
+				log.Errorf(
+					"raft/membership: An error occurred while streaming the message to member %x, Err: %s",
+					r.id,
+					err,
+				)
 			}
 			r.setStatus(err == nil)
 		case <-r.ctx.Done():
@@ -185,11 +186,11 @@ func (r *remote) run() {
 
 	}
 
-	// r.cfg.logger.Debug(
-	// 	"raft: Member %x context done, ctx.Err: %s",
-	// 	r.id,
-	// 	r.ctx.Err(),
-	// )
+	log.Debugf(
+		"raft/membership: Member %x context done, ctx.Err: %s",
+		r.id,
+		r.ctx.Err(),
+	)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -199,11 +200,11 @@ func (r *remote) run() {
 
 	// drain msgc and exit
 	if err := r.drain(); err != nil {
-		// r.cfg.logger.Warningf(
-		// 	"An error occurred while draining the member %x message queue, Err: %s",
-		// 	r.id,
-		// 	err,
-		// )
+		log.Warnf(
+			"raft/membership: An error occurred while draining the member %x message queue, Err: %s",
+			r.id,
+			err,
+		)
 	}
 
 	close(r.done)
