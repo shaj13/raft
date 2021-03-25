@@ -2,15 +2,17 @@ package membership
 
 import (
 	"context"
+	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type factory struct {
 	ctx          context.Context
-	cancel       context.CancelFunc
 	cfg          config
-	r            reporter
+	rep          reporter
+	dial         Dial
 	constructors map[api.MemberType]constructor
 }
 
@@ -36,6 +38,60 @@ func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool
 		return nil, false, nil
 	}
 
-	mem, err := c(f.ctx, f.r, f.cfg, id, addr)
+	mem, err := c(f.ctx, f.rep, f.cfg, f.dial, id, addr)
 	return mem, true, err
+}
+
+func newFactory(ctx context.Context, rep reporter, cfg config, dial Dial) *factory {
+	f := new(factory)
+	f.ctx = ctx
+	f.cfg = cfg
+	f.dial = dial
+	f.rep = rep
+	f.constructors = map[api.MemberType]constructor{
+		api.RemoteMember:  newRemote,
+		api.RemovedMember: newRemoved,
+		api.SelfMember:    newLocal,
+	}
+	return f
+}
+
+func newLocal(_ context.Context, r reporter, _ config, _ Dial, id uint64, addr string) (Member, error) {
+	return &local{
+		id:     id,
+		r:      r,
+		addr:   addr,
+		active: time.Now(),
+	}, nil
+}
+
+func newRemoved(_ context.Context, r reporter, _ config, _ Dial, id uint64, addr string) (Member, error) {
+	return removed{
+		id:   id,
+		addr: addr,
+	}, nil
+}
+
+func newRemote(ctx context.Context, r reporter, cfg config, dial Dial, id uint64, addr string) (Member, error) {
+	tr, err := dial(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	mem := new(remote)
+	mem.ctx, mem.cancel = context.WithCancel(ctx)
+	mem.tr = tr
+	mem.id = id
+	mem.addr = addr
+	mem.cfg = cfg
+	mem.r = r
+	mem.dial = dial
+	mem.msgc = make(chan raftpb.Message, 4096)
+	mem.done = make(chan struct{})
+	// assuming member is active.
+	mem.active = true
+	mem.activeSince = time.Now()
+	go mem.run()
+
+	return mem, nil
 }

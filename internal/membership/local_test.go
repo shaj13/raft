@@ -12,7 +12,7 @@ import (
 func TestLocal(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
-	l := Local{
+	l := local{
 		id:   id,
 		addr: addr,
 	}

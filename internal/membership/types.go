@@ -13,6 +13,7 @@ type constructor func(
 	ctx context.Context,
 	r reporter,
 	cfg config,
+	d Dial,
 	id uint64,
 	addr string,
 ) (Member, error)

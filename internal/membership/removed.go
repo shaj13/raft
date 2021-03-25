@@ -10,32 +10,32 @@ import (
 
 var ErrRemovedMember = errors.New("raft/membership: member was removed")
 
-// Removed represents the remote Removed cluster member.
-type Removed struct {
+// removed represents the remote removed cluster member.
+type removed struct {
 	id   uint64
 	addr string
 }
 
-func (r Removed) ID() uint64 {
+func (r removed) ID() uint64 {
 	return r.id
 }
 
-func (r Removed) Address() string {
+func (r removed) Address() string {
 	return r.addr
 }
 
-func (r Removed) Send(raftpb.Message) error {
+func (r removed) Send(raftpb.Message) error {
 	return ErrRemovedMember
 }
 
-func (r Removed) Type() api.MemberType {
+func (r removed) Type() api.MemberType {
 	return api.RemovedMember
 }
 
-func (r Removed) Update(string) error {
+func (r removed) Update(string) error {
 	return ErrRemovedMember
 }
 
-func (r Removed) Close()               {}
-func (r Removed) Since() (t time.Time) { return }
-func (r Removed) IsActive() (ok bool)  { return }
+func (r removed) Close()               {}
+func (r removed) Since() (t time.Time) { return }
+func (r removed) IsActive() (ok bool)  { return }

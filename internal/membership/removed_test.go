@@ -12,7 +12,7 @@ import (
 func TestRemoved(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
-	r := Removed{
+	r := removed{
 		id:   id,
 		addr: addr,
 	}
