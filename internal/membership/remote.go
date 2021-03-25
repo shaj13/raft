@@ -11,7 +11,7 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// remote represents the remote active cluster remote.
+// remote represents the remote cluster member.
 type remote struct {
 	id          uint64
 	r           reporter
@@ -38,10 +38,6 @@ func (r *remote) Send(msg raftpb.Message) (err error) {
 		}
 	}()
 
-	if err := r.ctx.Err(); err != nil {
-		return err
-	}
-
 	select {
 	case r.msgc <- msg:
 	case <-r.ctx.Done():
@@ -50,6 +46,7 @@ func (r *remote) Send(msg raftpb.Message) (err error) {
 		return fmt.Errorf("Cluster member %x, buffer is full (overloaded network)", r.id)
 
 	}
+	
 	return
 }
 
