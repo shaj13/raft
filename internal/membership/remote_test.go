@@ -101,6 +101,7 @@ func TestRemoteStream(t *testing.T) {
 	m.On("RoundTrip").Return(nil)
 	r := new(remote)
 	r.tr = m
+	r.cfg = testConfig
 	_ = r.stream(context.Background(), raftpb.Message{})
 	m.AssertCalled(t, "RoundTrip")
 }
@@ -180,6 +181,7 @@ func TestRemoteDrain(t *testing.T) {
 	r := new(remote)
 	r.msgc = make(chan raftpb.Message, 1)
 	r.tr = mt
+	r.cfg = testConfig
 	r.ctx = context.Background()
 
 	// Round #1 it return error when ctx done
@@ -203,6 +205,7 @@ func TestRemoteRun(t *testing.T) {
 	mr.On("ReportUnreachable", uint64(0)).Return()
 	r := new(remote)
 	r.r = mr
+	r.cfg = testConfig
 	r.tr = mt
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
@@ -233,38 +236,4 @@ func TestRemoteRun(t *testing.T) {
 
 	mt.AssertCalled(t, "Close")
 	assert.False(t, r.active)
-}
-
-func mockDial(m *mockTransport, err error) Dial {
-	return func(ctx context.Context, addr string) (Transport, error) {
-		return m, err
-	}
-}
-
-type mockTransport struct {
-	mock.Mock
-}
-
-func (m *mockTransport) RoundTrip(ctx context.Context, msg raftpb.Message) error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (m *mockTransport) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-type mockReporter struct {
-	mock.Mock
-}
-
-func (m *mockReporter) ReportUnreachable(id uint64) {
-	m.Called(id)
-}
-func (m *mockReporter) ReportShutdown(id uint64) {
-	m.Called(id)
-}
-func (m *mockReporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
-	m.Called(id, status)
 }

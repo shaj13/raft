@@ -9,6 +9,14 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+type constructor func(
+	ctx context.Context,
+	r reporter,
+	cfg config,
+	id uint64,
+	addr string,
+) (Member, error)
+
 type Dial func(ctx context.Context, addr string) (Transport, error)
 
 type Transport interface {
@@ -31,4 +39,9 @@ type reporter interface {
 	ReportUnreachable(id uint64)
 	ReportShutdown(id uint64)
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
+}
+
+type config interface {
+	StreamTimeout() time.Duration
+	DrainTimeout() time.Duration
 }

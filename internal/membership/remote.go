@@ -14,11 +14,12 @@ import (
 
 // remote represents the remote cluster member.
 type remote struct {
-	id          uint64
-	r           reporter
-	dial        Dial
 	ctx         context.Context
 	cancel      context.CancelFunc
+	id          uint64
+	r           reporter
+	cfg         config
+	dial        Dial
 	msgc        chan raftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
@@ -133,8 +134,7 @@ func (r *remote) transport() Transport {
 }
 
 func (r *remote) stream(ctx context.Context, msg raftpb.Message) error {
-	// ctx, cancel := context.WithTimeout(ctx, r.cfg.streamTimeOut)
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
 	defer cancel()
 	tr := r.transport()
 	err := tr.RoundTrip(ctx, msg)
@@ -143,8 +143,7 @@ func (r *remote) stream(ctx context.Context, msg raftpb.Message) error {
 }
 
 func (r *remote) drain() error {
-	// ctx, cancel := context.WithTimeout(context.Background(), r.cfg.drainTimeOut)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.DrainTimeout())
 	defer cancel()
 	for {
 		select {
