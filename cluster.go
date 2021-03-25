@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/membership"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type cluster struct {
-	pool      *pool
+	pool      *membership.Pool
 	processor *processor
 }
 
@@ -99,7 +100,7 @@ func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
 	}
 
 	m := &api.Member{
-		ID:      c.pool.nextID(),
+		ID:      c.pool.NextID(),
 		Address: addr,
 		Type:    api.RemoteMember,
 	}
@@ -109,17 +110,17 @@ func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
 		return nil, err
 	}
 
-	memb, _ := c.pool.get(m.ID)
+	memb, _ := c.pool.Get(m.ID)
 	return memb, nil
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {
-	return c.pool.get(id)
+	return c.pool.Get(id)
 }
 
 func (c *cluster) members(cond func(m Member) bool) []Member {
 	mems := []Member{}
-	for _, m := range c.pool.members() {
+	for _, m := range c.pool.Members() {
 		if cond(m) {
 			mems = append(mems, m)
 		}
@@ -129,14 +130,14 @@ func (c *cluster) members(cond func(m Member) bool) []Member {
 
 func (c *cluster) Members() []Member {
 	cond := func(m Member) bool {
-		return m.kind() != api.RemovedMember
+		return m.Type() != api.RemovedMember
 	}
 	return c.members(cond)
 }
 
 func (c *cluster) RemovedMembers() []Member {
 	cond := func(m Member) bool {
-		return m.kind() == api.RemovedMember
+		return m.Type() == api.RemovedMember
 	}
 	return c.members(cond)
 }
@@ -196,11 +197,11 @@ func (c *cluster) IsAvailable() bool {
 
 func (c *cluster) IsMemberRemoved(id uint64) bool {
 	m, _ := c.GetMemebr(id)
-	return m.kind() == api.RemovedMember
+	return m.Type() == api.RemovedMember
 }
 
 func (c *cluster) IsMember(id uint64) bool {
-	_, ok := c.pool.get(id)
+	_, ok := c.pool.Get(id)
 	return ok
 }
 

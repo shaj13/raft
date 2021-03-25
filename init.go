@@ -10,23 +10,6 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func initPool(ctx context.Context) {
-	r := registryFromCtx(ctx)
-	p := r.pool
-	p.cfg = r.config
-	p.factory = r.factory
-	p.membs = make(map[uint64]Member)
-}
-
-func initFactory(ctx context.Context) {
-	r := registryFromCtx(ctx)
-	f := r.factory
-	f.ctx, f.cancel = context.WithCancel(ctx)
-	f.reportc = r.reportc
-	f.cfg = r.config
-	f.constructors = r.mcons
-}
-
 func initProcessor(ctx context.Context) {
 	r := registryFromCtx(ctx)
 	p := r.processor

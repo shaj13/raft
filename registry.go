@@ -2,12 +2,11 @@ package raft
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
-	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/membership"
 	"go.etcd.io/etcd/raft/v3"
 	"google.golang.org/grpc"
 )
@@ -16,11 +15,9 @@ type registryKey struct{}
 
 type registry struct {
 	processor     *processor
-	pool          *pool
-	factory       *factory
+	pool          *membership.Pool
 	config        *config
 	reportc       chan report
-	mcons         membersConstructors
 	memoryStorage *raft.MemoryStorage
 	snapshoter    Snapshoter
 	msgbus        *msgbus
@@ -32,16 +29,10 @@ func (r *registry) init() *registry {
 	// TODO: some of this need to have a stand alone init -- e.g
 	// NewMemoryStorage should be init by taking some data from disk
 	r.processor = new(processor)
-	r.pool = new(pool)
-	r.factory = new(factory)
+	r.pool = membership.New(context.Background(), reporter{}, defaultConfig(), dial)
 	r.config = defaultConfig()
 	r.reportc = make(chan report)
 	r.cluster = new(cluster)
-	r.mcons = membersConstructors{
-		api.RemoteMember:  newRemote,
-		api.RemovedMember: newRemoved,
-		api.SelfMember:    newSelf,
-	}
 	r.memoryStorage = raft.NewMemoryStorage()
 	r.snapshoter = new(disk)
 	r.msgbus = new(msgbus)
@@ -58,8 +49,8 @@ func registryFromCtx(ctx context.Context) *registry {
 }
 
 func New() {
-	join()
-	// firstrun()
+	// join()
+	firstrun()
 }
 
 func firstrun() {
@@ -67,8 +58,6 @@ func firstrun() {
 	ctx := ctxWithRegistry(context.Background(), r)
 	inits := []func(context.Context){
 		initMsgBus,
-		initFactory,
-		initPool,
 		initProcessor,
 		initCluster,
 		initServer,
@@ -82,16 +71,6 @@ func firstrun() {
 	go func() {
 		if err := r.processor.run(ctx, "", ":50051"); err != nil {
 			panic(err)
-		}
-	}()
-
-	go func() {
-		for {
-			fmt.Println("IN LOOP")
-			time.Sleep(time.Second)
-			for _, m := range r.pool.members() {
-				fmt.Println(m.ID(), m.Address())
-			}
 		}
 	}()
 
@@ -113,8 +92,6 @@ func join() {
 	ctx := ctxWithRegistry(context.Background(), r)
 	inits := []func(context.Context){
 		initMsgBus,
-		initFactory,
-		initPool,
 		initProcessor,
 		initCluster,
 		initServer,

@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/membership"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -13,7 +14,7 @@ type server struct {
 	api.UnimplementedRaftServer
 	cfg       *config
 	processor *processor
-	pool      *pool
+	pool      *membership.Pool
 	cluster   *cluster
 }
 
@@ -95,7 +96,7 @@ func (s *server) Join(ctx context.Context, m *api.Member) (*api.JoinResponse, er
 	s.cfg.logger.Infof("raft: A new memebr joined %x", memb.ID())
 	resp := &api.JoinResponse{}
 	resp.ID = memb.ID()
-	resp.Pool = s.pool.snapshot()
+	resp.Pool = s.pool.Snapshot()
 
 	//
 	for i, m := range resp.Pool {

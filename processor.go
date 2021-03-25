@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/membership"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -52,7 +53,7 @@ type processor struct {
 	propc        chan raftpb.Message
 	recvc        chan raftpb.Message
 	idgen        *idutil.Generator
-	pool         *pool
+	pool         *membership.Pool
 	cState       raftpb.ConfState
 	started      *atomicBool
 	snapIndex    uint64
@@ -214,7 +215,7 @@ func (p *processor) eventLoop() error {
 			p.node.Advance()
 
 			p.campaignOnce.Do(func() {
-				p.node.Campaign(p.ctx)
+				// p.node.Campaign(p.ctx)
 			})
 
 		case <-p.ctx.Done():
@@ -250,7 +251,8 @@ func (p *processor) publishSnapshot(snap raftpb.Snapshot) error {
 		return err
 	}
 
-	p.pool.recover(s.Pool)
+	// TODO: FIXME
+	// p.pool.Restore(s.Pool)
 
 	// TODO: trigger original user to load snapshot
 
@@ -354,14 +356,13 @@ func (p *processor) publishConfChange(ent raftpb.Entry) {
 	// TODO: need to check that removed added etc is not the current node
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
-		err = p.pool.add(*mem)
+		err = p.pool.Add(*mem)
 	case raftpb.ConfChangeUpdateNode:
-		err = p.pool.update(*mem)
+		err = p.pool.Update(*mem)
 	case raftpb.ConfChangeRemoveNode:
-		err = p.pool.remove(*mem)
+		err = p.pool.Remove(*mem)
 	}
 
-	fmt.Println("adding new meme", mem.Address)
 	p.cState = *p.node.ApplyConfChange(cc)
 }
 
@@ -411,13 +412,13 @@ func (p *processor) send(msgs []raftpb.Message) {
 	p.cfg.logger.Debug("raft: Sending messages to raft cluster members")
 
 	for _, m := range msgs {
-		mem, ok := p.pool.get(m.To)
+		mem, ok := p.pool.Get(m.To)
 		if !ok {
 			log(m, "unknown member")
 			continue
 		}
 
-		if err := mem.send(m); err != nil {
+		if err := mem.Send(m); err != nil {
 			log(m, err.Error())
 		}
 	}

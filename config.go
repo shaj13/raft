@@ -18,6 +18,14 @@ type config struct {
 	snapInterval      uint64
 }
 
+func (c *config) StreamTimeout() time.Duration {
+	return c.streamTimeOut
+}
+
+func (c *config) DrainTimeout() time.Duration {
+	return c.drainTimeOut
+}
+
 func defaultConfig() *config {
 	return &config{
 		logger:        &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)},
