@@ -46,7 +46,7 @@ func (r *remote) Send(msg raftpb.Message) (err error) {
 		return fmt.Errorf("Cluster member %x, buffer is full (overloaded network)", r.id)
 
 	}
-	
+
 	return
 }
 
