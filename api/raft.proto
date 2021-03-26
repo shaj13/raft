@@ -2,24 +2,23 @@ syntax = "proto3";
 
 package api;
 
-import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
 import "gogoproto/gogo.proto";
+import "google/protobuf/empty.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
 
 // Raft defines the RPC communication between raft nodes.
 service Raft {
-  rpc Message (stream Chunk) returns (StreamResponse) {}
-  rpc StreamMessage (MessageRequest) returns (StreamResponse) {}
-  rpc Join (Member) returns (JoinResponse) {}
+  rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
+  rpc Join (Member) returns (stream JoinResponse) {}
 }
 
-// TODO: replace with google empty 
-message StreamResponse {}
-
 message JoinResponse {
-	// ID specifies the ID assigned to the new member.
-	uint64 id = 1 [(gogoproto.customname) = "ID" ];
-	// Pool specifies the the cluster pool members.
-	repeated Member pool = 2 [(gogoproto.nullable) = false];
+	Member member = 1 [(gogoproto.nullable) = false];
 }
 
 message Member {
@@ -38,25 +37,14 @@ message Replicate {
 	bytes  data  = 2;
 }
 
-message Snapshot {
-	// Pool specifies the the cluster pool members.
-	repeated Member pool = 1 [(gogoproto.nullable) = false];
-	// Data specifies the raw replicate data.
-	bytes  data  = 2 ;
-}
 
 enum MemberType {
-	option (gogoproto.goproto_enum_prefix) = false;
 	option (gogoproto.enum_customname) = "MemberType";
-	Remote = 0 [(gogoproto.enumvalue_customname) = "RemoteMember"];
-	Removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
-	Self = 2 [(gogoproto.enumvalue_customname) = "SelfMember"];
+	remote = 0 [(gogoproto.enumvalue_customname) = "RemoteMember"];
+	removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
+	local = 2 [(gogoproto.enumvalue_customname) = "LocalMember"];
 }
 
-// Workaround
-message MessageRequest {
-	raftpb.Message message = 1;
-}
 
 // Pool specifies the the cluster pool members.
 message Pool {

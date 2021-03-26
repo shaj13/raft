@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/gogo/protobuf v1.3.1
+	github.com/golang/protobuf v1.4.2
 	github.com/stretchr/testify v1.5.1
 	go.etcd.io/etcd/pkg/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/raft/v3 v3.5.0-alpha.0

@@ -25,7 +25,7 @@ func TestPoolNextID(t *testing.T) {
 }
 
 func TestPoolUpdate(t *testing.T) {
-	m := &api.Member{ID: 1, Type: api.SelfMember}
+	m := &api.Member{ID: 1, Type: api.LocalMember}
 	p := newTestPool()
 	p.Add(*m)
 	m.Address = "5050"
@@ -48,7 +48,7 @@ func TestPoolRestore(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		m := api.Member{ID: uint64(i), Type: api.SelfMember}
+		m := api.Member{ID: uint64(i), Type: api.LocalMember}
 		ids[uint64(i)] = struct{}{}
 		pool.Members = append(pool.Members, m)
 	}
@@ -65,13 +65,13 @@ func TestPoolRestore(t *testing.T) {
 
 func TestPoolSnapshot(t *testing.T) {
 	p := newTestPool()
-	p.Add(api.Member{ID: p.NextID(), Type: api.SelfMember})
+	p.Add(api.Member{ID: p.NextID(), Type: api.LocalMember})
 	membs := p.Snapshot()
 	assert.Equal(t, len(p.Members()), len(membs))
 }
 
 func TestPoolRemove(t *testing.T) {
-	m := &api.Member{ID: 1, Type: api.SelfMember}
+	m := &api.Member{ID: 1, Type: api.LocalMember}
 
 	r := &mockReporter{mock.Mock{}}
 	r.On("ReportShutdown", m.ID).Return()

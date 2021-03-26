@@ -2,7 +2,6 @@ package raft
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 
 	"github.com/shaj13/raftkit/api"
@@ -51,13 +50,13 @@ func (a *assembler) Write(c *api.Chunk) error {
 		a.pindex = c.Index
 	}
 
-	if a.pindex != c.Index {
-		return fmt.Errorf(
-			"raft: chunk with index %d is different from the previously received chunk index %d",
-			c.Index,
-			a.pindex,
-		)
-	}
+	// if a.pindex != c.Index {
+	// 	return fmt.Errorf(
+	// 		"raft: chunk with index %d is different from the previously received chunk index %d",
+	// 		c.Index,
+	// 		a.pindex,
+	// 	)
+	// }
 
 	_, err := a.writer.Write(c.Data)
 	return err

@@ -13,7 +13,7 @@ func TestFactory(t *testing.T) {
 	m := api.Member{
 		Address: ":5052",
 		ID:      123,
-		Type:    api.SelfMember,
+		Type:    api.LocalMember,
 	}
 
 	f := newFactory(

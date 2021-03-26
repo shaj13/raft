@@ -29,9 +29,9 @@ func (r *registry) init() *registry {
 	// TODO: some of this need to have a stand alone init -- e.g
 	// NewMemoryStorage should be init by taking some data from disk
 	r.processor = new(processor)
-	r.pool = membership.New(context.Background(), reporter{}, defaultConfig(), dial)
-	r.config = defaultConfig()
 	r.reportc = make(chan report)
+	r.pool = membership.New(context.Background(), reporter{reprotc: r.reportc}, defaultConfig(), dial)
+	r.config = defaultConfig()
 	r.cluster = new(cluster)
 	r.memoryStorage = raft.NewMemoryStorage()
 	r.snapshoter = new(disk)

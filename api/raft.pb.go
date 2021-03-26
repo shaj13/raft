@@ -8,7 +8,7 @@ import (
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
-	raftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -33,19 +33,19 @@ type MemberType int32
 const (
 	RemoteMember  MemberType = 0
 	RemovedMember MemberType = 1
-	SelfMember    MemberType = 2
+	LocalMember   MemberType = 2
 )
 
 var MemberType_name = map[int32]string{
-	0: "Remote",
-	1: "Removed",
-	2: "Self",
+	0: "remote",
+	1: "removed",
+	2: "local",
 }
 
 var MemberType_value = map[string]int32{
-	"Remote":  0,
-	"Removed": 1,
-	"Self":    2,
+	"remote":  0,
+	"removed": 1,
+	"local":   2,
 }
 
 func (x MemberType) String() string {
@@ -56,51 +56,8 @@ func (MemberType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_3329ba78d5c9dd95, []int{0}
 }
 
-// TODO: replace with google empty
-type StreamResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StreamResponse) Reset()         { *m = StreamResponse{} }
-func (m *StreamResponse) String() string { return proto.CompactTextString(m) }
-func (*StreamResponse) ProtoMessage()    {}
-func (*StreamResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{0}
-}
-func (m *StreamResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *StreamResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_StreamResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *StreamResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StreamResponse.Merge(m, src)
-}
-func (m *StreamResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *StreamResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_StreamResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StreamResponse proto.InternalMessageInfo
-
 type JoinResponse struct {
-	// ID specifies the ID assigned to the new member.
-	ID uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Pool specifies the the cluster pool members.
-	Pool                 []Member `protobuf:"bytes,2,rep,name=pool,proto3" json:"pool"`
+	Member               Member   `protobuf:"bytes,1,opt,name=member,proto3" json:"member"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -110,7 +67,7 @@ func (m *JoinResponse) Reset()         { *m = JoinResponse{} }
 func (m *JoinResponse) String() string { return proto.CompactTextString(m) }
 func (*JoinResponse) ProtoMessage()    {}
 func (*JoinResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{1}
+	return fileDescriptor_3329ba78d5c9dd95, []int{0}
 }
 func (m *JoinResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -139,20 +96,6 @@ func (m *JoinResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_JoinResponse proto.InternalMessageInfo
 
-func (m *JoinResponse) GetID() uint64 {
-	if m != nil {
-		return m.ID
-	}
-	return 0
-}
-
-func (m *JoinResponse) GetPool() []Member {
-	if m != nil {
-		return m.Pool
-	}
-	return nil
-}
-
 type Member struct {
 	// ID specifies the cluster memeber id.
 	ID uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -168,7 +111,7 @@ func (m *Member) Reset()         { *m = Member{} }
 func (m *Member) String() string { return proto.CompactTextString(m) }
 func (*Member) ProtoMessage()    {}
 func (*Member) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{2}
+	return fileDescriptor_3329ba78d5c9dd95, []int{1}
 }
 func (m *Member) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -197,27 +140,6 @@ func (m *Member) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Member proto.InternalMessageInfo
 
-func (m *Member) GetID() uint64 {
-	if m != nil {
-		return m.ID
-	}
-	return 0
-}
-
-func (m *Member) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-func (m *Member) GetType() MemberType {
-	if m != nil {
-		return m.Type
-	}
-	return RemoteMember
-}
-
 type Replicate struct {
 	// CID specifies the transaction change id.
 	CID uint64 `protobuf:"varint,1,opt,name=cid,proto3" json:"cid,omitempty"`
@@ -232,7 +154,7 @@ func (m *Replicate) Reset()         { *m = Replicate{} }
 func (m *Replicate) String() string { return proto.CompactTextString(m) }
 func (*Replicate) ProtoMessage()    {}
 func (*Replicate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{3}
+	return fileDescriptor_3329ba78d5c9dd95, []int{2}
 }
 func (m *Replicate) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -261,125 +183,6 @@ func (m *Replicate) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Replicate proto.InternalMessageInfo
 
-func (m *Replicate) GetCID() uint64 {
-	if m != nil {
-		return m.CID
-	}
-	return 0
-}
-
-func (m *Replicate) GetData() []byte {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
-
-type Snapshot struct {
-	// Pool specifies the the cluster pool members.
-	Pool []Member `protobuf:"bytes,1,rep,name=pool,proto3" json:"pool"`
-	// Data specifies the raw replicate data.
-	Data                 []byte   `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Snapshot) Reset()         { *m = Snapshot{} }
-func (m *Snapshot) String() string { return proto.CompactTextString(m) }
-func (*Snapshot) ProtoMessage()    {}
-func (*Snapshot) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{4}
-}
-func (m *Snapshot) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Snapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_Snapshot.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *Snapshot) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Snapshot.Merge(m, src)
-}
-func (m *Snapshot) XXX_Size() int {
-	return m.Size()
-}
-func (m *Snapshot) XXX_DiscardUnknown() {
-	xxx_messageInfo_Snapshot.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Snapshot proto.InternalMessageInfo
-
-func (m *Snapshot) GetPool() []Member {
-	if m != nil {
-		return m.Pool
-	}
-	return nil
-}
-
-func (m *Snapshot) GetData() []byte {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
-
-// Workaround
-type MessageRequest struct {
-	Message              *raftpb.Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
-}
-
-func (m *MessageRequest) Reset()         { *m = MessageRequest{} }
-func (m *MessageRequest) String() string { return proto.CompactTextString(m) }
-func (*MessageRequest) ProtoMessage()    {}
-func (*MessageRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{5}
-}
-func (m *MessageRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_MessageRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *MessageRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MessageRequest.Merge(m, src)
-}
-func (m *MessageRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *MessageRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_MessageRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MessageRequest proto.InternalMessageInfo
-
-func (m *MessageRequest) GetMessage() *raftpb.Message {
-	if m != nil {
-		return m.Message
-	}
-	return nil
-}
-
 // Pool specifies the the cluster pool members.
 type Pool struct {
 	Members              []Member `protobuf:"bytes,1,rep,name=members,proto3" json:"members"`
@@ -392,7 +195,7 @@ func (m *Pool) Reset()         { *m = Pool{} }
 func (m *Pool) String() string { return proto.CompactTextString(m) }
 func (*Pool) ProtoMessage()    {}
 func (*Pool) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{6}
+	return fileDescriptor_3329ba78d5c9dd95, []int{3}
 }
 func (m *Pool) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -421,13 +224,6 @@ func (m *Pool) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Pool proto.InternalMessageInfo
 
-func (m *Pool) GetMembers() []Member {
-	if m != nil {
-		return m.Members
-	}
-	return nil
-}
-
 type Chunk struct {
 	// Index specifies the chunk index.
 	Index uint64 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
@@ -442,7 +238,7 @@ func (m *Chunk) Reset()         { *m = Chunk{} }
 func (m *Chunk) String() string { return proto.CompactTextString(m) }
 func (*Chunk) ProtoMessage()    {}
 func (*Chunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{7}
+	return fileDescriptor_3329ba78d5c9dd95, []int{4}
 }
 func (m *Chunk) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -471,20 +267,6 @@ func (m *Chunk) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Chunk proto.InternalMessageInfo
 
-func (m *Chunk) GetIndex() uint64 {
-	if m != nil {
-		return m.Index
-	}
-	return 0
-}
-
-func (m *Chunk) GetData() []byte {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
-
 type SnapshotHeader struct {
 	// CRC specifies the snapshot crc sum.
 	CRC                  []byte   `protobuf:"bytes,1,opt,name=CRC,proto3" json:"CRC,omitempty"`
@@ -497,7 +279,7 @@ func (m *SnapshotHeader) Reset()         { *m = SnapshotHeader{} }
 func (m *SnapshotHeader) String() string { return proto.CompactTextString(m) }
 func (*SnapshotHeader) ProtoMessage()    {}
 func (*SnapshotHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3329ba78d5c9dd95, []int{8}
+	return fileDescriptor_3329ba78d5c9dd95, []int{5}
 }
 func (m *SnapshotHeader) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -526,21 +308,11 @@ func (m *SnapshotHeader) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SnapshotHeader proto.InternalMessageInfo
 
-func (m *SnapshotHeader) GetCRC() []byte {
-	if m != nil {
-		return m.CRC
-	}
-	return nil
-}
-
 func init() {
 	proto.RegisterEnum("api.MemberType", MemberType_name, MemberType_value)
-	proto.RegisterType((*StreamResponse)(nil), "api.StreamResponse")
 	proto.RegisterType((*JoinResponse)(nil), "api.JoinResponse")
 	proto.RegisterType((*Member)(nil), "api.Member")
 	proto.RegisterType((*Replicate)(nil), "api.Replicate")
-	proto.RegisterType((*Snapshot)(nil), "api.Snapshot")
-	proto.RegisterType((*MessageRequest)(nil), "api.MessageRequest")
 	proto.RegisterType((*Pool)(nil), "api.Pool")
 	proto.RegisterType((*Chunk)(nil), "api.Chunk")
 	proto.RegisterType((*SnapshotHeader)(nil), "api.SnapshotHeader")
@@ -549,41 +321,37 @@ func init() {
 func init() { proto.RegisterFile("api/raft.proto", fileDescriptor_3329ba78d5c9dd95) }
 
 var fileDescriptor_3329ba78d5c9dd95 = []byte{
-	// 529 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x53, 0x5d, 0x6e, 0xd3, 0x40,
-	0x10, 0x8e, 0x7f, 0x9a, 0xd0, 0x49, 0xea, 0xba, 0xdb, 0x0a, 0x05, 0x0b, 0x39, 0x96, 0x11, 0x92,
-	0x0b, 0x92, 0x23, 0xd2, 0x37, 0xfa, 0x44, 0x52, 0x24, 0x8a, 0x14, 0x09, 0x6d, 0xb8, 0xc0, 0x26,
-	0x9e, 0xa4, 0x16, 0x49, 0x76, 0xb1, 0xb7, 0x55, 0x7b, 0x03, 0x94, 0x3b, 0xe4, 0x09, 0x4e, 0xc1,
-	0x09, 0xfa, 0xc8, 0x09, 0x22, 0xe4, 0x93, 0x20, 0xaf, 0xe3, 0x62, 0xa1, 0x86, 0xa7, 0xfd, 0xbe,
-	0xf9, 0x66, 0x76, 0xfe, 0x76, 0xc1, 0x62, 0x22, 0xee, 0x26, 0x6c, 0x2a, 0x43, 0x91, 0x70, 0xc9,
-	0x89, 0xc1, 0x44, 0xec, 0x9c, 0xce, 0x78, 0x88, 0x72, 0x12, 0x85, 0x31, 0xef, 0xe6, 0xa7, 0x72,
-	0xe8, 0xde, 0x9c, 0xa9, 0x53, 0x8c, 0x2b, 0xfe, 0xce, 0xc9, 0x8c, 0xcf, 0xb8, 0x82, 0xdd, 0x1c,
-	0x15, 0x56, 0xdf, 0x06, 0x6b, 0x24, 0x13, 0x64, 0x0b, 0x8a, 0xa9, 0xe0, 0xcb, 0x14, 0xfd, 0x21,
-	0xb4, 0x3e, 0xf2, 0x78, 0x59, 0x72, 0xf2, 0x14, 0xf4, 0x38, 0x6a, 0x6b, 0x9e, 0x16, 0x98, 0xfd,
-	0x7a, 0xb6, 0xe9, 0xe8, 0x97, 0x17, 0x54, 0x8f, 0x23, 0xf2, 0x12, 0x4c, 0xc1, 0xf9, 0xbc, 0xad,
-	0x7b, 0x46, 0xd0, 0xec, 0x35, 0x43, 0x26, 0xe2, 0x70, 0x88, 0x8b, 0x31, 0x26, 0x7d, 0xf3, 0x7e,
-	0xd3, 0xa9, 0x51, 0x25, 0xfb, 0x53, 0xa8, 0x17, 0xd6, 0x9d, 0x17, 0x75, 0xc0, 0x64, 0x51, 0x94,
-	0xb4, 0x75, 0x4f, 0x0b, 0xf6, 0xfb, 0xcd, 0x6c, 0xd3, 0x69, 0xbc, 0x8b, 0xa2, 0x04, 0xd3, 0x94,
-	0x2a, 0x81, 0xbc, 0x00, 0x53, 0xde, 0x09, 0x6c, 0x1b, 0x9e, 0x16, 0x58, 0xbd, 0xc3, 0x4a, 0xa6,
-	0xcf, 0x77, 0x02, 0xa9, 0x12, 0xfd, 0xb7, 0xb0, 0x4f, 0x51, 0xcc, 0xe3, 0x09, 0x93, 0x48, 0x9e,
-	0x81, 0x31, 0x79, 0xc8, 0xd5, 0xc8, 0x36, 0x1d, 0x63, 0x70, 0x79, 0x41, 0x73, 0x1b, 0x21, 0x60,
-	0x46, 0x4c, 0x32, 0x95, 0xad, 0x45, 0x15, 0xf6, 0xdf, 0xc3, 0x93, 0xd1, 0x92, 0x89, 0xf4, 0x8a,
-	0xcb, 0x87, 0xb6, 0xb4, 0xff, 0xb6, 0xf5, 0xe8, 0x35, 0xe7, 0x60, 0x0d, 0x31, 0x4d, 0xd9, 0x0c,
-	0x29, 0x7e, 0xbd, 0xc6, 0x54, 0x92, 0x53, 0x68, 0x2c, 0x0a, 0x8b, 0xaa, 0xa5, 0xd9, 0x3b, 0x0c,
-	0x8b, 0xc5, 0x84, 0xa5, 0x63, 0xa9, 0xfb, 0x67, 0x60, 0x7e, 0xca, 0x2f, 0x7e, 0x9d, 0x87, 0xe4,
-	0xe9, 0xd2, 0xdd, 0x25, 0x94, 0x1e, 0xfe, 0x1b, 0xd8, 0x1b, 0x5c, 0x5d, 0x2f, 0xbf, 0x90, 0x13,
-	0xd8, 0x8b, 0x97, 0x11, 0xde, 0x16, 0x2d, 0xd3, 0x82, 0x3c, 0x5a, 0xa4, 0x0f, 0x56, 0xd9, 0xeb,
-	0x07, 0x64, 0x11, 0x26, 0xc4, 0x06, 0x63, 0x40, 0x07, 0x2a, 0xb2, 0x45, 0x73, 0xf8, 0xea, 0x16,
-	0xe0, 0xef, 0x7c, 0xc9, 0x73, 0xa8, 0x53, 0x5c, 0x70, 0x89, 0x76, 0xcd, 0xb1, 0x57, 0x6b, 0xaf,
-	0x55, 0xb0, 0xed, 0x56, 0x5d, 0x68, 0xe4, 0xfc, 0x06, 0x23, 0x5b, 0x73, 0x8e, 0x56, 0x6b, 0xef,
-	0x60, 0x4b, 0xb7, 0x7a, 0x1b, 0xcc, 0x11, 0xce, 0xa7, 0xb6, 0xee, 0x58, 0xab, 0xb5, 0x07, 0x39,
-	0x2e, 0x14, 0x87, 0x7c, 0xfb, 0xee, 0xd6, 0x7e, 0xfe, 0x70, 0x2b, 0xb9, 0x7a, 0x6b, 0x0d, 0x4c,
-	0xca, 0xa6, 0x92, 0x84, 0xd0, 0xd8, 0x8e, 0x88, 0x80, 0x1a, 0x80, 0xea, 0xd3, 0x39, 0x56, 0xf8,
-	0x9f, 0x17, 0x5b, 0x0b, 0x34, 0x72, 0x0e, 0x07, 0x85, 0xb5, 0x8c, 0x3a, 0xde, 0x8e, 0xad, 0xba,
-	0x8f, 0x1d, 0xe1, 0x24, 0x00, 0x33, 0x7f, 0xf2, 0xa4, 0x3a, 0x6a, 0xe7, 0x48, 0x91, 0xea, 0x57,
-	0xf0, 0x6b, 0xfd, 0xd6, 0x7d, 0xe6, 0x6a, 0xbf, 0x32, 0x57, 0xfb, 0x9d, 0xb9, 0xda, 0xb8, 0xae,
-	0xfe, 0xd0, 0xd9, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x1b, 0x2b, 0xa0, 0x79, 0x9b, 0x03, 0x00,
-	0x00,
+	// 470 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x52, 0x41, 0x6e, 0xd3, 0x40,
+	0x14, 0xf5, 0xc4, 0x4e, 0xa2, 0xfe, 0x84, 0xd4, 0x1d, 0x45, 0x55, 0x30, 0xc8, 0xb6, 0xcc, 0x26,
+	0x14, 0xc9, 0xa1, 0xe9, 0x0a, 0x76, 0x24, 0x45, 0xa2, 0x88, 0x4a, 0x68, 0xe0, 0x02, 0x93, 0xcc,
+	0x8f, 0x6b, 0xe1, 0x78, 0x46, 0xb6, 0x5b, 0x91, 0x2b, 0xe4, 0x0e, 0xd9, 0x71, 0x0a, 0x4e, 0x90,
+	0x65, 0x4f, 0x10, 0x51, 0x9f, 0x04, 0x79, 0x9c, 0x42, 0x16, 0xdd, 0xfd, 0xf7, 0xdf, 0xff, 0xf3,
+	0xe6, 0x7d, 0x3d, 0xe8, 0x71, 0x15, 0x8f, 0x32, 0xbe, 0x28, 0x42, 0x95, 0xc9, 0x42, 0x52, 0x93,
+	0xab, 0xd8, 0xe9, 0x47, 0x32, 0x92, 0x1a, 0x8f, 0xaa, 0xaa, 0xa6, 0x9c, 0x17, 0x91, 0x94, 0x51,
+	0x82, 0x23, 0x8d, 0x66, 0xb7, 0x8b, 0x11, 0x2e, 0x55, 0xb1, 0xaa, 0xc9, 0xe0, 0x1d, 0x74, 0x3f,
+	0xcb, 0x38, 0x65, 0x98, 0x2b, 0x99, 0xe6, 0x48, 0x5f, 0x43, 0x6b, 0x89, 0xcb, 0x19, 0x66, 0x03,
+	0xe2, 0x93, 0x61, 0x67, 0xdc, 0x09, 0xb9, 0x8a, 0xc3, 0x6b, 0xdd, 0x9a, 0x58, 0xdb, 0x9d, 0x67,
+	0xb0, 0xfd, 0x40, 0xb0, 0x80, 0x56, 0xdd, 0xa7, 0xa7, 0xd0, 0x88, 0x85, 0x5e, 0xb0, 0x26, 0xad,
+	0x72, 0xe7, 0x35, 0xae, 0x2e, 0x59, 0x23, 0x16, 0xd4, 0x03, 0x8b, 0x0b, 0x91, 0x0d, 0x1a, 0x3e,
+	0x19, 0x1e, 0x4d, 0x3a, 0xe5, 0xce, 0x6b, 0x7f, 0x10, 0x22, 0xc3, 0x3c, 0x67, 0x9a, 0xa0, 0xaf,
+	0xc0, 0x2a, 0x56, 0x0a, 0x07, 0xa6, 0x4f, 0x86, 0xbd, 0xf1, 0xf1, 0x81, 0xd6, 0xf7, 0x95, 0x42,
+	0xa6, 0xc9, 0xe0, 0x3d, 0x1c, 0x31, 0x54, 0x49, 0x3c, 0xe7, 0x05, 0xd2, 0xe7, 0x60, 0xce, 0xff,
+	0x69, 0xb5, 0xcb, 0x9d, 0x67, 0x4e, 0xaf, 0x2e, 0x59, 0xd5, 0xa3, 0x14, 0x2c, 0xc1, 0x0b, 0xae,
+	0xd5, 0xba, 0x4c, 0xd7, 0xc1, 0x05, 0x58, 0x5f, 0xa5, 0x4c, 0xe8, 0x1b, 0x68, 0xd7, 0xbf, 0xce,
+	0x07, 0xc4, 0x37, 0x9f, 0xf6, 0xf5, 0x38, 0x11, 0x9c, 0x43, 0x73, 0x7a, 0x73, 0x9b, 0xfe, 0xa0,
+	0x7d, 0x68, 0xc6, 0xa9, 0xc0, 0x9f, 0xb5, 0x1c, 0xab, 0xc1, 0x93, 0x3a, 0x01, 0xf4, 0xbe, 0xa5,
+	0x5c, 0xe5, 0x37, 0xb2, 0xf8, 0x84, 0x5c, 0x60, 0x46, 0x6d, 0x30, 0xa7, 0x6c, 0xaa, 0x37, 0xbb,
+	0xac, 0x2a, 0xcf, 0xee, 0x00, 0xfe, 0x7b, 0xa3, 0x2f, 0xa1, 0x95, 0xe1, 0x52, 0x16, 0x68, 0x1b,
+	0x8e, 0xbd, 0xde, 0xf8, 0x5d, 0xa6, 0xd1, 0xfe, 0xa2, 0x2e, 0xb4, 0x2b, 0xf6, 0x0e, 0x85, 0x4d,
+	0x9c, 0x93, 0xf5, 0xc6, 0x7f, 0xc6, 0x6a, 0xb8, 0xe7, 0x1d, 0x68, 0x26, 0x72, 0xce, 0x13, 0xbb,
+	0xe1, 0x1c, 0xaf, 0x37, 0x7e, 0xe7, 0x4b, 0x05, 0x6a, 0xce, 0xe9, 0xfd, 0xfe, 0xe5, 0x1e, 0x28,
+	0x8d, 0x11, 0x2c, 0xc6, 0x17, 0x05, 0x3d, 0x87, 0xf6, 0x35, 0xe6, 0x39, 0x8f, 0x90, 0x82, 0x76,
+	0xaf, 0x4d, 0x3a, 0xa7, 0x61, 0x9d, 0x8f, 0xf0, 0x31, 0x1f, 0xe1, 0xc7, 0x2a, 0x1f, 0x81, 0x31,
+	0x24, 0xf4, 0x0c, 0xac, 0x2a, 0x1d, 0xf4, 0xf0, 0x5a, 0xce, 0x89, 0x06, 0x87, 0xa9, 0x09, 0x8c,
+	0xb7, 0x64, 0xd2, 0xdf, 0x3e, 0xb8, 0xc6, 0xfd, 0x83, 0x6b, 0x6c, 0x4b, 0x97, 0xdc, 0x97, 0x2e,
+	0xf9, 0x53, 0xba, 0x64, 0xd6, 0xd2, 0xaf, 0x5e, 0xfc, 0x0d, 0x00, 0x00, 0xff, 0xff, 0xe9, 0xba,
+	0x49, 0xf8, 0xb0, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -599,8 +367,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RaftClient interface {
 	Message(ctx context.Context, opts ...grpc.CallOption) (Raft_MessageClient, error)
-	StreamMessage(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*StreamResponse, error)
-	Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (*JoinResponse, error)
+	Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (Raft_JoinClient, error)
 }
 
 type raftClient struct {
@@ -622,7 +389,7 @@ func (c *raftClient) Message(ctx context.Context, opts ...grpc.CallOption) (Raft
 
 type Raft_MessageClient interface {
 	Send(*Chunk) error
-	CloseAndRecv() (*StreamResponse, error)
+	CloseAndRecv() (*empty.Empty, error)
 	grpc.ClientStream
 }
 
@@ -634,40 +401,53 @@ func (x *raftMessageClient) Send(m *Chunk) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *raftMessageClient) CloseAndRecv() (*StreamResponse, error) {
+func (x *raftMessageClient) CloseAndRecv() (*empty.Empty, error) {
 	if err := x.ClientStream.CloseSend(); err != nil {
 		return nil, err
 	}
-	m := new(StreamResponse)
+	m := new(empty.Empty)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (c *raftClient) StreamMessage(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*StreamResponse, error) {
-	out := new(StreamResponse)
-	err := c.cc.Invoke(ctx, "/api.Raft/StreamMessage", in, out, opts...)
+func (c *raftClient) Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (Raft_JoinClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Raft_serviceDesc.Streams[1], "/api.Raft/Join", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &raftJoinClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *raftClient) Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (*JoinResponse, error) {
-	out := new(JoinResponse)
-	err := c.cc.Invoke(ctx, "/api.Raft/Join", in, out, opts...)
-	if err != nil {
+type Raft_JoinClient interface {
+	Recv() (*JoinResponse, error)
+	grpc.ClientStream
+}
+
+type raftJoinClient struct {
+	grpc.ClientStream
+}
+
+func (x *raftJoinClient) Recv() (*JoinResponse, error) {
+	m := new(JoinResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return m, nil
 }
 
 // RaftServer is the server API for Raft service.
 type RaftServer interface {
 	Message(Raft_MessageServer) error
-	StreamMessage(context.Context, *MessageRequest) (*StreamResponse, error)
-	Join(context.Context, *Member) (*JoinResponse, error)
+	Join(*Member, Raft_JoinServer) error
 }
 
 // UnimplementedRaftServer can be embedded to have forward compatible implementations.
@@ -677,11 +457,8 @@ type UnimplementedRaftServer struct {
 func (*UnimplementedRaftServer) Message(srv Raft_MessageServer) error {
 	return status.Errorf(codes.Unimplemented, "method Message not implemented")
 }
-func (*UnimplementedRaftServer) StreamMessage(ctx context.Context, req *MessageRequest) (*StreamResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StreamMessage not implemented")
-}
-func (*UnimplementedRaftServer) Join(ctx context.Context, req *Member) (*JoinResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Join not implemented")
+func (*UnimplementedRaftServer) Join(req *Member, srv Raft_JoinServer) error {
+	return status.Errorf(codes.Unimplemented, "method Join not implemented")
 }
 
 func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
@@ -693,7 +470,7 @@ func _Raft_Message_Handler(srv interface{}, stream grpc.ServerStream) error {
 }
 
 type Raft_MessageServer interface {
-	SendAndClose(*StreamResponse) error
+	SendAndClose(*empty.Empty) error
 	Recv() (*Chunk, error)
 	grpc.ServerStream
 }
@@ -702,7 +479,7 @@ type raftMessageServer struct {
 	grpc.ServerStream
 }
 
-func (x *raftMessageServer) SendAndClose(m *StreamResponse) error {
+func (x *raftMessageServer) SendAndClose(m *empty.Empty) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -714,90 +491,44 @@ func (x *raftMessageServer) Recv() (*Chunk, error) {
 	return m, nil
 }
 
-func _Raft_StreamMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MessageRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Raft_Join_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Member)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(RaftServer).StreamMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Raft/StreamMessage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).StreamMessage(ctx, req.(*MessageRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(RaftServer).Join(m, &raftJoinServer{stream})
 }
 
-func _Raft_Join_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Member)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RaftServer).Join(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.Raft/Join",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).Join(ctx, req.(*Member))
-	}
-	return interceptor(ctx, in, info, handler)
+type Raft_JoinServer interface {
+	Send(*JoinResponse) error
+	grpc.ServerStream
+}
+
+type raftJoinServer struct {
+	grpc.ServerStream
+}
+
+func (x *raftJoinServer) Send(m *JoinResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 var _Raft_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.Raft",
 	HandlerType: (*RaftServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "StreamMessage",
-			Handler:    _Raft_StreamMessage_Handler,
-		},
-		{
-			MethodName: "Join",
-			Handler:    _Raft_Join_Handler,
-		},
-	},
+	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Message",
 			Handler:       _Raft_Message_Handler,
 			ClientStreams: true,
 		},
+		{
+			StreamName:    "Join",
+			Handler:       _Raft_Join_Handler,
+			ServerStreams: true,
+		},
 	},
 	Metadata: "api/raft.proto",
-}
-
-func (m *StreamResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *StreamResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *StreamResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	return len(dAtA) - i, nil
 }
 
 func (m *JoinResponse) Marshal() (dAtA []byte, err error) {
@@ -824,25 +555,16 @@ func (m *JoinResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.Pool) > 0 {
-		for iNdEx := len(m.Pool) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Pool[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintRaft(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x12
+	{
+		size, err := m.Member.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
+		i -= size
+		i = encodeVarintRaft(dAtA, i, uint64(size))
 	}
-	if m.ID != 0 {
-		i = encodeVarintRaft(dAtA, i, uint64(m.ID))
-		i--
-		dAtA[i] = 0x8
-	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -925,93 +647,6 @@ func (m *Replicate) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintRaft(dAtA, i, uint64(m.CID))
 		i--
 		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *Snapshot) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *Snapshot) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *Snapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if len(m.Data) > 0 {
-		i -= len(m.Data)
-		copy(dAtA[i:], m.Data)
-		i = encodeVarintRaft(dAtA, i, uint64(len(m.Data)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.Pool) > 0 {
-		for iNdEx := len(m.Pool) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Pool[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintRaft(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *MessageRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MessageRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MessageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if m.Message != nil {
-		{
-			size, err := m.Message.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintRaft(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -1141,33 +776,14 @@ func encodeVarintRaft(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *StreamResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
 func (m *JoinResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.ID != 0 {
-		n += 1 + sovRaft(uint64(m.ID))
-	}
-	if len(m.Pool) > 0 {
-		for _, e := range m.Pool {
-			l = e.Size()
-			n += 1 + l + sovRaft(uint64(l))
-		}
-	}
+	l = m.Member.Size()
+	n += 1 + l + sovRaft(uint64(l))
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -1207,44 +823,6 @@ func (m *Replicate) Size() (n int) {
 	}
 	l = len(m.Data)
 	if l > 0 {
-		n += 1 + l + sovRaft(uint64(l))
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *Snapshot) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Pool) > 0 {
-		for _, e := range m.Pool {
-			l = e.Size()
-			n += 1 + l + sovRaft(uint64(l))
-		}
-	}
-	l = len(m.Data)
-	if l > 0 {
-		n += 1 + l + sovRaft(uint64(l))
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *MessageRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Message != nil {
-		l = m.Message.Size()
 		n += 1 + l + sovRaft(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -1312,57 +890,6 @@ func sovRaft(x uint64) (n int) {
 func sozRaft(x uint64) (n int) {
 	return sovRaft(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *StreamResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRaft
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: StreamResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: StreamResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRaft(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1393,27 +920,8 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
-			}
-			m.ID = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.ID |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pool", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Member", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1440,8 +948,7 @@ func (m *JoinResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Pool = append(m.Pool, Member{})
-			if err := m.Pool[len(m.Pool)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Member.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1668,212 +1175,6 @@ func (m *Replicate) Unmarshal(dAtA []byte) error {
 			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
 			if m.Data == nil {
 				m.Data = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRaft(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *Snapshot) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRaft
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Snapshot: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Snapshot: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Pool", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthRaft
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Pool = append(m.Pool, Member{})
-			if err := m.Pool[len(m.Pool)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthRaft
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
-			if m.Data == nil {
-				m.Data = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRaft(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *MessageRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRaft
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MessageRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MessageRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthRaft
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Message == nil {
-				m.Message = &raftpb.Message{}
-			}
-			if err := m.Message.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
 			}
 			iNdEx = postIndex
 		default:

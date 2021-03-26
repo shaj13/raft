@@ -15,7 +15,7 @@ func initProcessor(ctx context.Context) {
 	p := r.processor
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	p.cfg = r.config
-	p.ticker = time.NewTicker(time.Second) // TODO: read second from cfg
+	p.ticker = time.NewTicker(100 * time.Millisecond)// TODO: read second from cfg
 	p.wg = sync.WaitGroup{}
 	p.propwg = sync.WaitGroup{}
 	p.storg = r.memoryStorage

@@ -21,7 +21,7 @@ func TestLocal(t *testing.T) {
 	assert.Equal(t, l.Address(), addr)
 	assert.False(t, l.IsActive())
 	assert.Equal(t, l.Since(), time.Time{})
-	assert.Equal(t, l.Type(), api.SelfMember)
+	assert.Equal(t, l.Type(), api.LocalMember)
 	assert.NoError(t, l.Send(raftpb.Message{}))
 	assert.NoError(t, l.Update(""))
 	assert.Empty(t, l.Address())

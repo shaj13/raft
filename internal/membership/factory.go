@@ -51,7 +51,7 @@ func newFactory(ctx context.Context, rep reporter, cfg config, dial Dial) *facto
 	f.constructors = map[api.MemberType]constructor{
 		api.RemoteMember:  newRemote,
 		api.RemovedMember: newRemoved,
-		api.SelfMember:    newLocal,
+		api.LocalMember:   newLocal,
 	}
 	return f
 }

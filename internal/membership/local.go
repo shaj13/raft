@@ -34,8 +34,7 @@ func (l *local) IsActive() bool {
 }
 
 func (l *local) Type() api.MemberType {
-	// TODO: change this to local.
-	return api.SelfMember
+	return api.LocalMember
 }
 
 func (l *local) Update(add string) (err error) {
