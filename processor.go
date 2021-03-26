@@ -13,7 +13,6 @@ import (
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -61,22 +60,7 @@ type processor struct {
 }
 
 func (p *processor) join(ctx context.Context, m *api.Member, cluster string) ([]api.Member, error) {
-	conn, err := grpc.Dial(cluster, p.cfg.memberDialOptions...)
-	if err != nil {
-		return nil, err
-	}
-
-	c := api.NewRaftClient(conn)
-	resp, err := c.Join(ctx, m)
-
-	if err != nil {
-		return nil, err
-	}
-
-	m.ID = resp.ID
-	m.Type = api.SelfMember
-
-	return resp.Pool, nil
+	return joinjoin(ctx, m, cluster)
 }
 
 func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member, []api.Member, error) {
@@ -90,7 +74,7 @@ func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: addr,
-		Type:    api.SelfMember,
+		Type:    api.LocalMember,
 	}
 
 	if !exist && len(cluster) > 0 {
@@ -246,10 +230,11 @@ func (p *processor) publishSnapshot(snap raftpb.Snapshot) error {
 		return err
 	}
 
-	s := new(api.Snapshot)
-	if err := s.Unmarshal(snap.Data); err != nil {
-		return err
-	}
+	// TODO: FIXME
+	// s := new(api.Snapshot)
+	// if err := s.Unmarshal(snap.Data); err != nil {
+	// 	return err
+	// }
 
 	// TODO: FIXME
 	// p.pool.Restore(s.Pool)

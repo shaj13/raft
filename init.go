@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -15,7 +14,7 @@ func initProcessor(ctx context.Context) {
 	p := r.processor
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	p.cfg = r.config
-	p.ticker = time.NewTicker(100 * time.Millisecond)// TODO: read second from cfg
+	p.ticker = time.NewTicker(100 * time.Millisecond) // TODO: read second from cfg
 	p.wg = sync.WaitGroup{}
 	p.propwg = sync.WaitGroup{}
 	p.storg = r.memoryStorage
@@ -30,13 +29,13 @@ func initProcessor(ctx context.Context) {
 
 func initServer(ctx context.Context) {
 	// TODO: init server should check if http or grpc
-	r := registryFromCtx(ctx)
-	s := r.server
-	s.pool = r.pool
-	s.processor = r.processor
-	s.cfg = r.config
-	s.cluster = r.cluster
-	s.UnimplementedRaftServer = api.UnimplementedRaftServer{}
+	// r := registryFromCtx(ctx)
+	// s := r.server
+	// s.pool = r.pool
+	// s.processor = r.processor
+	// s.cfg = r.config
+	// s.cluster = r.cluster
+	// s.UnimplementedRaftServer = api.UnimplementedRaftServer{}
 }
 
 func initMsgBus(ctx context.Context) {

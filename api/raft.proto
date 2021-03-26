@@ -14,11 +14,8 @@ option (gogoproto.goproto_enum_prefix_all) = false;
 // Raft defines the RPC communication between raft nodes.
 service Raft {
   rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
-  rpc Join (Member) returns (stream JoinResponse) {}
-}
-
-message JoinResponse {
-	Member member = 1 [(gogoproto.nullable) = false];
+  rpc Snapshot (stream Chunk) returns (google.protobuf.Empty) {}
+  rpc Join (Member) returns (stream Member) {}
 }
 
 message Member {

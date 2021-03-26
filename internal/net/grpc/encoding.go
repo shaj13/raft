@@ -37,13 +37,12 @@ func (e *encoder) Encode(cb func(*api.Chunk) error) error {
 }
 
 func (e *encoder) chunck() *api.Chunk {
-	defer func() {
-		e.index++
-	}()
-	return &api.Chunk{
+	c := &api.Chunk{
 		Index: e.index,
 		Data:  e.scanner.Bytes(),
 	}
+	e.index++
+	return c
 }
 
 func (e *encoder) scan(data []byte, atEOF bool) (advance int, token []byte, err error) {

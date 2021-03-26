@@ -3,6 +3,9 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"strconv"
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/net"
@@ -13,6 +16,7 @@ import (
 
 const (
 	snapshotHeader = "x-raft-snapshot-name"
+	memberIDHeader = "x-raft-member-id"
 )
 
 type (
@@ -69,7 +73,45 @@ func (r *rpc) Message(ctx context.Context, m raftpb.Message) error {
 }
 
 func (r *rpc) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) {
-	return 0, api.Pool{}, nil
+	fail := func(err error) (uint64, api.Pool, error) {
+		return 0, api.Pool{}, nil
+	}
+
+	opts := callFromContext(ctx)
+	stream, err := api.NewRaftClient(r.conn).Join(ctx, &m, opts...)
+	if err != nil {
+		return fail(err)
+	}
+
+	md, err := stream.Header()
+	if err != nil {
+		return fail(err)
+	}
+
+	str := md.Get(memberIDHeader)[0]
+	id, err := strconv.ParseUint(str, 0, 64)
+	if err != nil {
+		return fail(
+			fmt.Errorf("raft/net/grpc: unable to parse member id from grpc metadata, Err %s", err),
+		)
+	}
+
+	membs := []api.Member{}
+	for {
+		m, err := stream.Recv()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return fail(err)
+		}
+
+		membs = append(membs, *m)
+	}
+
+	return id, api.Pool{Members: membs}, nil
 }
 
 func (r *rpc) Close() error {

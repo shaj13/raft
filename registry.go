@@ -7,6 +7,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/membership"
+	raftrpc "github.com/shaj13/raftkit/internal/net/grpc"
 	"go.etcd.io/etcd/raft/v3"
 	"google.golang.org/grpc"
 )
@@ -21,7 +22,6 @@ type registry struct {
 	memoryStorage *raft.MemoryStorage
 	snapshoter    Snapshoter
 	msgbus        *msgbus
-	server        *server
 	cluster       *cluster
 }
 
@@ -36,7 +36,6 @@ func (r *registry) init() *registry {
 	r.memoryStorage = raft.NewMemoryStorage()
 	r.snapshoter = new(disk)
 	r.msgbus = new(msgbus)
-	r.server = new(server)
 	return r
 }
 
@@ -79,7 +78,10 @@ func firstrun() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	api.RegisterRaftServer(s, r.server)
+	api.RegisterRaftServer(s, raftrpc.NewServer(
+		r.processor.push,
+		joincont(r.cluster, r.pool),
+	))
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -108,7 +110,10 @@ func join() {
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
-		api.RegisterRaftServer(s, r.server)
+		api.RegisterRaftServer(s, raftrpc.NewServer(
+			r.processor.push,
+			joincont(r.cluster, r.pool),
+		))
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
