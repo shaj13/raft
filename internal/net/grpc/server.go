@@ -3,30 +3,49 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strconv"
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+var errSnapHeader = errors.New(
+	"raft/net/grpc: snapshot header missing from grpc metadata",
+)
+
+type ServerConfig interface {
+	DialConfig
+	Controller() net.Controller
+}
+
 // NewServer return an GRPC Server.
-func NewServer(ctx context.Context, ctrl net.Controller, cfg interface{}) (net.Server, error) {
-	return &server{ctrl: ctrl}, nil
+func NewServer(ctx context.Context, v interface{}) (net.Server, error) {
+	c := v.(ServerConfig)
+	return &server{
+		ctrl: c.Controller(),
+		snap: c.Snapshoter(),
+	}, nil
 }
 
 type server struct {
 	ctrl net.Controller
+	snap storage.Snapshoter
 }
 
 func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft/net/grpc: Cannot handle incoming raft message, Err: %s", err)
+			log.Warnf(
+				"raft/net/grpc: Failed to handle incoming raft message, Err: %s",
+				err,
+			)
 		}
 	}()
 
@@ -60,14 +79,85 @@ func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (s *server) Snapshot(stream api.Raft_SnapshotServer) error {
-	return nil
+func (s *server) Snapshot(stream api.Raft_SnapshotServer) (err error) {
+	defer func() {
+		if err != nil {
+			log.Warnf(
+				"raft/net/grpc: Failed to download the snapshot, Err: %s",
+				err,
+			)
+		}
+	}()
+
+	ctx := stream.Context()
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return errSnapHeader
+	}
+
+	vals := md.Get(snapshotHeader)
+	if len(vals) != 3 {
+		return errSnapHeader
+	}
+
+	snapname := vals[0]
+
+	to, err := strconv.ParseUint(vals[1], 0, 64)
+	if err != nil {
+		return err
+	}
+
+	from, err := strconv.ParseUint(vals[2], 0, 64)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf(
+		"raft/net/grpc: Start downloading the sanpshot %s file",
+		snapname,
+	)
+
+	w, peek, err := s.snap.Writer(ctx, snapname)
+	if err != nil {
+		return err
+	}
+
+	defer w.Close()
+
+	dec := newDecoder(w)
+	for {
+		c, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if err := dec.Decode(c); err != nil {
+			return err
+		}
+	}
+
+	snap, err := peek()
+	if err != nil {
+		return err
+	}
+
+	m := new(raftpb.Message)
+	m.Type = raftpb.MsgSnap
+	m.Snapshot = snap
+	m.From = from
+	m.To = to
+
+	return s.ctrl.Push(ctx, *m)
 }
 
 func (s *server) Join(m *api.Member, stream api.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft/net/grpc: Cannot handle join request, Err: %s", err)
+			log.Warnf("raft/net/grpc: Failed to handle join request, Err: %s", err)
 			return
 		}
 	}()

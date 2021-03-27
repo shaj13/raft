@@ -20,7 +20,7 @@ type Server interface{}
 // Dial connects to the RPC address.
 type Dial func(ctx context.Context, cfg interface{}, addr string) (RPC, error)
 
-type New func(ctx context.Context, ctrl Controller, cfg interface{}) (Server, error)
+type New func(ctx context.Context, cfg interface{}) (Server, error)
 
 // RPC provides access to the exported methods of an object across a network.
 type RPC interface {

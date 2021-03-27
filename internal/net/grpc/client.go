@@ -16,25 +16,19 @@ import (
 )
 
 const (
-	snapshotHeader = "x-raft-snapshot-name"
-	memberIDHeader = "x-raft-member-id"
+	snapshotHeader = "X-Raft-Snapshot"
+	memberIDHeader = "X-Raft-Member-ID"
 )
 
-type Config interface {
+type DialConfig interface {
 	CallOption() []grpc.CallOption
 	DialOption() []grpc.DialOption
 	Snapshoter() storage.Snapshoter
 }
 
 // Dial connects to an GRPC server at the specified network address.
-func Dial(ctx context.Context, cfg interface{}, addr string) (net.RPC, error) {
-	c, ok := cfg.(Config)
-	if !ok {
-		panic(
-			"raft/net/grpc: The given config to dial does not implements grpc config interface",
-		)
-	}
-
+func Dial(ctx context.Context, v interface{}, addr string) (net.RPC, error) {
+	c := v.(DialConfig)
 	conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
 	if err != nil {
 		return nil, err
@@ -91,8 +85,14 @@ func (r *rpc) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) 
 		return fail(err)
 	}
 
-	str := md.Get(memberIDHeader)[0]
-	id, err := strconv.ParseUint(str, 0, 64)
+	vals := md.Get(memberIDHeader)
+	if len(vals) != 1 {
+		return fail(
+			fmt.Errorf("raft/net/grpc: member id missing from grpc metadata"),
+		)
+	}
+
+	id, err := strconv.ParseUint(vals[0], 0, 64)
 	if err != nil {
 		return fail(
 			fmt.Errorf("raft/net/grpc: unable to parse member id from grpc metadata, Err %s", err),
@@ -131,21 +131,30 @@ func (r *rpc) message(ctx context.Context, m raftpb.Message) (err error) {
 	})
 }
 
-func (r *rpc) snapshot(ctx context.Context, m raftpb.Message) error {
+func (r *rpc) snapshot(ctx context.Context, m raftpb.Message) (err error) {
 	name, rc, err := r.snapshoter.Reader(ctx, m)
 	if err != nil {
 		return err
 	}
 
-	md := metadata.Pairs(snapshotHeader, name)
+	md := metadata.Pairs(
+		snapshotHeader, name,
+		snapshotHeader, strconv.FormatUint(m.To, 10),
+		snapshotHeader, strconv.FormatUint(m.From, 10),
+	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	stream, err := api.NewRaftClient(r.conn).Message(ctx, r.callOption...)
+	stream, err := api.NewRaftClient(r.conn).Snapshot(ctx, r.callOption...)
 	if err != nil {
 		return err
 	}
 
-	defer stream.CloseAndRecv()
+	defer func() {
+		_, rerr := stream.CloseAndRecv()
+		if err == nil {
+			err = rerr
+		}
+	}()
 
 	enc := newEncoder(rc)
 	return enc.Encode(func(c *api.Chunk) error {

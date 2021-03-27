@@ -9,5 +9,5 @@ import (
 
 type Snapshoter interface {
 	Reader(context.Context, raftpb.Message) (string, io.ReadCloser, error)
-	Writer(context.Context, string) (io.Writer, func() (raftpb.Snapshot, error), error)
+	Writer(context.Context, string) (io.WriteCloser, func() (raftpb.Snapshot, error), error)
 }
