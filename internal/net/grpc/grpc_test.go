@@ -133,7 +133,7 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
-func testClientServer(tb testing.TB) (*bufconn.Listener, *rpc, *server) {
+func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 	ln := bufconn.Listen(1024)
 	srv := new(server)
 
@@ -160,7 +160,7 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *rpc, *server) {
 		tb.Fatal(err)
 	}
 
-	return ln, c.(*rpc), srv
+	return ln, c.(*client), srv
 }
 
 func newTestSnapshoter(str string) *testSnapshoter {

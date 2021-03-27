@@ -20,12 +20,15 @@ var errSnapHeader = errors.New(
 	"raft/net/grpc: snapshot header missing from grpc metadata",
 )
 
+// ServerConfig define common configuration used by the NewServer function.
 type ServerConfig interface {
 	DialConfig
 	Controller() net.Controller
 }
 
 // NewServer return an GRPC Server.
+//
+// NewServer compatible with net.New.
 func NewServer(ctx context.Context, v interface{}) (net.Server, error) {
 	c := v.(ServerConfig)
 	return &server{
@@ -40,7 +43,12 @@ type server struct {
 }
 
 func (s *server) Message(stream api.Raft_MessageServer) (err error) {
+	buf := bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	dec := newDecoder(buf)
+
 	defer func() {
+		bufferPool.Put(buf)
 		if err != nil {
 			log.Warnf(
 				"raft/net/grpc: Failed to handle incoming raft message, Err: %s",
@@ -48,9 +56,6 @@ func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 			)
 		}
 	}()
-
-	buf := new(bytes.Buffer)
-	dec := newDecoder(buf)
 
 	for {
 		c, err := stream.Recv()
