@@ -9,6 +9,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -19,49 +20,36 @@ const (
 	memberIDHeader = "x-raft-member-id"
 )
 
-type (
-	dialKey struct{}
-	callKey struct{}
-)
-
-// NewDialContext creates a new context with grpc.DialOption's.
-func NewDialContext(ctx context.Context, opts ...grpc.DialOption) context.Context {
-	return context.WithValue(ctx, dialKey{}, opts)
+type Config interface {
+	CallOption() []grpc.CallOption
+	DialOption() []grpc.DialOption
+	Snapshoter() storage.Snapshoter
 }
 
-// NewCallContext creates a new context with grpc.CallOption's.
-func NewCallContext(ctx context.Context, opts ...grpc.CallOption) context.Context {
-	return context.WithValue(ctx, callKey{}, opts)
-}
-
-func dialFromContext(ctx context.Context) []grpc.DialOption {
-	opts, ok := ctx.Value(dialKey{}).([]grpc.DialOption)
+func dial(ctx context.Context, cfg interface{}, addr string) (net.RPC, error) {
+	c, ok := cfg.(Config)
 	if !ok {
-		opts = []grpc.DialOption{}
+		panic(
+			"raft/net/grpc: The given config to dial does not implements grpc config interface",
+		)
 	}
-	return opts
-}
 
-func callFromContext(ctx context.Context) []grpc.CallOption {
-	opts, ok := ctx.Value(callKey{}).([]grpc.CallOption)
-	if !ok {
-		opts = []grpc.CallOption{}
-	}
-	return opts
-}
-
-// Dial creates a RPC connection to the given address.
-func Dial(ctx context.Context, addr string) (net.RPC, error) {
-	opts := dialFromContext(ctx)
-	conn, err := grpc.DialContext(ctx, addr, opts...)
+	conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
 	if err != nil {
 		return nil, err
 	}
-	return &rpc{conn: conn}, nil
+
+	return &rpc{
+		conn:       conn,
+		callOption: c.CallOption(),
+		snapshoter: c.Snapshoter(),
+	}, nil
 }
 
 type rpc struct {
-	conn *grpc.ClientConn
+	conn       *grpc.ClientConn
+	callOption []grpc.CallOption
+	snapshoter storage.Snapshoter
 }
 
 func (r *rpc) Message(ctx context.Context, m raftpb.Message) error {
@@ -77,8 +65,7 @@ func (r *rpc) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) 
 		return 0, api.Pool{}, nil
 	}
 
-	opts := callFromContext(ctx)
-	stream, err := api.NewRaftClient(r.conn).Join(ctx, &m, opts...)
+	stream, err := api.NewRaftClient(r.conn).Join(ctx, &m, r.callOption...)
 	if err != nil {
 		return fail(err)
 	}
@@ -119,13 +106,12 @@ func (r *rpc) Close() error {
 }
 
 func (r *rpc) message(ctx context.Context, m raftpb.Message) error {
-	opts := callFromContext(ctx)
 	data, err := m.Marshal()
 	if err != nil {
 		return err
 	}
 
-	stream, err := api.NewRaftClient(r.conn).Message(ctx, opts...)
+	stream, err := api.NewRaftClient(r.conn).Message(ctx, r.callOption...)
 	if err != nil {
 		return err
 	}
@@ -140,9 +126,7 @@ func (r *rpc) message(ctx context.Context, m raftpb.Message) error {
 }
 
 func (r *rpc) snapshot(ctx context.Context, m raftpb.Message) error {
-	opts := callFromContext(ctx)
-	snapshoter := net.SnapshoterFromContextt(ctx)
-	name, rc, err := snapshoter.Reader(m)
+	name, rc, err := r.snapshoter.Reader(ctx, m)
 	if err != nil {
 		return err
 	}
@@ -150,7 +134,7 @@ func (r *rpc) snapshot(ctx context.Context, m raftpb.Message) error {
 	md := metadata.Pairs(snapshotHeader, name)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	stream, err := api.NewRaftClient(r.conn).Message(ctx, opts...)
+	stream, err := api.NewRaftClient(r.conn).Message(ctx, r.callOption...)
 	if err != nil {
 		return err
 	}

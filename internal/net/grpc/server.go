@@ -2,31 +2,23 @@ package grpc
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strconv"
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/net"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func NewServer(
-	p func(m raftpb.Message) error,
-	j func(context.Context, *api.Member) (uint64, []api.Member, error),
-) api.RaftServer {
-	return &server{
-		push: p,
-		join: j,
-	}
+func NewServer(ctrl net.Controller) net.Server {
+	return &server{ctrl: ctrl}
 }
 
 type server struct {
-	api.UnimplementedRaftServer
-	push func(m raftpb.Message) error
-	join func(context.Context, *api.Member) (uint64, []api.Member, error)
+	ctrl net.Controller
 }
 
 func (s *server) Message(stream api.Raft_MessageServer) (err error) {
@@ -59,7 +51,7 @@ func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 		return err
 	}
 
-	if err := s.push(*m); err != nil {
+	if err := s.ctrl.Push(stream.Context(), *m); err != nil {
 		return err
 	}
 
@@ -80,7 +72,7 @@ func (s *server) Join(m *api.Member, stream api.Raft_JoinServer) (err error) {
 
 	log.Debugf("raft/net/grpc: A new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := s.join(stream.Context(), m)
+	id, membs, err := s.ctrl.Join(stream.Context(), m)
 	if err != nil {
 		return err
 	}
