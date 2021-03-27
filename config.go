@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3"
 	"google.golang.org/grpc"
 )
@@ -24,6 +25,17 @@ func (c *config) StreamTimeout() time.Duration {
 
 func (c *config) DrainTimeout() time.Duration {
 	return c.drainTimeOut
+}
+
+func (c *config) CallOption() []grpc.CallOption {
+	return []grpc.CallOption{}
+}
+
+func (c *config) DialOption() []grpc.DialOption {
+	return []grpc.DialOption{grpc.WithInsecure()}
+}
+func (c *config) Snapshoter() storage.Snapshoter {
+	return nil
 }
 
 func defaultConfig() *config {

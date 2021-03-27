@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"strconv"
 
@@ -13,8 +14,13 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func NewServer(ctrl net.Controller) net.Server {
-	return &server{ctrl: ctrl}
+func init() {
+	// TODO: remove me.
+	net.GRPC.Register(newServer, dial)
+}
+
+func newServer(ctx context.Context, ctrl net.Controller, cfg interface{}) (net.Server, error) {
+	return &server{ctrl: ctrl}, nil
 }
 
 type server struct {

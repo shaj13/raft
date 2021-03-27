@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/shaj13/raftkit/api"
-	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -21,6 +20,8 @@ type Server interface{}
 // Dial connects to the RPC address.
 type Dial func(ctx context.Context, cfg interface{}, addr string) (RPC, error)
 
+type New func(ctx context.Context, ctrl Controller, cfg interface{}) (Server, error)
+
 // RPC provides access to the exported methods of an object across a network.
 type RPC interface {
 	Message(context.Context, raftpb.Message) error
@@ -29,13 +30,12 @@ type RPC interface {
 }
 
 type Controller interface {
-	Snapshoter() storage.Snapshoter
 	Push(context.Context, raftpb.Message) error
 	Join(context.Context, *api.Member) (uint64, []api.Member, error)
 }
 
 type codecpair struct {
-	srv  Server
+	nsrv New
 	dial Dial
 }
 
@@ -45,13 +45,13 @@ type Codec uint
 // of the given codec function.
 // This is intended to be called from the init function,
 // in packages that implement codec function.
-func (c Codec) Register(srv Server, dial Dial) {
+func (c Codec) Register(srv New, dial Dial) {
 	if c <= 0 && c >= max { //nolint:staticcheck
 		panic("raft/net: Register of unknown codec function")
 	}
 
 	registry[c] = &codecpair{
-		srv:  srv,
+		nsrv: srv,
 		dial: dial,
 	}
 }
@@ -63,12 +63,12 @@ func (c Codec) Available() bool {
 
 // Get returns codec server and client dial.
 // Get panics if the codec function is not linked into the binary.
-func (c Codec) Get(cap int) (Server, Dial) {
+func (c Codec) Get() (New, Dial) {
 	if !c.Available() {
 		panic("raft/net: Requested codec function #" + strconv.Itoa(int(c)) + " is unavailable")
 	}
 	p := registry[c]
-	return p.srv, p.dial
+	return p.nsrv, p.dial
 }
 
 // String returns string describes the rpc codec function.

@@ -7,7 +7,8 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/membership"
-	raftrpc "github.com/shaj13/raftkit/internal/net/grpc"
+	rnet "github.com/shaj13/raftkit/internal/net"
+	_ "github.com/shaj13/raftkit/internal/net/grpc"
 	"go.etcd.io/etcd/raft/v3"
 	"google.golang.org/grpc"
 )
@@ -48,8 +49,8 @@ func registryFromCtx(ctx context.Context) *registry {
 }
 
 func New() {
-	// join()
-	firstrun()
+	join()
+	// firstrun()
 }
 
 func firstrun() {
@@ -78,10 +79,13 @@ func firstrun() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	api.RegisterRaftServer(s, raftrpc.NewServer(
-		r.processor.push,
-		joincont(r.cluster, r.pool),
-	))
+	capi := new(capi)
+	capi.c = r.cluster
+	capi.p = r.processor
+	capi.pool = r.pool
+	newsrv, _ := rnet.GRPC.Get()
+	srv, _ := newsrv(context.Background(), capi, nil)
+	api.RegisterRaftServer(s, srv.(api.RaftServer))
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -110,10 +114,13 @@ func join() {
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
-		api.RegisterRaftServer(s, raftrpc.NewServer(
-			r.processor.push,
-			joincont(r.cluster, r.pool),
-		))
+		capi := new(capi)
+		capi.c = r.cluster
+		capi.p = r.processor
+		capi.pool = r.pool
+		newsrv, _ := rnet.GRPC.Get()
+		srv, _ := newsrv(context.Background(), capi, nil)
+		api.RegisterRaftServer(s, srv.(api.RaftServer))
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
