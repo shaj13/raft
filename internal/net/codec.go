@@ -1,11 +1,7 @@
 package net
 
 import (
-	"context"
 	"strconv"
-
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 const (
@@ -15,33 +11,16 @@ const (
 
 var registry = make([]*codecpair, max)
 
-type Server interface{}
-
-// Dial connects to the RPC address.
-type Dial func(ctx context.Context, cfg interface{}, addr string) (RPC, error)
-
-type New func(ctx context.Context, cfg interface{}) (Server, error)
-
-// RPC provides access to the exported methods of an object across a network.
-type RPC interface {
-	Message(context.Context, raftpb.Message) error
-	Join(context.Context, api.Member) (uint64, api.Pool, error)
-	Close() error
-}
-
-type Controller interface {
-	Push(context.Context, raftpb.Message) error
-	Join(context.Context, *api.Member) (uint64, []api.Member, error)
-}
-
 type codecpair struct {
 	nsrv New
 	dial Dial
 }
 
+// Codec is a portmanteau of coder-decoder
+// and represents the underlying server and client.
 type Codec uint
 
-// Register registers a function that returns a codec server and client dial,
+// Register registers a function that returns a codec server and client,
 // of the given codec function.
 // This is intended to be called from the init function,
 // in packages that implement codec function.
@@ -61,7 +40,7 @@ func (c Codec) Available() bool {
 	return c > 0 && c < max && registry[c] != nil
 }
 
-// Get returns codec server and client dial.
+// Get returns codec server and client.
 // Get panics if the codec function is not linked into the binary.
 func (c Codec) Get() (New, Dial) {
 	if !c.Available() {
@@ -71,7 +50,7 @@ func (c Codec) Get() (New, Dial) {
 	return p.nsrv, p.dial
 }
 
-// String returns string describes the rpc codec function.
+// String returns string describes the codec function.
 func (c Codec) String() string {
 	switch c {
 	case GRPC:
