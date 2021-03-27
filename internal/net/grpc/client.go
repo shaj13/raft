@@ -26,7 +26,8 @@ type Config interface {
 	Snapshoter() storage.Snapshoter
 }
 
-func dial(ctx context.Context, cfg interface{}, addr string) (net.RPC, error) {
+// Dial connects to an GRPC server at the specified network address.
+func Dial(ctx context.Context, cfg interface{}, addr string) (net.RPC, error) {
 	c, ok := cfg.(Config)
 	if !ok {
 		panic(
@@ -62,25 +63,12 @@ func (r *rpc) Message(ctx context.Context, m raftpb.Message) error {
 
 func (r *rpc) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) {
 	fail := func(err error) (uint64, api.Pool, error) {
-		return 0, api.Pool{}, nil
+		return 0, api.Pool{}, err
 	}
 
 	stream, err := api.NewRaftClient(r.conn).Join(ctx, &m, r.callOption...)
 	if err != nil {
 		return fail(err)
-	}
-
-	md, err := stream.Header()
-	if err != nil {
-		return fail(err)
-	}
-
-	str := md.Get(memberIDHeader)[0]
-	id, err := strconv.ParseUint(str, 0, 64)
-	if err != nil {
-		return fail(
-			fmt.Errorf("raft/net/grpc: unable to parse member id from grpc metadata, Err %s", err),
-		)
 	}
 
 	membs := []api.Member{}
@@ -98,6 +86,19 @@ func (r *rpc) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) 
 		membs = append(membs, *m)
 	}
 
+	md, err := stream.Header()
+	if err != nil {
+		return fail(err)
+	}
+
+	str := md.Get(memberIDHeader)[0]
+	id, err := strconv.ParseUint(str, 0, 64)
+	if err != nil {
+		return fail(
+			fmt.Errorf("raft/net/grpc: unable to parse member id from grpc metadata, Err %s", err),
+		)
+	}
+
 	return id, api.Pool{Members: membs}, nil
 }
 
@@ -105,7 +106,7 @@ func (r *rpc) Close() error {
 	return r.conn.Close()
 }
 
-func (r *rpc) message(ctx context.Context, m raftpb.Message) error {
+func (r *rpc) message(ctx context.Context, m raftpb.Message) (err error) {
 	data, err := m.Marshal()
 	if err != nil {
 		return err
@@ -116,7 +117,12 @@ func (r *rpc) message(ctx context.Context, m raftpb.Message) error {
 		return err
 	}
 
-	defer stream.CloseAndRecv()
+	defer func() {
+		_, rerr := stream.CloseAndRecv()
+		if err == nil {
+			err = rerr
+		}
+	}()
 
 	buf := bytes.NewBuffer(data)
 	enc := newEncoder(buf)

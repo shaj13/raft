@@ -14,12 +14,8 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func init() {
-	// TODO: remove me.
-	net.GRPC.Register(newServer, dial)
-}
-
-func newServer(ctx context.Context, ctrl net.Controller, cfg interface{}) (net.Server, error) {
+// NewServer return an GRPC Server.
+func NewServer(ctx context.Context, ctrl net.Controller, cfg interface{}) (net.Server, error) {
 	return &server{ctrl: ctrl}, nil
 }
 
