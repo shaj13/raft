@@ -15,7 +15,7 @@ type SnapshotFile struct {
 }
 
 type Snapshoter interface {
-	Reader(context.Context, raftpb.Message) (string, io.ReadCloser, error)
+	Reader(context.Context, raftpb.Snapshot) (string, io.ReadCloser, error)
 	Writer(context.Context, string) (io.WriteCloser, func() (raftpb.Snapshot, error), error)
 	Write(sf *SnapshotFile) error
 	Read(snap raftpb.Snapshot) (*SnapshotFile, error)

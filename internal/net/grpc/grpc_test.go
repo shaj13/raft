@@ -192,7 +192,7 @@ type testSnapshoter struct {
 	gotname string
 }
 
-func (t *testSnapshoter) Reader(context.Context, raftpb.Message) (string, io.ReadCloser, error) {
+func (t *testSnapshoter) Reader(context.Context, raftpb.Snapshot) (string, io.ReadCloser, error) {
 	return t.expname, ioutil.NopCloser(bytes.NewBuffer(t.data)), nil
 }
 

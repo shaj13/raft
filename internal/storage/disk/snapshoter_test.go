@@ -14,24 +14,24 @@ func TestSnapshoterReaderErr(t *testing.T) {
 	table := []struct {
 		name     string
 		contains string
-		msg      raftpb.Message
+		snap     raftpb.Snapshot
 	}{
 		{
 			name:     "it return error when snap msg empty",
 			contains: ErrEmptySnapshot.Error(),
-			msg:      raftpb.Message{},
+			snap:     raftpb.Snapshot{},
 		},
 		{
 			name:     "it return error when snap file does not exist",
 			contains: "no such file or directory",
-			msg:      testMsg(10000, 10000),
+			snap:     testSnap(10000, 10000),
 		},
 	}
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &snapshoter{snapdir: "./testdata/"}
-			_, _, err := s.Reader(context.TODO(), tt.msg)
+			_, _, err := s.Reader(context.TODO(), tt.snap)
 			if err == nil {
 				t.Fatal("expected non nil error")
 			}
@@ -42,7 +42,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 
 func TestSnapshoterReader(t *testing.T) {
 	s := &snapshoter{snapdir: "./testdata/"}
-	name, r, err := s.Reader(context.TODO(), testMsg(1, 1))
+	name, r, err := s.Reader(context.TODO(), testSnap(1, 1))
 	assert.NoError(t, err)
 	assert.Equal(t, snapshotName(1, 1), name)
 	if assert.NotNil(t, r) {
@@ -77,11 +77,9 @@ func TestSnapshoterWriter(t *testing.T) {
 	assert.False(t, exist, "expect peek to remove file if there an error")
 }
 
-func testMsg(index, term uint64) raftpb.Message {
+func testSnap(index, term uint64) raftpb.Snapshot {
 	st, _ := snapshotTestFile()
 	st.Snap.Metadata.Index = index
 	st.Snap.Metadata.Term = term
-	return raftpb.Message{
-		Snapshot: *st.Snap,
-	}
+	return *st.Snap
 }

@@ -155,7 +155,7 @@ func (c *client) message(ctx context.Context, m raftpb.Message) (err error) {
 }
 
 func (c *client) snapshot(ctx context.Context, m raftpb.Message) (err error) {
-	name, r, err := c.snapshoter.Reader(ctx, m)
+	name, r, err := c.snapshoter.Reader(ctx, m.Snapshot)
 	if err != nil {
 		return err
 	}

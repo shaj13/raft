@@ -17,15 +17,12 @@ type snapshoter struct {
 	snapdir string
 }
 
-// TODO: dont accept the whole msg
-func (s snapshoter) Reader(_ context.Context, m raftpb.Message) (string, io.ReadCloser, error) {
-	if raft.IsEmptySnap(m.Snapshot) {
+func (s snapshoter) Reader(_ context.Context, snap raftpb.Snapshot) (string, io.ReadCloser, error) {
+	if raft.IsEmptySnap(snap) {
 		return "", nil, ErrEmptySnapshot
 	}
 
-	name := snapshotName(m.Snapshot.Metadata.Term, m.Snapshot.Metadata.Index)
-	path := filepath.Join(s.snapdir, name)
-	f, err := os.Open(path)
+	f, err := os.Open(s.path(snap))
 	if err != nil {
 		return "", nil, err
 	}
@@ -33,7 +30,7 @@ func (s snapshoter) Reader(_ context.Context, m raftpb.Message) (string, io.Read
 	r := readerPool.Get().(*fileReader)
 	r.Reset(f)
 
-	return name, r, nil
+	return snapshotName(snap.Metadata.Term, snap.Metadata.Index), r, nil
 }
 
 func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
@@ -60,14 +57,14 @@ func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func
 }
 
 func (s snapshoter) Write(sf *storage.SnapshotFile) error {
-	name := snapshotName(sf.Snap.Metadata.Term, sf.Snap.Metadata.Index)
-	path := filepath.Join(s.snapdir, name)
-	return encodeSnapshot(path, sf)
+	return encodeSnapshot(s.path(*sf.Snap), sf)
 }
 
 func (s snapshoter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
-	// TODO: to an standalone method
+	return decodeSnapshot(s.path(snap))
+}
+
+func (s snapshoter) path(snap raftpb.Snapshot) string {
 	name := snapshotName(snap.Metadata.Term, snap.Metadata.Index)
-	path := filepath.Join(s.snapdir, name)
-	return decodeSnapshot(path)
+	return filepath.Join(s.snapdir, name)
 }
