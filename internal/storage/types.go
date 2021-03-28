@@ -4,8 +4,15 @@ import (
 	"context"
 	"io"
 
+	"github.com/shaj13/raftkit/api"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
+
+type SnapshotFile struct {
+	Snap *raftpb.Snapshot
+	Pool *api.Pool
+	Data io.ReadCloser
+}
 
 type Snapshoter interface {
 	Reader(context.Context, raftpb.Message) (string, io.ReadCloser, error)

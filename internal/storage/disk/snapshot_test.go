@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
@@ -125,9 +126,9 @@ func TestSnapshotFileReader(t *testing.T) {
 	assert.Equal(t, ErrClosedSnapshot, err)
 }
 
-func snapshotTestFile() (SnapshotFile, string) {
+func snapshotTestFile() (storage.SnapshotFile, string) {
 	const data = "some app data"
-	return SnapshotFile{
+	return storage.SnapshotFile{
 		Snap: &raftpb.Snapshot{
 			Metadata: raftpb.SnapshotMetadata{
 				ConfState: raftpb.ConfState{

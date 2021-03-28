@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
@@ -41,8 +42,8 @@ func (d *Disk) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
 
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
 // Otherwise, it create new wal from given metadata alongside snapshots dir.
-func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *SnapshotFile, error) {
-	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *SnapshotFile, error) {
+func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
+	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
 		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}
 
@@ -82,7 +83,7 @@ func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *Sna
 
 	sf, err := ReadNewestAvailableSnapshot(d.snapdir, walSnaps)
 	if err == ErrNoSnapshot {
-		sf = new(SnapshotFile)
+		sf = new(storage.SnapshotFile)
 		sf.Snap = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(

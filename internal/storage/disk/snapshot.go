@@ -14,6 +14,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -51,13 +52,7 @@ var (
 	ErrNoSnapshot     = errors.New("raft/disk: no available snapshot")
 )
 
-type SnapshotFile struct {
-	Snap *raftpb.Snapshot
-	Pool *api.Pool
-	Data io.ReadCloser
-}
-
-func ReadNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*SnapshotFile, error) {
+func ReadNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.SnapshotFile, error) {
 	files := map[string]struct{}{}
 	target := ""
 	ls, err := list(dir, snapExt)
@@ -84,8 +79,8 @@ func ReadNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*SnapshotF
 	return ReadSnapshot(filepath.Join(dir, target))
 }
 
-func ReadSnapshot(path string) (sf *SnapshotFile, err error) {
-	sf = new(SnapshotFile)
+func ReadSnapshot(path string) (sf *storage.SnapshotFile, err error) {
+	sf = new(storage.SnapshotFile)
 	sf.Snap = new(raftpb.Snapshot)
 	sf.Pool = new(api.Pool)
 	sf.Data, err = readSnapshotByblocks(path, sf.Snap, sf.Pool)
@@ -93,7 +88,7 @@ func ReadSnapshot(path string) (sf *SnapshotFile, err error) {
 }
 
 func PeekSnapshot(path string) (*raftpb.Snapshot, error) {
-	sf := new(SnapshotFile)
+	sf := new(storage.SnapshotFile)
 	sf.Snap = new(raftpb.Snapshot)
 	r, err := readSnapshotByblocks(path, sf.Snap)
 	if err != nil {
@@ -103,7 +98,7 @@ func PeekSnapshot(path string) (*raftpb.Snapshot, error) {
 	return sf.Snap, nil
 }
 
-func WriteSnapshot(path string, s *SnapshotFile) (err error) {
+func WriteSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
