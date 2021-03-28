@@ -6,7 +6,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/net"
+	rgrpc "github.com/shaj13/raftkit/internal/net/grpc"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
@@ -25,23 +25,24 @@ func (r reporter) ReportUnreachable(id uint64) {
 func (reporter) ReportShutdown(id uint64)                             {}
 func (reporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {}
 
-func dial(ctx context.Context, addr string) (membership.Transport, error) {
-	cc, err := grpc.Dial(addr, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
+func dial(c *config) func(ctx context.Context, addr string) (membership.Transport, error) {
+	return func(ctx context.Context, addr string) (membership.Transport, error) {
+		cc, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return nil, err
+		}
+		return tr{cc: cc, add: addr, config: c}, nil
 	}
-	return tr{cc: cc, add: addr}, nil
 }
 
 type tr struct {
-	cc  *grpc.ClientConn
-	add string
+	config *config
+	cc     *grpc.ClientConn
+	add    string
 }
 
 func (t tr) RoundTrip(ctx context.Context, msg raftpb.Message) error {
-	_, dial := net.GRPC.Get()
-	cfg := defaultConfig()
-	rpc, err := dial(ctx, cfg, t.add)
+	rpc, err := rgrpc.Dial(ctx, t.config, t.add)
 	if err != nil {
 		return err
 	}
@@ -52,10 +53,8 @@ func (t tr) Close() error {
 	return t.cc.Close()
 }
 
-func joinjoin(ctx context.Context, m *api.Member, cluster string) ([]api.Member, error) {
-	_, dial := net.GRPC.Get()
-	cfg := defaultConfig()
-	rpc, err := dial(ctx, cfg, cluster)
+func joinjoin(ctx context.Context, c *config, m *api.Member, cluster string) ([]api.Member, error) {
+	rpc, err := rgrpc.Dial(ctx, c, cluster)
 	if err != nil {
 		return []api.Member{}, err
 	}

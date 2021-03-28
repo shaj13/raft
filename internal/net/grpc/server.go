@@ -147,6 +147,7 @@ func (s *server) Snapshot(stream api.Raft_SnapshotServer) (err error) {
 
 	snap, err := peek()
 	if err != nil {
+				panic(err)
 		return err
 	}
 

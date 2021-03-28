@@ -1,9 +1,11 @@
 package raft
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"sync"
 	"time"
@@ -61,7 +63,7 @@ type processor struct {
 }
 
 func (p *processor) join(ctx context.Context, m *api.Member, cluster string) ([]api.Member, error) {
-	return joinjoin(ctx, m, cluster)
+	return joinjoin(ctx, p.cfg, m, cluster)
 }
 
 func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member, []api.Member, error) {
@@ -265,8 +267,21 @@ func (p *processor) triggerSnapshot() error {
 	// 	log.Panic(err)
 	// }
 
+	// TODO: organize me
 	snap, err := p.cache.CreateSnapshot(p.appliedIndex, &p.cState, nil) // TODO: pass data
 	if err != nil {
+		return err
+	}
+
+	sf := storage.SnapshotFile{
+		Snap: &snap,
+		Pool: &api.Pool{
+			Members: p.pool.Snapshot(),
+		},
+		Data: ioutil.NopCloser(bytes.NewBufferString("sample dta")),
+	}
+
+	if err := p.storage.Snapshoter().Write(&sf); err != nil {
 		return err
 	}
 
