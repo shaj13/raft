@@ -23,11 +23,9 @@ func TestGCStart(t *testing.T) {
 
 	createTestFiles(dir, files, t)
 
-	// create gc
-	notifyc := make(chan struct{})
-	gc := newGC(context.Background(), dir, dir, 1, notifyc)
+	gc := newGC(context.Background(), dir, dir, 1)
 	gc.Start()
-	notifyc <- struct{}{}
+	gc.notifyc <- struct{}{}
 	gc.Close()
 
 	snaps, _ := list(dir, snapExt)

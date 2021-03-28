@@ -9,13 +9,13 @@ import (
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 )
 
-func newGC(ctx context.Context, wdir, sdir string, retain int, nc chan struct{}) *gc {
+func newGC(ctx context.Context, wdir, sdir string, retain int) *gc {
 	gc := new(gc)
 	gc.ctx, gc.cancel = context.WithCancel(ctx)
 	gc.maxsnaps = retain
 	gc.waldir = wdir
 	gc.snapdir = sdir
-	gc.notifyc = nc
+	gc.notifyc = make(chan struct{})
 	gc.done = make(chan struct{})
 	return gc
 }

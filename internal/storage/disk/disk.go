@@ -1,8 +1,10 @@
 package disk
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
@@ -11,10 +13,32 @@ import (
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
-// TODO: need to connect gc to disk and creat Purge method.
+var _ storage.Storage = &disk{}
 
-type Disk struct {
+// Config define common configuration used by the New function.
+type Config interface {
+	StateDir() string
+	MaxSnapshotFiles() int
+}
+
+// New return new disk storage.
+func New(ctx context.Context, c Config) storage.Storage {
+	snapdir := filepath.Join(c.StateDir(), "snap")
+	waldir := filepath.Join(c.StateDir(), "wal")
+	gc := newGC(ctx, waldir, snapdir, c.MaxSnapshotFiles())
+	disk := &disk{
+		gc:      gc,
+		waldir:  waldir,
+		snapdir: snapdir,
+	}
+
+	return disk
+}
+
+// disk implements storage.Storage
+type disk struct {
 	wal     *wal.WAL
+	gc      *gc
 	waldir  string
 	snapdir string
 }
@@ -22,7 +46,9 @@ type Disk struct {
 // SaveSnapshot saves a given snapshot into the WAL.
 // The raw snapshot must be saved into disk during the,
 // network transportation.
-func (d *Disk) SaveSnapshot(snap raftpb.Snapshot) error {
+func (d *disk) SaveSnapshot(snap raftpb.Snapshot) error {
+	defer d.purge()
+
 	walSnap := walpb.Snapshot{
 		Index: snap.Metadata.Index,
 		Term:  snap.Metadata.Term,
@@ -36,13 +62,13 @@ func (d *Disk) SaveSnapshot(snap raftpb.Snapshot) error {
 }
 
 // SaveEntries saves a given entries into the WAL.
-func (d *Disk) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
+func (d *disk) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
 	return d.wal.Save(st, entries)
 }
 
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
 // Otherwise, it create new wal from given metadata alongside snapshots dir.
-func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
+func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
 	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
 		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}
@@ -111,13 +137,23 @@ func (d *Disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	}
 
 	d.wal = w
+	d.gc.Start()
+	defer d.purge()
+
 	return meta, st, ents, sf, nil
 }
 
-func (d *Disk) Exist() bool {
+func (d *disk) Exist() bool {
 	return wal.Exist(d.waldir)
 }
 
-func (d *Disk) Close() {
+func (d *disk) purge() {
+	go func() {
+		d.gc.notifyc <- struct{}{}
+	}()
+}
+
+func (d *disk) Close() error {
 	d.wal.Close()
+	return nil
 }

@@ -24,7 +24,7 @@ func TestDiskWalInteraction(t *testing.T) {
 
 	// create wal and append data using disk objec.
 	w, _ := wal.Create(nil, dir, nil)
-	disk := Disk{
+	disk := disk{
 		wal: w,
 	}
 
@@ -51,7 +51,7 @@ func TestDiskWalInteraction(t *testing.T) {
 func TestDiskBootMkdir(t *testing.T) {
 	temp := filepath.Join(os.TempDir(), "/test_disk_boot")
 	defer os.RemoveAll(temp)
-	d := new(Disk)
+	d := new(disk)
 	d.snapdir = ""
 	d.waldir = ""
 
@@ -74,7 +74,7 @@ func TestDiskBoot(t *testing.T) {
 	temp := filepath.Join(os.TempDir(), "/test_disk_boot")
 	defer os.RemoveAll(temp)
 
-	d := new(Disk)
+	d := new(disk)
 	d.snapdir = temp
 	d.waldir = temp
 
@@ -105,6 +105,6 @@ func TestDiskBoot(t *testing.T) {
 }
 
 func TestDiskExist(t *testing.T) {
-	d := new(Disk)
+	d := new(disk)
 	assert.False(t, d.Exist())
 }

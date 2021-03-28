@@ -6,9 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
+
+var _ storage.Snapshoter = &snapshoter{}
 
 type snapshoter struct {
 	snapdir string
