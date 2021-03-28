@@ -30,11 +30,16 @@ var (
 			)
 		},
 	}
+
 	writerPool = sync.Pool{
 		New: func() interface{} { return bufio.NewWriter(nil) },
 	}
+
 	readerPool = sync.Pool{
-		New: func() interface{} { return bufio.NewReader(nil) },
+		New: func() interface{} {
+			r := bufio.NewReader(nil)
+			return &snapshotFileReader{Reader: r}
+		},
 	}
 )
 
@@ -42,6 +47,7 @@ var (
 	ErrEmptySnapshot  = errors.New("raft/disk: empty snapshot file")
 	ErrSnapshotFormat = errors.New("raft/disk: invalid snapshot file format")
 	ErrCRCMismatch    = errors.New("raft/disk: snapshot file corrupted, crc mismatch")
+	ErrClosedSnapshot = errors.New("raft/disk: read/write on closed snapshot")
 	ErrNoSnapshot     = errors.New("raft/disk: no available snapshot")
 )
 
@@ -123,10 +129,6 @@ func WriteSnapshot(path string, s *SnapshotFile) (err error) {
 		flushAndSync(w)
 		f.Close()
 
-		crc.Reset()
-		hw.Reset(nil)
-		w.Reset(nil)
-
 		crcPool.Put(crc)
 		writerPool.Put(hw)
 		writerPool.Put(w)
@@ -136,7 +138,7 @@ func WriteSnapshot(path string, s *SnapshotFile) (err error) {
 		}
 	}()
 
-	blocks := []proto.Message{
+	msgs := []proto.Message{
 		// reserve header to rewrite it at the end.
 		&api.SnapshotHeader{
 			CRC: make([]byte, crc64.Size),
@@ -145,18 +147,18 @@ func WriteSnapshot(path string, s *SnapshotFile) (err error) {
 		s.Pool,
 	}
 
-	for i, b := range blocks {
+	for i, m := range msgs {
 		w := w
 		if i == 0 {
 			w = hw
 		}
 
-		data, err := proto.Marshal(b)
+		block, err := proto.Marshal(m)
 		if err != nil {
 			return err
 		}
 
-		if _, err := w.Write(data); err != nil {
+		if _, err := w.Write(block); err != nil {
 			return err
 		}
 
@@ -195,17 +197,12 @@ func readSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadCloser,
 	}
 
 	crc := crcPool.Get().(hash.Hash64)
-	r := snapshotFileReader{
-		f:      f,
-		Reader: readerPool.Get().(*bufio.Reader),
-	}
+	r := readerPool.Get().(*snapshotFileReader)
 	r.Reset(f)
 	crc.Reset()
 
 	defer func() {
-		crc.Reset()
 		crcPool.Put(crc)
-
 		if err != nil {
 			r.Close()
 		}
@@ -265,12 +262,29 @@ func readSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadCloser,
 
 type snapshotFileReader struct {
 	*bufio.Reader
-	f *os.File
+	f   *os.File
+	err error
 }
 
-func (s snapshotFileReader) Close() error {
-	s.Reader.Reset(nil)
-	readerPool.Put(s.Reader)
-	s.Reader = nil
-	return s.f.Close()
+func (s *snapshotFileReader) Read(p []byte) (int, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+	return s.Reader.Read(p)
+}
+
+func (s *snapshotFileReader) Close() error {
+	if s.err != nil {
+		return s.err
+	}
+	f := s.f
+	s.err = ErrClosedSnapshot
+	s.f = nil
+	readerPool.Put(s)
+	return f.Close()
+}
+
+func (s *snapshotFileReader) Reset(f *os.File) {
+	s.f = f
+	s.Reader.Reset(f)
 }

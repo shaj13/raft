@@ -106,6 +106,25 @@ func TestReadNewestAvailableSnapshot(t *testing.T) {
 	assert.Equal(t, expected.Snap, sf.Snap)
 }
 
+func TestSnapshotFileReader(t *testing.T) {
+	f, err := os.Open("./testdata/empty.snap")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := readerPool.Get().(*snapshotFileReader)
+	r.Reset(f)
+
+	err = r.Close()
+	assert.NoError(t, err)
+
+	_, err = r.Read([]byte{})
+	assert.Equal(t, ErrClosedSnapshot, err)
+
+	err = r.Close()
+	assert.Equal(t, ErrClosedSnapshot, err)
+}
+
 func snapshotTestFile() (SnapshotFile, string) {
 	const data = "some app data"
 	return SnapshotFile{
