@@ -155,7 +155,8 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 		},
 	}
 
-	c, err := Dial(context.TODO(), cfg, "")
+	ctx := context.TODO()
+	c, err := Dialer(ctx, cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}

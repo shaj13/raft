@@ -11,7 +11,7 @@ import (
 type Server interface{}
 
 // Dial connects to an RPC server at the specified network address.
-type Dial func(ctx context.Context, cfg interface{}, addr string) (RPC, error)
+type Dial func(ctx context.Context, addr string) (RPC, error)
 
 // New returns a new Server to handle requests
 // to the set of services at the other end of the connection.

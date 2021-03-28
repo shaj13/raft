@@ -36,21 +36,22 @@ type DialConfig interface {
 	Snapshoter() storage.Snapshoter
 }
 
-// Dial connects to an GRPC server at the specified network address.
-//
-// Dial compatible with net.Dial.
-func Dial(ctx context.Context, v interface{}, addr string) (net.RPC, error) {
-	c := v.(DialConfig)
-	conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
-	if err != nil {
-		return nil, err
-	}
+// Dialer returns an dial function to connects,
+// to an GRPC server at the specified network address.
+func Dialer(ctx context.Context, v interface{}) net.Dial {
+	return func(ctx context.Context, addr string) (net.RPC, error) {
+		c := v.(DialConfig)
+		conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
+		if err != nil {
+			return nil, err
+		}
 
-	return &client{
-		conn:       conn,
-		callOption: c.CallOption(),
-		snapshoter: c.Snapshoter(),
-	}, nil
+		return &client{
+			conn:       conn,
+			callOption: c.CallOption(),
+			snapshoter: c.Snapshoter(),
+		}, nil
+	}
 }
 
 // Client implements net.RPC.

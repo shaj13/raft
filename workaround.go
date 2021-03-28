@@ -42,7 +42,7 @@ type tr struct {
 }
 
 func (t tr) RoundTrip(ctx context.Context, msg raftpb.Message) error {
-	rpc, err := rgrpc.Dial(ctx, t.config, t.add)
+	rpc, err := rgrpc.Dialer(ctx, t.config)(ctx, t.add)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (t tr) Close() error {
 }
 
 func joinjoin(ctx context.Context, c *config, m *api.Member, cluster string) ([]api.Member, error) {
-	rpc, err := rgrpc.Dial(ctx, c, cluster)
+	rpc, err := rgrpc.Dialer(ctx, c)(ctx, cluster)
 	if err != nil {
 		return []api.Member{}, err
 	}
