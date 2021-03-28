@@ -52,7 +52,7 @@ var (
 	ErrNoSnapshot     = errors.New("raft/disk: no available snapshot")
 )
 
-func ReadNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.SnapshotFile, error) {
+func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.SnapshotFile, error) {
 	files := map[string]struct{}{}
 	target := ""
 	ls, err := list(dir, snapExt)
@@ -76,21 +76,21 @@ func ReadNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.S
 		return nil, ErrNoSnapshot
 	}
 
-	return ReadSnapshot(filepath.Join(dir, target))
+	return decodeSnapshot(filepath.Join(dir, target))
 }
 
-func ReadSnapshot(path string) (sf *storage.SnapshotFile, err error) {
+func decodeSnapshot(path string) (sf *storage.SnapshotFile, err error) {
 	sf = new(storage.SnapshotFile)
 	sf.Snap = new(raftpb.Snapshot)
 	sf.Pool = new(api.Pool)
-	sf.Data, err = readSnapshotByblocks(path, sf.Snap, sf.Pool)
+	sf.Data, err = decodeSnapshotByblocks(path, sf.Snap, sf.Pool)
 	return
 }
 
-func PeekSnapshot(path string) (*raftpb.Snapshot, error) {
+func peekSnapshot(path string) (*raftpb.Snapshot, error) {
 	sf := new(storage.SnapshotFile)
 	sf.Snap = new(raftpb.Snapshot)
-	r, err := readSnapshotByblocks(path, sf.Snap)
+	r, err := decodeSnapshotByblocks(path, sf.Snap)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func PeekSnapshot(path string) (*raftpb.Snapshot, error) {
 	return sf.Snap, nil
 }
 
-func WriteSnapshot(path string, s *storage.SnapshotFile) (err error) {
+func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func WriteSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	return err
 }
 
-func readSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadCloser, err error) {
+func decodeSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadCloser, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

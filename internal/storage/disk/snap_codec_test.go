@@ -15,16 +15,16 @@ import (
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
-func TestSnapshotReadWrite(t *testing.T) {
+func TestSnapshotCodec(t *testing.T) {
 	dir := createTestDir("read-write", t)
 	path := filepath.Join(dir, t.Name())
 	defer os.RemoveAll(dir)
 
 	expected, expectedData := snapshotTestFile()
-	err := WriteSnapshot(path, &expected)
+	err := encodeSnapshot(path, &expected)
 	assert.NoError(t, err)
 
-	got, err := ReadSnapshot(path)
+	got, err := decodeSnapshot(path)
 	assert.NoError(t, err)
 	assert.Equal(t, expected.Snap, got.Snap)
 	assert.Equal(t, expected.Pool, got.Pool)
@@ -38,17 +38,17 @@ func TestPeekSnapshot(t *testing.T) {
 	expected, _ := snapshotTestFile()
 
 	// Round #1 it return error when file invalid
-	snap, err := PeekSnapshot("")
+	snap, err := peekSnapshot("")
 	assert.Error(t, err)
 	assert.Nil(t, snap)
 
 	// Round #2 it return snap object
-	snap, err = PeekSnapshot("./testdata/valid.snap")
+	snap, err = peekSnapshot("./testdata/valid.snap")
 	assert.NoError(t, err)
 	assert.Equal(t, expected.Snap, snap)
 }
 
-func TestSnapErr(t *testing.T) {
+func TestDecodeSnapErr(t *testing.T) {
 	table := []struct {
 		name     string
 		file     string
@@ -83,26 +83,26 @@ func TestSnapErr(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ReadSnapshot(tt.file)
+			_, err := decodeSnapshot(tt.file)
 			assert.Contains(t, err.Error(), tt.contains)
 		})
 	}
 }
 
-func TestReadNewestAvailableSnapshot(t *testing.T) {
+func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	// Round #1 it return error when snapshots dir does not exist
-	sf, err := ReadNewestAvailableSnapshot("", []walpb.Snapshot{})
+	sf, err := decodeNewestAvailableSnapshot("", []walpb.Snapshot{})
 	assert.Nil(t, sf)
 	assert.Contains(t, err.Error(), "no such file or directory")
 
 	// Round #2 it return error when no snapshots
-	sf, err = ReadNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{})
+	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{})
 	assert.Nil(t, sf)
 	assert.Equal(t, ErrNoSnapshot, err)
 
 	// Round #3 it return latest snapshots
 	expected, _ := snapshotTestFile()
-	sf, err = ReadNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{{Index: 3, Term: 3}})
+	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{{Index: 3, Term: 3}})
 	assert.NoError(t, err)
 	assert.Equal(t, expected.Snap, sf.Snap)
 }
