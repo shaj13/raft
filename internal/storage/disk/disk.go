@@ -30,6 +30,7 @@ func New(ctx context.Context, c Config) storage.Storage {
 		gc:      gc,
 		waldir:  waldir,
 		snapdir: snapdir,
+		shoter:  &snapshoter{snapdir: snapdir},
 	}
 
 	return disk
@@ -38,9 +39,16 @@ func New(ctx context.Context, c Config) storage.Storage {
 // disk implements storage.Storage
 type disk struct {
 	wal     *wal.WAL
+	shoter  *snapshoter
 	gc      *gc
 	waldir  string
 	snapdir string
+}
+
+func (d *disk) purge() {
+	go func() {
+		d.gc.notifyc <- struct{}{}
+	}()
 }
 
 // SaveSnapshot saves a given snapshot into the WAL.
@@ -147,10 +155,8 @@ func (d *disk) Exist() bool {
 	return wal.Exist(d.waldir)
 }
 
-func (d *disk) purge() {
-	go func() {
-		d.gc.notifyc <- struct{}{}
-	}()
+func (d *disk) Snapshoter() storage.Snapshoter {
+	return d.shoter
 }
 
 func (d *disk) Close() error {

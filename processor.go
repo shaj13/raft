@@ -10,6 +10,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -45,8 +46,8 @@ type processor struct {
 	ticker       *time.Ticker
 	wg           sync.WaitGroup
 	propwg       sync.WaitGroup
-	storg        *raft.MemoryStorage
-	sshot        *disk
+	cache        *raft.MemoryStorage
+	storage      storage.Storage
 	msgbus       *msgbus
 	repoc        chan report
 	propc        chan raftpb.Message
@@ -69,7 +70,7 @@ func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member
 		pool []api.Member
 	)
 
-	exist := p.sshot.exist()
+	exist := p.storage.Exist()
 	m := &api.Member{
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
@@ -86,7 +87,7 @@ func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member
 		return nil, nil, err
 	}
 
-	meta, hs, ents, snap, err := p.sshot.bootstrap(mustMarshal(m))
+	meta, hs, ents, snap, err := p.storage.Boot(mustMarshal(m))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -121,14 +122,14 @@ func (p *processor) boot(ctx context.Context, cluster, addr string) (*api.Member
 		return nil, nil, err
 	}
 
-	p.publishSnapshot(*snap)
-	p.storg.SetHardState(hs)
-	p.storg.Append(ents)
+	p.publishSnapshotFile(snap)
+	p.cache.SetHardState(hs)
+	p.cache.Append(ents)
 	return m, pool, nil
 }
 
 func (p *processor) run(ctx context.Context, cluster, addr string) error {
-	exist := p.sshot.exist()
+	exist := p.storage.Exist()
 	m, pool, err := p.boot(ctx, cluster, addr)
 	if err != nil {
 		return err
@@ -140,7 +141,7 @@ func (p *processor) run(ctx context.Context, cluster, addr string) error {
 		ID:                        m.ID,
 		ElectionTick:              10,
 		HeartbeatTick:             1,
-		Storage:                   p.storg,
+		Storage:                   p.cache,
 		MaxSizePerMsg:             1024 * 1024,
 		MaxInflightMsgs:           256,
 		MaxUncommittedEntriesSize: 1 << 30,
@@ -177,7 +178,7 @@ func (p *processor) eventLoop() error {
 		case <-p.ticker.C:
 			p.node.Tick()
 		case rd := <-p.node.Ready():
-			if err := p.sshot.SaveEntries(rd.HardState, rd.Entries); err != nil {
+			if err := p.storage.SaveEntries(rd.HardState, rd.Entries); err != nil {
 				return err
 			}
 
@@ -185,7 +186,7 @@ func (p *processor) eventLoop() error {
 				return err
 			}
 
-			if err := p.storg.Append(rd.Entries); err != nil {
+			if err := p.cache.Append(rd.Entries); err != nil {
 				return err
 			}
 
@@ -222,29 +223,32 @@ func (p *processor) publishSnapshot(snap raftpb.Snapshot) error {
 	}
 
 	p.cfg.logger.Debugf("raft: Publishing snapshot at index %d", p.snapIndex)
-	if err := p.sshot.SaveSnapshot(snap); err != nil {
+	if err := p.storage.SaveSnapshot(snap); err != nil {
 		return err
 	}
 
-	if err := p.storg.ApplySnapshot(snap); err != nil {
+	sf, err := p.storage.Snapshoter().Read(snap)
+	if err != nil {
 		return err
 	}
 
-	// TODO: FIXME
-	// s := new(api.Snapshot)
-	// if err := s.Unmarshal(snap.Data); err != nil {
-	// 	return err
-	// }
+	return p.publishSnapshotFile(sf)
+}
 
-	// TODO: FIXME
-	// p.pool.Restore(s.Pool)
+func (p *processor) publishSnapshotFile(sf *storage.SnapshotFile) error {
+	snap := *sf.Snap
+
+	if err := p.cache.ApplySnapshot(*sf.Snap); err != nil {
+		return err
+	}
+
+	p.pool.Restore(*sf.Pool)
 
 	// TODO: trigger original user to load snapshot
 
 	p.cState = snap.Metadata.ConfState
 	p.snapIndex = snap.Metadata.Index
 	p.appliedIndex = snap.Metadata.Index
-
 	return nil
 }
 
@@ -261,12 +265,12 @@ func (p *processor) triggerSnapshot() error {
 	// 	log.Panic(err)
 	// }
 
-	snap, err := p.storg.CreateSnapshot(p.appliedIndex, &p.cState, nil) // TODO: pass data
+	snap, err := p.cache.CreateSnapshot(p.appliedIndex, &p.cState, nil) // TODO: pass data
 	if err != nil {
 		return err
 	}
 
-	if err := p.sshot.SaveSnapshot(snap); err != nil {
+	if err := p.storage.SaveSnapshot(snap); err != nil {
 		return err
 	}
 
@@ -275,7 +279,7 @@ func (p *processor) triggerSnapshot() error {
 		compactIndex = p.appliedIndex - p.cfg.snapInterval
 	}
 
-	if err := p.storg.Compact(compactIndex); err != nil {
+	if err := p.cache.Compact(compactIndex); err != nil {
 		return err
 	}
 

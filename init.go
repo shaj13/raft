@@ -17,8 +17,8 @@ func initProcessor(ctx context.Context) {
 	p.ticker = time.NewTicker(100 * time.Millisecond) // TODO: read second from cfg
 	p.wg = sync.WaitGroup{}
 	p.propwg = sync.WaitGroup{}
-	p.storg = r.memoryStorage
-	p.sshot = r.snapshoter.(*disk)
+	p.cache = r.memoryStorage
+	p.storage = r.snapshoter.(*disk)
 	p.msgbus = r.msgbus
 	p.repoc = r.reportc
 	p.propc = make(chan raftpb.Message)

@@ -17,6 +17,7 @@ type snapshoter struct {
 	snapdir string
 }
 
+// TODO: dont accept the whole msg
 func (s snapshoter) Reader(_ context.Context, m raftpb.Message) (string, io.ReadCloser, error) {
 	if raft.IsEmptySnap(m.Snapshot) {
 		return "", nil, ErrEmptySnapshot
@@ -55,4 +56,17 @@ func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func
 	}
 
 	return w, peek, nil
+}
+
+func (s snapshoter) Write(sf *storage.SnapshotFile) error {
+	name := snapshotName(sf.Snap.Metadata.Term, sf.Snap.Metadata.Index)
+	path := filepath.Join(s.snapdir, name)
+	return encodeSnapshot(path, sf)
+}
+
+func (s snapshoter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+	// TODO: to an standalone method
+	name := snapshotName(snap.Metadata.Term, snap.Metadata.Index)
+	path := filepath.Join(s.snapdir, name)
+	return decodeSnapshot(path)
 }
