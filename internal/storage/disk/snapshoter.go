@@ -30,7 +30,7 @@ func (s snapshoter) Reader(_ context.Context, m raftpb.Message) (string, io.Read
 		return "", nil, err
 	}
 
-	r := readerPool.Get().(*snapshotFileReader)
+	r := readerPool.Get().(*fileReader)
 	r.Reset(f)
 
 	return name, r, nil
@@ -43,7 +43,7 @@ func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func
 		return nil, nil, err
 	}
 
-	w := writerPool.Get().(*snapshotFileWriter)
+	w := writerPool.Get().(*fileWriter)
 	w.Reset(f, nil)
 
 	peek := func() (raftpb.Snapshot, error) {

@@ -35,14 +35,14 @@ var (
 	writerPool = sync.Pool{
 		New: func() interface{} {
 			w := bufio.NewWriter(nil)
-			return &snapshotFileWriter{Writer: w}
+			return &fileWriter{Writer: w}
 		},
 	}
 
 	readerPool = sync.Pool{
 		New: func() interface{} {
 			r := bufio.NewReader(nil)
-			return &snapshotFileReader{Reader: r}
+			return &fileReader{Reader: r}
 		},
 	}
 )
@@ -112,8 +112,8 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	}
 
 	// header writer used to skip crc.
-	hw := writerPool.Get().(*snapshotFileWriter)
-	w := writerPool.Get().(*snapshotFileWriter)
+	hw := writerPool.Get().(*fileWriter)
+	w := writerPool.Get().(*fileWriter)
 	crc := crcPool.Get().(hash.Hash64)
 
 	crc.Reset()
@@ -123,14 +123,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 		io.MultiWriter(crc, f),
 	)
 
-	flushAndSync := func(w *snapshotFileWriter) {
-		w.Flush()
-		fileutil.Fsync(f)
-	}
-
 	defer func() {
-		flushAndSync(w)
-
 		hw.Close()
 		w.Close()
 
@@ -169,7 +162,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 			return err
 		}
 
-		flushAndSync(w)
+		w.FlushAndSync()
 	}
 
 	_, err = io.Copy(w, s.Data)
@@ -177,7 +170,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 		return err
 	}
 
-	flushAndSync(w)
+	w.FlushAndSync()
 
 	if _, err := f.Seek(0, 0); err != nil {
 		return err
@@ -200,7 +193,7 @@ func decodeSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadClose
 	}
 
 	crc := crcPool.Get().(hash.Hash64)
-	r := readerPool.Get().(*snapshotFileReader)
+	r := readerPool.Get().(*fileReader)
 	r.Reset(f)
 	crc.Reset()
 
@@ -263,69 +256,75 @@ func decodeSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadClose
 	return r, nil
 }
 
-type snapshotFileReader struct {
+type fileReader struct {
 	*bufio.Reader
-	f   *os.File
-	err error
+	file *os.File
+	err  error
 }
 
-func (s *snapshotFileReader) Read(p []byte) (int, error) {
-	if s.err != nil {
-		return 0, s.err
+func (f *fileReader) Read(p []byte) (int, error) {
+	if f.err != nil {
+		return 0, f.err
 	}
-	return s.Reader.Read(p)
+	return f.Reader.Read(p)
 }
 
-func (s *snapshotFileReader) Close() error {
-	if s.err != nil {
-		return s.err
+func (f *fileReader) Close() error {
+	if f.err != nil {
+		return f.err
 	}
-	f := s.f
-	s.err = ErrClosedSnapshot
-	s.f = nil
-	s.Reader.Reset(nil)
-	readerPool.Put(s)
-	return f.Close()
+	file := f.file
+	f.err = ErrClosedSnapshot
+	f.file = nil
+	f.Reader.Reset(nil)
+	readerPool.Put(f)
+	return file.Close()
 }
 
-func (s *snapshotFileReader) Reset(f *os.File) {
-	s.f = f
-	s.err = nil
-	s.Reader.Reset(f)
+func (f *fileReader) Reset(file *os.File) {
+	f.file = file
+	f.err = nil
+	f.Reader.Reset(file)
 }
 
-type snapshotFileWriter struct {
+type fileWriter struct {
 	*bufio.Writer
-	f   *os.File
-	err error
+	file *os.File
+	err  error
 }
 
-func (s *snapshotFileWriter) Write(p []byte) (int, error) {
-	if s.err != nil {
-		return 0, s.err
+func (f *fileWriter) FlushAndSync() {
+	f.Writer.Flush()
+	fileutil.Fsync(f.file)
+}
+
+func (f *fileWriter) Write(p []byte) (int, error) {
+	if f.err != nil {
+		return 0, f.err
 	}
 
-	return s.Writer.Write(p)
+	return f.Writer.Write(p)
 }
 
-func (s *snapshotFileWriter) Reset(f *os.File, w io.Writer) {
-	var writer io.Writer = f
-	s.f = f
-	s.err = nil
+func (f *fileWriter) Reset(file *os.File, w io.Writer) {
+	var writer io.Writer = file
+	f.file = file
+	f.err = nil
 	if w != nil {
 		writer = w
 	}
-	s.Writer.Reset(writer)
+	f.Writer.Reset(writer)
 }
 
-func (s *snapshotFileWriter) Close() error {
-	if s.err != nil {
-		return s.err
+func (f *fileWriter) Close() error {
+	if f.err != nil {
+		return f.err
 	}
-	f := s.f
-	s.err = ErrClosedSnapshot
-	s.f = nil
-	s.Writer.Reset(nil)
-	writerPool.Put(s)
-	return f.Close()
+	f.FlushAndSync()
+	file := f.file
+	f.err = ErrClosedSnapshot
+	f.file = nil
+	f.Writer.Reset(nil)
+	writerPool.Put(f)
+	return file.Close()
 }

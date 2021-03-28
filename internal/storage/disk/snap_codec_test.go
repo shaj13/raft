@@ -113,7 +113,7 @@ func TestSnapshotFileReader(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := readerPool.Get().(*snapshotFileReader)
+	r := readerPool.Get().(*fileReader)
 	r.Reset(f)
 
 	err = r.Close()
@@ -127,6 +127,7 @@ func TestSnapshotFileReader(t *testing.T) {
 }
 
 func TestSnapshotFileWriter(t *testing.T) {
+	data := []byte("file data")
 	path := filepath.Join(os.TempDir(), "snapfilewriter")
 	defer os.Remove(path)
 
@@ -135,17 +136,23 @@ func TestSnapshotFileWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w := writerPool.Get().(*snapshotFileWriter)
+	w := writerPool.Get().(*fileWriter)
 	w.Reset(f, nil)
+
+	_, err = w.Write(data)
+	assert.NoError(t, err)
 
 	err = w.Close()
 	assert.NoError(t, err)
 
-	_, err = w.Write([]byte{})
+	_, err = w.Write(data)
 	assert.Equal(t, ErrClosedSnapshot, err)
 
 	err = w.Close()
 	assert.Equal(t, ErrClosedSnapshot, err)
+
+	got, _ := ioutil.ReadFile(path)
+	assert.Equal(t, data, got)
 }
 
 func snapshotTestFile() (storage.SnapshotFile, string) {
