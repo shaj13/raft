@@ -33,7 +33,10 @@ var (
 	}
 
 	writerPool = sync.Pool{
-		New: func() interface{} { return bufio.NewWriter(nil) },
+		New: func() interface{} {
+			w := bufio.NewWriter(nil)
+			return &snapshotFileWriter{Writer: w}
+		},
 	}
 
 	readerPool = sync.Pool{
@@ -52,6 +55,10 @@ var (
 	ErrNoSnapshot     = errors.New("raft/disk: no available snapshot")
 )
 
+func snapshotName(term, index uint64) string {
+	return fmt.Sprintf(format, term, index) + snapExt
+}
+
 func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.SnapshotFile, error) {
 	files := map[string]struct{}{}
 	target := ""
@@ -65,7 +72,7 @@ func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage
 	}
 
 	for i := len(snaps) - 1; i >= 0; i-- {
-		name := fmt.Sprintf(format, snaps[i].Term, snaps[i].Index) + snapExt
+		name := snapshotName(snaps[i].Term, snaps[i].Index)
 		if _, ok := files[name]; ok {
 			target = name
 			break
@@ -105,28 +112,29 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	}
 
 	// header writer used to skip crc.
-	hw := writerPool.Get().(*bufio.Writer)
-	w := writerPool.Get().(*bufio.Writer)
+	hw := writerPool.Get().(*snapshotFileWriter)
+	w := writerPool.Get().(*snapshotFileWriter)
 	crc := crcPool.Get().(hash.Hash64)
 
 	crc.Reset()
-	hw.Reset(f)
+	hw.Reset(f, nil)
 	w.Reset(
+		f,
 		io.MultiWriter(crc, f),
 	)
 
-	flushAndSync := func(w *bufio.Writer) {
+	flushAndSync := func(w *snapshotFileWriter) {
 		w.Flush()
 		fileutil.Fsync(f)
 	}
 
 	defer func() {
 		flushAndSync(w)
-		f.Close()
+
+		hw.Close()
+		w.Close()
 
 		crcPool.Put(crc)
-		writerPool.Put(hw)
-		writerPool.Put(w)
 
 		if err != nil {
 			os.Remove(path)
@@ -275,11 +283,49 @@ func (s *snapshotFileReader) Close() error {
 	f := s.f
 	s.err = ErrClosedSnapshot
 	s.f = nil
+	s.Reader.Reset(nil)
 	readerPool.Put(s)
 	return f.Close()
 }
 
 func (s *snapshotFileReader) Reset(f *os.File) {
 	s.f = f
+	s.err = nil
 	s.Reader.Reset(f)
+}
+
+type snapshotFileWriter struct {
+	*bufio.Writer
+	f   *os.File
+	err error
+}
+
+func (s *snapshotFileWriter) Write(p []byte) (int, error) {
+	if s.err != nil {
+		return 0, s.err
+	}
+
+	return s.Writer.Write(p)
+}
+
+func (s *snapshotFileWriter) Reset(f *os.File, w io.Writer) {
+	var writer io.Writer = f
+	s.f = f
+	s.err = nil
+	if w != nil {
+		writer = w
+	}
+	s.Writer.Reset(writer)
+}
+
+func (s *snapshotFileWriter) Close() error {
+	if s.err != nil {
+		return s.err
+	}
+	f := s.f
+	s.err = ErrClosedSnapshot
+	s.f = nil
+	s.Writer.Reset(nil)
+	writerPool.Put(s)
+	return f.Close()
 }

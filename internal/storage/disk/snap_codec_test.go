@@ -126,6 +126,28 @@ func TestSnapshotFileReader(t *testing.T) {
 	assert.Equal(t, ErrClosedSnapshot, err)
 }
 
+func TestSnapshotFileWriter(t *testing.T) {
+	path := filepath.Join(os.TempDir(), "snapfilewriter")
+	defer os.Remove(path)
+
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := writerPool.Get().(*snapshotFileWriter)
+	w.Reset(f, nil)
+
+	err = w.Close()
+	assert.NoError(t, err)
+
+	_, err = w.Write([]byte{})
+	assert.Equal(t, ErrClosedSnapshot, err)
+
+	err = w.Close()
+	assert.Equal(t, ErrClosedSnapshot, err)
+}
+
 func snapshotTestFile() (storage.SnapshotFile, string) {
 	const data = "some app data"
 	return storage.SnapshotFile{
