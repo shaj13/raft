@@ -204,6 +204,14 @@ func (t *testSnapshoter) Writer(_ context.Context, n string) (io.WriteCloser, fu
 	return writeCloser{t.buf}, peek, nil
 }
 
+func (t *testSnapshoter) Write(sf *storage.SnapshotFile) error {
+	return nil
+}
+
+func (t *testSnapshoter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+	return nil, nil
+}
+
 func (t *testSnapshoter) Assert(tb testing.TB) {
 	assert.Equal(tb, t.expname, t.gotname)
 	assert.Equal(tb, t.data, t.buf.Bytes())

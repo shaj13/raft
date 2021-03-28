@@ -65,7 +65,13 @@ func (c *client) Message(ctx context.Context, m raftpb.Message) error {
 	if m.Type == raftpb.MsgSnap {
 		fn = c.snapshot
 	}
-	return fn(ctx, m)
+
+	err := fn(ctx, m)
+	if err == io.EOF {
+		return nil
+	}
+
+	return err
 }
 
 func (c *client) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) {
