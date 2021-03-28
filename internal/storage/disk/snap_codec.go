@@ -124,8 +124,8 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 	)
 
 	defer func() {
-		hw.Close()
 		w.Close()
+		hw.Close()
 
 		crcPool.Put(crc)
 
@@ -290,10 +290,14 @@ func (f *fileReader) Reset(file *os.File) {
 type fileWriter struct {
 	*bufio.Writer
 	file *os.File
+	name string
 	err  error
 }
 
 func (f *fileWriter) FlushAndSync() {
+	if f.Buffered() == 0 {
+		return
+	}
 	f.Writer.Flush()
 	fileutil.Fsync(f.file)
 }

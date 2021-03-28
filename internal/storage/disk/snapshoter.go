@@ -47,6 +47,7 @@ func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func
 	w.Reset(f, nil)
 
 	peek := func() (raftpb.Snapshot, error) {
+		w.FlushAndSync()
 		s, err := peekSnapshot(path)
 		if err != nil {
 			_ = os.Remove(path)

@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,9 +25,8 @@ func TestDiskWalInteraction(t *testing.T) {
 
 	// create wal and append data using disk objec.
 	w, _ := wal.Create(nil, dir, nil)
-	disk := disk{
-		wal: w,
-	}
+	disk := newTestDisk("")
+	disk.wal = w
 
 	err := disk.SaveSnapshot(*sf.Snap)
 	assert.NoError(t, err)
@@ -74,9 +74,7 @@ func TestDiskBoot(t *testing.T) {
 	temp := filepath.Join(os.TempDir(), "/test_disk_boot")
 	defer os.RemoveAll(temp)
 
-	d := new(disk)
-	d.snapdir = temp
-	d.waldir = temp
+	d := newTestDisk(temp)
 
 	t.Run("it return error when wal locked", func(t *testing.T) {
 		defer d.Close()
@@ -107,4 +105,12 @@ func TestDiskBoot(t *testing.T) {
 func TestDiskExist(t *testing.T) {
 	d := new(disk)
 	assert.False(t, d.Exist())
+}
+
+func newTestDisk(dir string) *disk {
+	d := new(disk)
+	d.snapdir = dir
+	d.waldir = dir
+	d.gc = newGC(context.TODO(), dir, dir, 100)
+	return d
 }
