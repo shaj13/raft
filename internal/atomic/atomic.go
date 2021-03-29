@@ -5,6 +5,11 @@ import (
 	"sync/atomic"
 )
 
+// NewBool create new atomic type-safe bool.
+func NewBool() *Bool {
+	return new(Bool)
+}
+
 // Bool is an atomic type-safe wrapper for bool values.
 type Bool uint32
 
