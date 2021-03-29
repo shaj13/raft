@@ -12,7 +12,7 @@ func TestMsgBus(t *testing.T) {
 	onceid := uint64(2)
 
 	val := "some value"
-	m := NewMsgBus()
+	m := newMsgBus()
 	s1 := m.Subscribe(eventid)
 	s2 := m.SubscribeOnce(onceid)
 	defer m.Clsoe()

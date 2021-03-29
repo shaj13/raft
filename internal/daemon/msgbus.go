@@ -9,8 +9,8 @@ import (
 	"go.etcd.io/etcd/pkg/v3/idutil"
 )
 
-// NewMsgBus create a new msgbus.
-func NewMsgBus() *MsgBus {
+// newMsgBus create a new msgbus.
+func newMsgBus() *MsgBus {
 	id := rand.Int63() + 1
 	idgen := idutil.NewGenerator(uint16(id), time.Now())
 	return &MsgBus{

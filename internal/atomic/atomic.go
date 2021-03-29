@@ -10,6 +10,11 @@ func NewBool() *Bool {
 	return new(Bool)
 }
 
+//NewUint64 create new atomic type-safe uint64
+func NewUint64() *Uint64 {
+	return new(Uint64)
+}
+
 // Bool is an atomic type-safe wrapper for bool values.
 type Bool uint32
 
@@ -41,9 +46,9 @@ func (a *Bool) String() string {
 // Uint64 is an atomic type-safe wrapper for uint64 values.
 type Uint64 uint64
 
-// Add atomically adds n to u.
-func (u *Uint64) Add(n uint64) {
-	atomic.AddUint64((*uint64)(u), n)
+// Set atomically stores n into u.
+func (u *Uint64) Set(n uint64) {
+	atomic.StoreUint64((*uint64)(u), n)
 }
 
 // Get atomically gets the value of u.
