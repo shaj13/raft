@@ -75,9 +75,9 @@ func (c *client) Message(ctx context.Context, m raftpb.Message) error {
 	return err
 }
 
-func (c *client) Join(ctx context.Context, m api.Member) (uint64, api.Pool, error) {
-	fail := func(err error) (uint64, api.Pool, error) {
-		return 0, api.Pool{}, err
+func (c *client) Join(ctx context.Context, m api.Member) (uint64, []api.Member, error) {
+	fail := func(err error) (uint64, []api.Member, error) {
+		return 0, nil, err
 	}
 
 	stream, err := api.NewRaftClient(c.conn).Join(ctx, &m, c.callOption...)
@@ -119,7 +119,7 @@ func (c *client) Join(ctx context.Context, m api.Member) (uint64, api.Pool, erro
 		)
 	}
 
-	return id, api.Pool{Members: membs}, nil
+	return id, membs, nil
 }
 
 func (c *client) Close() error {

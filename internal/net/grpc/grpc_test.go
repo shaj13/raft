@@ -86,7 +86,7 @@ func TestJoin(t *testing.T) {
 			id, pool, err := c.Join(context.Background(), api.Member{})
 			ctrl.AssertCalled(t, method)
 			assert.Equal(t, tt.id, id)
-			assert.Equal(t, tt.membs, pool.Members)
+			assert.Equal(t, tt.membs, pool)
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
 			}

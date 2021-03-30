@@ -14,6 +14,7 @@ import (
 	"github.com/shaj13/raftkit/internal/atomic"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -36,13 +37,29 @@ const (
 	SnapshotFailure
 )
 
+const (
+	msg Event = iota
+	propose
+	snapshot
+)
+
 // Signal is an interrupt sent to daemon to indicate
 // that an important event has occurred.
 type Signal int
 
+// TODO: add event comment
+type Event uint64
+
+// ID returns event id.
+func (e Event) ID() uint64 {
+	return uint64(e)
+}
+
+// TODO: config comment
 type Config interface {
 	RaftConfig() *raft.Config
 	SnapInterval() uint64
+	Dial() net.Dial
 }
 
 type daemon struct {
@@ -97,12 +114,12 @@ func (d *daemon) Push(m raftpb.Message) error {
 	}
 
 	// event id based on msg type.
-	id := uint64(1) // TODO: change once event defined
+	event := msg
 	if m.Type == raftpb.MsgProp {
-		id = uint64(2) // TODO: change once event defined
+		event = propose
 	}
 
-	d.msgbus.Broadcast(id, m)
+	d.msgbus.Broadcast(event.ID(), m)
 	return nil
 }
 
@@ -260,18 +277,25 @@ func (d *daemon) CreateSnapshot() (raftpb.Snapshot, error) {
 	return snap, err
 }
 
-func (d *daemon) join(ctx context.Context, m *api.Member, cluster string) ([]api.Member, error) {
-	return nil, nil
-}
-
 func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, []api.Member, error) {
 	var (
 		err  error
 		pool []api.Member
+		mem  *api.Member
 	)
 
+	join := func() {
+		var rpc net.RPC
+		rpc, err = d.cfg.Dial()(ctx, addr)
+		if err != nil {
+			return
+		}
+
+		mem.ID, pool, err = rpc.Join(ctx, *mem)
+	}
+
 	exist := d.storage.Exist()
-	m := &api.Member{
+	mem = &api.Member{
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: addr,
@@ -279,25 +303,25 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	}
 
 	if !exist && len(cluster) > 0 {
-		m.ID = 0
-		pool, err = d.join(ctx, m, cluster)
+		mem.ID = 0
+		join()
 	}
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	meta := pbutil.MustMarshal(m)
+	meta := pbutil.MustMarshal(mem)
 	meta, hs, ents, snap, err := d.storage.Boot(meta)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if !exist {
-		return m, pool, nil
+		return mem, pool, nil
 	}
 
-	pbutil.MustUnmarshal(m, meta)
+	pbutil.MustUnmarshal(mem, meta)
 
 	// find the current member from wal conf-change entries,
 	// metadata isn't up to date, need to get the latest previous address.
@@ -309,14 +333,14 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 		old := new(api.Member)
 		pbutil.MustUnmarshal(cc, ent.Data)
 		pbutil.MustUnmarshal(old, cc.Context)
-		if m.ID == old.ID {
-			m = old
+		if mem.ID == old.ID {
+			mem = old
 		}
 	}
 
 	// current member address changed, re-join the cluster.
-	if len(cluster) > 0 && m.Address != addr {
-		pool, err = d.join(ctx, m, cluster)
+	if len(cluster) > 0 && mem.Address != addr {
+		join()
 	}
 
 	if err != nil {
@@ -326,7 +350,7 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	d.publishSnapshotFile(snap)
 	d.cache.SetHardState(hs)
 	d.cache.Append(ents)
-	return m, pool, nil
+	return mem, pool, nil
 }
 
 func (d *daemon) run(ctx context.Context, cluster, addr string) error {
@@ -360,9 +384,9 @@ func (d *daemon) run(ctx context.Context, cluster, addr string) error {
 	}
 
 	// subscribe to propose message.
-	prop := d.msgbus.SubscribeBuffered(uint64(1), 4096)
+	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
 	// subscribe to recived received.
-	recv := d.msgbus.SubscribeBuffered(uint64(1), 4096)
+	recv := d.msgbus.SubscribeBuffered(msg.ID(), 4096)
 
 	d.started.Set()
 	go d.process(prop)
@@ -399,7 +423,7 @@ func (d *daemon) eventLoop() error {
 			d.send(rd.Messages)
 			d.publishCommitted(rd.CommittedEntries)
 
-			d.msgbus.Broadcast(uint64(1), nil) // TODO: add snapid event
+			d.msgbus.Broadcast(snapshot.ID(), nil) // TODO: add snapid event
 
 			d.node.Advance()
 		case <-d.ctx.Done():
@@ -575,7 +599,7 @@ func (d *daemon) snapshots() {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	sub := d.msgbus.Subscribe(uint64(1)) // TODO: add snapshot event id.
+	sub := d.msgbus.SubscribeBuffered(snapshot.ID(), 10)
 	defer sub.Unsubscribe()
 
 	for {

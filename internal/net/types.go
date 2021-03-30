@@ -20,7 +20,7 @@ type New func(ctx context.Context, cfg interface{}) (Server, error)
 // RPC provides access to the exported methods of an object across a network.
 type RPC interface {
 	Message(context.Context, raftpb.Message) error
-	Join(context.Context, api.Member) (uint64, api.Pool, error)
+	Join(context.Context, api.Member) (uint64, []api.Member, error)
 	Close() error
 }
 
