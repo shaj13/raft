@@ -48,7 +48,6 @@ type Config interface {
 type daemon struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
-	campaignOnce sync.Once
 	cfg          Config
 	node         raft.Node
 	ticker       *time.Ticker
@@ -57,8 +56,6 @@ type daemon struct {
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
 	msgbus       *MsgBus
-	propc        chan raftpb.Message
-	recvc        chan raftpb.Message
 	idgen        *idutil.Generator
 	pool         *membership.Pool
 	cState       raftpb.ConfState
@@ -98,11 +95,14 @@ func (d *daemon) Push(m raftpb.Message) error {
 	if d.started.False() {
 		return ErrStopped
 	}
-	ch := d.recvc
+
+	// event id based on msg type.
+	id := uint64(1) // TODO: change once event defined
 	if m.Type == raftpb.MsgProp {
-		ch = d.propc
+		id = uint64(2) // TODO: change once event defined
 	}
-	ch <- m
+
+	d.msgbus.Broadcast(id, m)
 	return nil
 }
 
@@ -297,7 +297,7 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 		return m, pool, nil
 	}
 
-	pbutil.MaybeUnmarshal(m, meta)
+	pbutil.MustUnmarshal(m, meta)
 
 	// find the current member from wal conf-change entries,
 	// metadata isn't up to date, need to get the latest previous address.
@@ -359,9 +359,14 @@ func (d *daemon) run(ctx context.Context, cluster, addr string) error {
 		d.node = raft.StartNode(c, peers)
 	}
 
+	// subscribe to propose message.
+	prop := d.msgbus.SubscribeBuffered(uint64(1), 4096)
+	// subscribe to recived received.
+	recv := d.msgbus.SubscribeBuffered(uint64(1), 4096)
+
 	d.started.Set()
-	go d.process(d.propc)
-	go d.process(d.recvc)
+	go d.process(prop)
+	go d.process(recv)
 	go d.snapshots()
 	return d.eventLoop()
 }
@@ -521,14 +526,15 @@ func (d *daemon) publishConfChange(ent raftpb.Entry) {
 }
 
 // process the incoming messages from the given chan.
-func (d *daemon) process(ch chan raftpb.Message) {
+func (d *daemon) process(sub *Subscription) {
 	d.wg.Add(1)
 	defer d.wg.Done()
+	defer sub.Unsubscribe()
 
 	for {
 		select {
-		case m := <-ch:
-			if err := d.node.Step(d.ctx, m); err != nil {
+		case v := <-sub.Chan():
+			if err := d.node.Step(d.ctx, v.(raftpb.Message)); err != nil {
 				log.Warnf(
 					"raft/daemon: Failed to process raft message, Err: %s",
 					err,
@@ -569,7 +575,7 @@ func (d *daemon) snapshots() {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	sub := d.msgbus.Subscribe(uint64(1)) // snapid
+	sub := d.msgbus.Subscribe(uint64(1)) // TODO: add snapshot event id.
 	defer sub.Unsubscribe()
 
 	for {

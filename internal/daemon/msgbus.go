@@ -28,12 +28,17 @@ type MsgBus struct {
 
 // Subscribe creates an async subscription for event.
 func (m *MsgBus) Subscribe(id uint64) *Subscription {
-	return m.subscribe(id, false)
+	return m.subscribe(id, 1, false)
+}
+
+// SubscribeBuffered creates an async buffered subscription for event.
+func (m *MsgBus) SubscribeBuffered(id uint64, n int) *Subscription {
+	return m.subscribe(id, 2, false)
 }
 
 // Subscribe creates an async one time subscription for event.
 func (m *MsgBus) SubscribeOnce(id uint64) *Subscription {
-	return m.subscribe(id, true)
+	return m.subscribe(id, 1, true)
 }
 
 // Broadcast sends event to subscribers.
@@ -76,7 +81,7 @@ func (m *MsgBus) Clsoe() error {
 	return nil
 }
 
-func (m *MsgBus) subscribe(id uint64, once bool) *Subscription {
+func (m *MsgBus) subscribe(id uint64, n int, once bool) *Subscription {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -85,7 +90,7 @@ func (m *MsgBus) subscribe(id uint64, once bool) *Subscription {
 		closed: atomic.NewBool(),
 		eid:    id,
 		once:   once,
-		c:      make(chan interface{}),
+		c:      make(chan interface{}, n),
 		delete: m.delete,
 	}
 
