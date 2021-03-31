@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3"
@@ -19,8 +20,11 @@ type config struct {
 	statedir          string
 	maxSnapshotFiles  int
 	snapInterval      uint64
-	snapshoter        storage.Snapshoter
 	controller        net.Controller
+	storage           storage.Storage
+	pool              *membership.Pool
+	dial              net.Dial
+	reporter          membership.Reporter
 }
 
 func (c *config) StreamTimeout() time.Duration {
@@ -40,7 +44,7 @@ func (c *config) DialOption() []grpc.DialOption {
 }
 
 func (c *config) Snapshoter() storage.Snapshoter {
-	return c.snapshoter
+	return c.storage.Snapshoter()
 }
 
 func (c *config) StateDir() string {
@@ -55,6 +59,30 @@ func (c *config) Controller() net.Controller {
 	return c.controller
 }
 
+func (c *config) Storage() storage.Storage {
+	return c.storage
+}
+
+func (c *config) SnapInterval() uint64 {
+	return c.snapInterval
+}
+
+func (c *config) RaftConfig() *raft.Config {
+	return nil
+}
+
+func (c *config) Pool() *membership.Pool {
+	return c.pool
+}
+
+func (c *config) Dial() net.Dial {
+	return c.dial
+}
+
+func (c *config) Reporter() membership.Reporter {
+	return c.reporter
+}
+
 func defaultConfig() *config {
 	return &config{
 		logger:           &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)},
@@ -62,7 +90,7 @@ func defaultConfig() *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1,
-		statedir:         "/tmp/",
+		statedir:         "/tmp/3nd",
 		memberDialOptions: []grpc.DialOption{
 			grpc.WithInsecure(),
 		},

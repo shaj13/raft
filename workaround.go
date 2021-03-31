@@ -5,76 +5,40 @@ import (
 	"fmt"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
-	rgrpc "github.com/shaj13/raftkit/internal/net/grpc"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
-	"google.golang.org/grpc"
 )
 
 type reporter struct {
-	reprotc chan report
+	daemon daemon.Daemon
 }
 
-func (r reporter) ReportUnreachable(id uint64) {
-	r.reprotc <- report{
-		signal: unreachable,
-		id:     id,
-	}
-}
-func (reporter) ReportShutdown(id uint64)                             {}
-func (reporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {}
-
-func dial(c *config) func(ctx context.Context, addr string) (membership.Transport, error) {
-	return func(ctx context.Context, addr string) (membership.Transport, error) {
-		cc, err := grpc.Dial(addr, grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-		return tr{cc: cc, add: addr, config: c}, nil
-	}
+func (r *reporter) ReportUnreachable(id uint64) {
+	r.daemon.Notify(daemon.Unreachable, id)
 }
 
-type tr struct {
-	config *config
-	cc     *grpc.ClientConn
-	add    string
+func (r *reporter) ReportShutdown(id uint64) {
+	r.daemon.Notify(daemon.Shutdown, id)
 }
 
-func (t tr) RoundTrip(ctx context.Context, msg raftpb.Message) error {
-	rpc, err := rgrpc.Dialer(ctx, t.config)(ctx, t.add)
-	if err != nil {
-		return err
-	}
-	return rpc.Message(ctx, msg)
-}
-
-func (t tr) Close() error {
-	return t.cc.Close()
-}
-
-func joinjoin(ctx context.Context, c *config, m *api.Member, cluster string) ([]api.Member, error) {
-	rpc, err := rgrpc.Dialer(ctx, c)(ctx, cluster)
-	if err != nil {
-		return []api.Member{}, err
+func (r *reporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+	if status == raft.SnapshotFailure {
+		r.daemon.Notify(daemon.SnapshotFailure, id)
+		return
 	}
 
-	id, p, err := rpc.Join(ctx, *m)
-	m.ID = id
-	m.Type = api.LocalMember
-	fmt.Printf("recived rec, id %x\n", m.ID)
-	return p.Members, err
+	r.daemon.Notify(daemon.SnapshotOK, id)
 }
 
 type capi struct {
 	c    *cluster
-	p    *processor
+	p    daemon.Daemon
 	pool *membership.Pool
 }
 
 func (a *capi) Join(ctx context.Context, m *api.Member) (uint64, []api.Member, error) {
-	fmt.Println(a.c.IsAvailable())
-	fmt.Println("a new member requested to join the cluster")
 	var (
 		memb Member
 		err  error
@@ -113,5 +77,5 @@ func (a *capi) Join(ctx context.Context, m *api.Member) (uint64, []api.Member, e
 }
 
 func (a *capi) Push(ctx context.Context, m raftpb.Message) error {
-	return a.p.push(m)
+	return a.p.Push(m)
 }

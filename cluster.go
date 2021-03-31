@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type cluster struct {
-	pool      *membership.Pool
-	processor *processor
+	pool   *membership.Pool
+	daemon daemon.Daemon
 }
 
 // TODO: rename this to method to somthing meaningful.
@@ -58,7 +59,7 @@ func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) erro
 		Type: api.RemovedMember,
 	}
 
-	return c.processor.proposeConfChange(ctx, m, raftpb.ConfChangeUpdateNode)
+	return c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeUpdateNode)
 }
 
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
@@ -83,7 +84,7 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		Type: api.RemovedMember,
 	}
 
-	return c.processor.proposeConfChange(ctx, m, raftpb.ConfChangeRemoveNode)
+	return c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeRemoveNode)
 }
 
 func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
@@ -105,7 +106,7 @@ func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
 		Type:    api.RemoteMember,
 	}
 
-	err := c.processor.proposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
+	err := c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
 	if err != nil {
 		return nil, err
 	}
@@ -206,11 +207,11 @@ func (c *cluster) IsMember(id uint64) bool {
 }
 
 func (c *cluster) Whoami() uint64 {
-	s, _ := c.processor.status()
+	s, _ := c.daemon.Status()
 	return s.ID
 }
 
 func (c *cluster) Leader() uint64 {
-	s, _ := c.processor.status()
+	s, _ := c.daemon.Status()
 	return s.Lead
 }

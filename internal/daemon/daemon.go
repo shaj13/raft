@@ -38,7 +38,7 @@ const (
 )
 
 const (
-	msg Event = iota
+	msg Event = iota + 1
 	propose
 	snapshot
 )
@@ -88,6 +88,8 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d.msgbus = newMsgBus()
 	d.pool = cfg.Pool()
 	d.started = atomic.NewBool()
+	d.appliedIndex = atomic.NewUint64()
+	d.snapIndex = atomic.NewUint64()
 	return d
 }
 
@@ -361,7 +363,7 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 
 	join := func() {
 		var rpc net.RPC
-		rpc, err = d.cfg.Dial()(ctx, addr)
+		rpc, err = d.cfg.Dial()(ctx, cluster)
 		if err != nil {
 			return
 		}
