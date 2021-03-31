@@ -8,6 +8,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/net"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -17,13 +18,13 @@ type remote struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	id          uint64
-	r           reporter
+	r           Reporter
 	cfg         config
-	dial        Dial
+	dial        net.Dial
 	msgc        chan raftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
-	tr          Transport
+	rpc         net.RPC
 	active      bool
 	addr        string
 	activeSince time.Time
@@ -59,13 +60,13 @@ func (r *remote) Update(addr string) error {
 		return nil
 	}
 
-	tr, err := r.dial(r.ctx, addr)
+	rpc, err := r.dial(r.ctx, addr)
 	if err != nil {
 		return err
 	}
 
-	r.tr.Close()
-	r.tr = tr
+	r.rpc.Close()
+	r.rpc = rpc
 	r.addr = addr
 	return nil
 }
@@ -98,7 +99,7 @@ func (r *remote) ID() uint64 {
 func (r *remote) Close() {
 	r.cancel()
 	<-r.done
-	r.transport().Close()
+	r.RPC().Close()
 }
 
 func (r *remote) setStatus(active bool) {
@@ -126,18 +127,18 @@ func (r *remote) report(msg raftpb.Message, err error) {
 	}
 }
 
-func (r *remote) transport() Transport {
+func (r *remote) RPC() net.RPC {
 	r.mu.Lock()
-	tr := r.tr
+	rpc := r.rpc
 	r.mu.Unlock()
-	return tr
+	return rpc
 }
 
 func (r *remote) stream(ctx context.Context, msg raftpb.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
 	defer cancel()
-	tr := r.transport()
-	err := tr.RoundTrip(ctx, msg)
+	rpc := r.RPC()
+	err := rpc.Message(ctx, msg)
 	r.report(msg, err)
 	return err
 }

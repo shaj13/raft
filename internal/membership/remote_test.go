@@ -26,7 +26,7 @@ func TestRemote(t *testing.T) {
 	assert.False(t, r.IsActive())
 	assert.Equal(t, r.Since(), time.Time{})
 	assert.Equal(t, r.Type(), api.RemoteMember)
-	assert.Nil(t, r.transport())
+	assert.Nil(t, r.RPC())
 }
 
 func TestRemoteSetStatus(t *testing.T) {
@@ -70,12 +70,12 @@ func TestRemoteUpdate(t *testing.T) {
 	addr := ":5050"
 	uaddr := ":5051"
 
-	m := &mockTransport{mock.Mock{}}
+	m := &mockRPC{mock.Mock{}}
 	m.On("Close").Return(nil)
 
 	r := new(remote)
 	r.addr = addr
-	r.tr = m
+	r.rpc = m
 	r.dial = mockDial(nil, err)
 
 	// Round #1 it does not update addr if are the same
@@ -97,13 +97,13 @@ func TestRemoteUpdate(t *testing.T) {
 }
 
 func TestRemoteStream(t *testing.T) {
-	m := &mockTransport{mock.Mock{}}
-	m.On("RoundTrip").Return(nil)
+	m := &mockRPC{mock.Mock{}}
+	m.On("Message").Return(nil)
 	r := new(remote)
-	r.tr = m
+	r.rpc = m
 	r.cfg = testConfig
 	_ = r.stream(context.Background(), raftpb.Message{})
-	m.AssertCalled(t, "RoundTrip")
+	m.AssertCalled(t, "Message")
 }
 
 func TestRemoteReport(t *testing.T) {
@@ -176,11 +176,11 @@ func TestRemoteSend(t *testing.T) {
 }
 
 func TestRemoteDrain(t *testing.T) {
-	mt := &mockTransport{mock.Mock{}}
-	mt.On("RoundTrip").Return(nil)
+	mt := &mockRPC{mock.Mock{}}
+	mt.On("Message").Return(nil)
 	r := new(remote)
 	r.msgc = make(chan raftpb.Message, 1)
-	r.tr = mt
+	r.rpc = mt
 	r.cfg = testConfig
 	r.ctx = context.Background()
 
@@ -194,19 +194,19 @@ func TestRemoteDrain(t *testing.T) {
 	close(r.msgc)
 	err = r.drain()
 	assert.NoError(t, err)
-	mt.AssertCalled(t, "RoundTrip")
+	mt.AssertCalled(t, "Message")
 }
 
 func TestRemoteRun(t *testing.T) {
 	mr := &mockReporter{mock.Mock{}}
-	mt := &mockTransport{mock.Mock{}}
-	mt.On("RoundTrip").Return(fmt.Errorf("TestRemoteRun RoundTrip error"))
+	mt := &mockRPC{mock.Mock{}}
+	mt.On("Message").Return(fmt.Errorf("TestRemoteRun Message error"))
 	mt.On("Close").Return(nil)
 	mr.On("ReportUnreachable", uint64(0)).Return()
 	r := new(remote)
 	r.r = mr
 	r.cfg = testConfig
-	r.tr = mt
+	r.rpc = mt
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
 	r.done = make(chan struct{})
@@ -227,7 +227,7 @@ func TestRemoteRun(t *testing.T) {
 	}
 
 	assert.False(t, r.active)
-	mt.AssertCalled(t, "RoundTrip")
+	mt.AssertCalled(t, "Message")
 	mr.AssertCalled(t, "ReportUnreachable", r.id)
 
 	// reset active to ensure close set remote as inactive

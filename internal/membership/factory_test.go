@@ -43,7 +43,7 @@ func TestFactory(t *testing.T) {
 }
 
 func TestNewRemote(t *testing.T) {
-	tr := &mockTransport{mock.Mock{}}
+	tr := &mockRPC{mock.Mock{}}
 	tr.On("Close").Return(nil)
 	dial := mockDial(tr, nil)
 	m, _ := newRemote(context.Background(), nil, testConfig, dial, 0, "")

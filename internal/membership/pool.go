@@ -9,13 +9,14 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/net"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func New(ctx context.Context, rep reporter, cfg config, dial Dial) *Pool {
+func New(ctx context.Context, rep Reporter, cfg config, dial net.Dial) *Pool {
 	return &Pool{
 		factory: newFactory(ctx, rep, cfg, dial),
 		membs:   make(map[uint64]Member),

@@ -5,25 +5,19 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/net"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type constructor func(
 	ctx context.Context,
-	r reporter,
+	r Reporter,
 	cfg config,
-	d Dial,
+	d net.Dial,
 	id uint64,
 	addr string,
 ) (Member, error)
-
-type Dial func(ctx context.Context, addr string) (Transport, error)
-
-type Transport interface {
-	RoundTrip(ctx context.Context, msg raftpb.Message) error
-	Close() error
-}
 
 type Member interface {
 	ID() uint64
@@ -36,7 +30,7 @@ type Member interface {
 	Close()
 }
 
-type reporter interface {
+type Reporter interface {
 	ReportUnreachable(id uint64)
 	ReportShutdown(id uint64)
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
@@ -45,4 +39,5 @@ type reporter interface {
 type config interface {
 	StreamTimeout() time.Duration
 	DrainTimeout() time.Duration
+	Reporter() Reporter
 }

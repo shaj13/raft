@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/net"
 	"github.com/stretchr/testify/mock"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -11,22 +13,27 @@ import (
 
 var testConfig = mockConfig{}
 
-func mockDial(m *mockTransport, err error) Dial {
-	return func(ctx context.Context, addr string) (Transport, error) {
+func mockDial(m *mockRPC, err error) net.Dial {
+	return func(ctx context.Context, addr string) (net.RPC, error) {
 		return m, err
 	}
 }
 
-type mockTransport struct {
+type mockRPC struct {
 	mock.Mock
 }
 
-func (m *mockTransport) RoundTrip(ctx context.Context, msg raftpb.Message) error {
+func (m *mockRPC) Message(context.Context, raftpb.Message) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mockTransport) Close() error {
+func (m *mockRPC) Join(context.Context, api.Member) (uint64, []api.Member, error) {
+	args := m.Called()
+	return 0, nil, args.Error(2)
+}
+
+func (m *mockRPC) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -53,4 +60,8 @@ func (m mockConfig) StreamTimeout() time.Duration {
 
 func (m mockConfig) DrainTimeout() time.Duration {
 	return time.Second
+}
+
+func (m mockConfig) Reporter() Reporter {
+	return &mockReporter{Mock: mock.Mock{}}
 }

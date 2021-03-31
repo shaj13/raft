@@ -10,7 +10,7 @@ import (
 
 // local represents the current cluster member.
 type local struct {
-	r      reporter
+	r      Reporter
 	id     uint64
 	active time.Time
 	mu     sync.Mutex // protects addr

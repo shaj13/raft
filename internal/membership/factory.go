@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/net"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type factory struct {
 	ctx          context.Context
 	cfg          config
-	rep          reporter
-	dial         Dial
+	rep          Reporter
+	dial         net.Dial
 	constructors map[api.MemberType]constructor
 }
 
@@ -42,7 +43,7 @@ func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool
 	return mem, true, err
 }
 
-func newFactory(ctx context.Context, rep reporter, cfg config, dial Dial) *factory {
+func newFactory(ctx context.Context, rep Reporter, cfg config, dial net.Dial) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
@@ -56,7 +57,7 @@ func newFactory(ctx context.Context, rep reporter, cfg config, dial Dial) *facto
 	return f
 }
 
-func newLocal(_ context.Context, r reporter, _ config, _ Dial, id uint64, addr string) (Member, error) {
+func newLocal(_ context.Context, r Reporter, _ config, _ net.Dial, id uint64, addr string) (Member, error) {
 	return &local{
 		id:     id,
 		r:      r,
@@ -65,22 +66,22 @@ func newLocal(_ context.Context, r reporter, _ config, _ Dial, id uint64, addr s
 	}, nil
 }
 
-func newRemoved(_ context.Context, r reporter, _ config, _ Dial, id uint64, addr string) (Member, error) {
+func newRemoved(_ context.Context, r Reporter, _ config, _ net.Dial, id uint64, addr string) (Member, error) {
 	return removed{
 		id:   id,
 		addr: addr,
 	}, nil
 }
 
-func newRemote(ctx context.Context, r reporter, cfg config, dial Dial, id uint64, addr string) (Member, error) {
-	tr, err := dial(ctx, addr)
+func newRemote(ctx context.Context, r Reporter, cfg config, dial net.Dial, id uint64, addr string) (Member, error) {
+	rpc, err := dial(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
 
 	mem := new(remote)
 	mem.ctx, mem.cancel = context.WithCancel(ctx)
-	mem.tr = tr
+	mem.rpc = rpc
 	mem.id = id
 	mem.addr = addr
 	mem.cfg = cfg
