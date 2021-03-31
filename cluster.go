@@ -12,6 +12,24 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+type Cluster interface {
+	Join(ctx context.Context, join, addr string) error
+	Leave(ctx context.Context) error
+	UpdateMember(ctx context.Context, id uint64, addr string) error
+	RemoveMember(ctx context.Context, id uint64) error
+	AddMember(ctx context.Context, addr string) (Member, error)
+	GetMemebr(id uint64) (Member, bool)
+	Members() []Member
+	RemovedMembers() []Member
+	AddressInUse(addr string) uint64
+	LongestActive() (Member, error)
+	IsAvailable() bool
+	IsMemberRemoved(id uint64) bool
+	IsMember(id uint64) bool
+	Whoami() uint64
+	Leader() uint64
+}
+
 type cluster struct {
 	pool   *membership.Pool
 	daemon daemon.Daemon
@@ -22,8 +40,8 @@ func (c *cluster) StateSubscribe()  {}
 func (c *cluster) MemberSubscribe() {}
 
 func (c *cluster) StepDown() {}
-func (c *cluster) Join(caddr, maddr string) error {
-	return nil
+func (c *cluster) Join(ctx context.Context, join, addr string) error {
+	return c.daemon.Start(ctx, join, addr)
 }
 
 func (c *cluster) Leave(ctx context.Context) error {
@@ -180,7 +198,7 @@ func (c *cluster) LongestActive() (Member, error) {
 	return longest, nil
 }
 
-func (c *cluster) quorum() (int, int) {
+func (c *cluster) IsAvailable() bool {
 	cond := func(m Member) bool {
 		return m.IsActive()
 	}
@@ -188,11 +206,6 @@ func (c *cluster) quorum() (int, int) {
 	q := (len(c.Members()))/2 + 1
 	n := len(c.members(cond))
 
-	return n, q
-}
-
-func (c *cluster) IsAvailable() bool {
-	n, q := c.quorum()
 	return n >= q
 }
 

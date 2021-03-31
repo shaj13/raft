@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"log"
-	"os"
+	// "log"
+
 	"time"
 
 	"github.com/shaj13/raftkit/internal/membership"
@@ -13,7 +13,7 @@ import (
 )
 
 type config struct {
-	logger            Logger
+	// logger            Logger
 	streamTimeOut     time.Duration // 10s
 	drainTimeOut      time.Duration // 10s
 	memberDialOptions []grpc.DialOption
@@ -85,7 +85,7 @@ func (c *config) Reporter() membership.Reporter {
 
 func defaultConfig() *config {
 	return &config{
-		logger:           &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)},
+		// logger:           &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)},
 		streamTimeOut:    time.Second * 10,
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
