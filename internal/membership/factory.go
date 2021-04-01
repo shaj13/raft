@@ -43,12 +43,12 @@ func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool
 	return mem, true, err
 }
 
-func newFactory(ctx context.Context, rep Reporter, cfg Config, dial net.Dial) *factory {
+func newFactory(ctx context.Context, cfg Config) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
-	f.dial = dial
-	f.rep = rep
+	f.dial = cfg.Dial()
+	f.rep = cfg.Reporter()
 	f.constructors = map[api.MemberType]constructor{
 		api.RemoteMember:  newRemote,
 		api.RemovedMember: newRemoved,

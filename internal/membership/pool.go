@@ -17,7 +17,7 @@ func init() {
 
 func New(ctx context.Context, cfg Config) *Pool {
 	return &Pool{
-		factory: newFactory(ctx, cfg.Reporter(), cfg, cfg.Dial()),
+		factory: newFactory(ctx, cfg),
 		membs:   make(map[uint64]Member),
 	}
 }

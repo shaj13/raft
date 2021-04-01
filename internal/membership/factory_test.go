@@ -18,9 +18,7 @@ func TestFactory(t *testing.T) {
 
 	f := newFactory(
 		context.Background(),
-		nil,
-		nil,
-		nil,
+		testConfig,
 	)
 
 	mem, ok, err := f.From(m)
