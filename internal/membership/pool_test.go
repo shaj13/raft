@@ -93,6 +93,6 @@ func TestPoolRemove(t *testing.T) {
 }
 
 func newTestPool() *Pool {
-	p := New(context.Background(), nil, testConfig, nil)
+	p := New(context.Background(), testConfig)
 	return p
 }

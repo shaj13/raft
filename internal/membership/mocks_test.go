@@ -65,3 +65,7 @@ func (m mockConfig) DrainTimeout() time.Duration {
 func (m mockConfig) Reporter() Reporter {
 	return &mockReporter{Mock: mock.Mock{}}
 }
+
+func (m mockConfig) Dial() net.Dial {
+	return nil
+}

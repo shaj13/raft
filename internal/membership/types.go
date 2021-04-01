@@ -40,4 +40,5 @@ type Config interface {
 	StreamTimeout() time.Duration
 	DrainTimeout() time.Duration
 	Reporter() Reporter
+	Dial() net.Dial
 }
