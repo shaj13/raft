@@ -13,7 +13,7 @@ import (
 type constructor func(
 	ctx context.Context,
 	r Reporter,
-	cfg config,
+	cfg Config,
 	d net.Dial,
 	id uint64,
 	addr string,
@@ -36,7 +36,7 @@ type Reporter interface {
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
 }
 
-type config interface {
+type Config interface {
 	StreamTimeout() time.Duration
 	DrainTimeout() time.Duration
 	Reporter() Reporter

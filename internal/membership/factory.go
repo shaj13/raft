@@ -11,7 +11,7 @@ import (
 
 type factory struct {
 	ctx          context.Context
-	cfg          config
+	cfg          Config
 	rep          Reporter
 	dial         net.Dial
 	constructors map[api.MemberType]constructor
@@ -43,7 +43,7 @@ func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool
 	return mem, true, err
 }
 
-func newFactory(ctx context.Context, rep Reporter, cfg config, dial net.Dial) *factory {
+func newFactory(ctx context.Context, rep Reporter, cfg Config, dial net.Dial) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
@@ -57,7 +57,7 @@ func newFactory(ctx context.Context, rep Reporter, cfg config, dial net.Dial) *f
 	return f
 }
 
-func newLocal(_ context.Context, r Reporter, _ config, _ net.Dial, id uint64, addr string) (Member, error) {
+func newLocal(_ context.Context, r Reporter, _ Config, _ net.Dial, id uint64, addr string) (Member, error) {
 	return &local{
 		id:     id,
 		r:      r,
@@ -66,14 +66,14 @@ func newLocal(_ context.Context, r Reporter, _ config, _ net.Dial, id uint64, ad
 	}, nil
 }
 
-func newRemoved(_ context.Context, r Reporter, _ config, _ net.Dial, id uint64, addr string) (Member, error) {
+func newRemoved(_ context.Context, r Reporter, _ Config, _ net.Dial, id uint64, addr string) (Member, error) {
 	return removed{
 		id:   id,
 		addr: addr,
 	}, nil
 }
 
-func newRemote(ctx context.Context, r Reporter, cfg config, dial net.Dial, id uint64, addr string) (Member, error) {
+func newRemote(ctx context.Context, r Reporter, cfg Config, dial net.Dial, id uint64, addr string) (Member, error) {
 	rpc, err := dial(ctx, addr)
 	if err != nil {
 		return nil, err

@@ -16,7 +16,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func New(ctx context.Context, rep Reporter, cfg config, dial net.Dial) *Pool {
+func New(ctx context.Context, rep Reporter, cfg Config, dial net.Dial) *Pool {
 	return &Pool{
 		factory: newFactory(ctx, rep, cfg, dial),
 		membs:   make(map[uint64]Member),

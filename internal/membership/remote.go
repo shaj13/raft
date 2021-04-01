@@ -19,7 +19,7 @@ type remote struct {
 	cancel      context.CancelFunc
 	id          uint64
 	r           Reporter
-	cfg         config
+	cfg         Config
 	dial        net.Dial
 	msgc        chan raftpb.Message
 	done        chan struct{}
