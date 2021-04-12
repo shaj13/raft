@@ -5,15 +5,12 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
-	"github.com/shaj13/raftkit/internal/net"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type factory struct {
 	ctx          context.Context
 	cfg          Config
-	rep          Reporter
-	dial         net.Dial
 	constructors map[api.MemberType]constructor
 }
 
@@ -47,8 +44,6 @@ func newFactory(ctx context.Context, cfg Config) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
-	f.dial = cfg.Dial()
-	f.rep = cfg.Reporter()
 	f.constructors = map[api.MemberType]constructor{
 		api.RemoteMember:  newRemote,
 		api.RemovedMember: newRemoved,
