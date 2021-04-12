@@ -5,6 +5,7 @@ import (
 
 	"time"
 
+	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -24,7 +25,7 @@ type config struct {
 	storage           storage.Storage
 	pool              membership.Pool
 	dial              net.Dial
-	reporter          membership.Reporter
+	daemon            daemon.Daemon
 }
 
 func (c *config) StreamTimeout() time.Duration {
@@ -80,7 +81,7 @@ func (c *config) Dial() net.Dial {
 }
 
 func (c *config) Reporter() membership.Reporter {
-	return c.reporter
+	return c.daemon
 }
 
 func defaultConfig() *config {
@@ -90,7 +91,7 @@ func defaultConfig() *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1,
-		statedir:         "/tmp/",
+		statedir:         "/tmp/3nd",
 		memberDialOptions: []grpc.DialOption{
 			grpc.WithInsecure(),
 		},

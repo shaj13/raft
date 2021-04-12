@@ -74,6 +74,9 @@ type Daemon interface {
 	ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.ConfChangeType) error
 	CreateSnapshot() (raftpb.Snapshot, error)
 	Start(ctx context.Context, cluster, addr string) error
+	ReportUnreachable(id uint64)
+	ReportSnapshot(id uint64, status raft.SnapshotStatus)
+	ReportShutdown(id uint64)
 }
 
 func New(ctx context.Context, cfg Config) Daemon {
@@ -115,6 +118,32 @@ type daemon struct {
 // MsgBus returns daemon msgbus.
 func (d *daemon) MsgBus() *MsgBus {
 	return d.msgbus
+}
+
+// ReportUnreachable reports the given node is not reachable for the last send.
+func (d *daemon) ReportUnreachable(id uint64) {
+	if d.started.False() {
+		return
+	}
+
+	d.node.ReportUnreachable(id)
+}
+
+func (d *daemon) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+	if d.started.False() {
+		return
+	}
+
+	d.node.ReportSnapshot(id, status)
+}
+
+func (d *daemon) ReportShutdown(id uint64) {
+	if d.started.False() {
+		return
+	}
+
+	// TODO: push to msgbus when events are defined.
+	// d.msgbus.Broadcast()
 }
 
 // Notify causes daemon to relay incoming signals to raft node.
