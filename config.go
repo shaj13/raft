@@ -22,7 +22,7 @@ type config struct {
 	snapInterval      uint64
 	controller        net.Controller
 	storage           storage.Storage
-	pool              *membership.Pool
+	pool              membership.Pool
 	dial              net.Dial
 	reporter          membership.Reporter
 }
@@ -71,7 +71,7 @@ func (c *config) RaftConfig() *raft.Config {
 	return nil
 }
 
-func (c *config) Pool() *membership.Pool {
+func (c *config) Pool() membership.Pool {
 	return c.pool
 }
 
@@ -90,7 +90,7 @@ func defaultConfig() *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1,
-		statedir:         "/tmp/3nd",
+		statedir:         "/tmp/",
 		memberDialOptions: []grpc.DialOption{
 			grpc.WithInsecure(),
 		},

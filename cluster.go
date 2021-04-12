@@ -31,7 +31,7 @@ type Cluster interface {
 }
 
 type cluster struct {
-	pool   *membership.Pool
+	pool   membership.Pool
 	daemon daemon.Daemon
 }
 

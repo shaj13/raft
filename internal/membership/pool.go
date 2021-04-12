@@ -15,20 +15,20 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func New(ctx context.Context, cfg Config) *Pool {
-	return &Pool{
+func New(ctx context.Context, cfg Config) Pool {
+	return &pool{
 		factory: newFactory(ctx, cfg),
 		membs:   make(map[uint64]Member),
 	}
 }
 
-type Pool struct {
+type pool struct {
 	factory *factory
 	mu      sync.Mutex // protects membs
 	membs   map[uint64]Member
 }
 
-func (p *Pool) NextID() uint64 {
+func (p *pool) NextID() uint64 {
 	var id uint64
 	for {
 		id = uint64(rand.Int63()) + 1
@@ -39,7 +39,7 @@ func (p *Pool) NextID() uint64 {
 	return id
 }
 
-func (p *Pool) Members() []Member {
+func (p *pool) Members() []Member {
 	membs := []Member{}
 	p.mu.Lock()
 	for _, m := range p.membs {
@@ -49,14 +49,14 @@ func (p *Pool) Members() []Member {
 	return membs
 }
 
-func (p *Pool) Get(id uint64) (Member, bool) {
+func (p *pool) Get(id uint64) (Member, bool) {
 	p.mu.Lock()
 	m, ok := p.membs[id]
 	p.mu.Unlock()
 	return m, ok
 }
 
-func (p *Pool) Add(m api.Member) error {
+func (p *pool) Add(m api.Member) error {
 	mem, ok := p.Get(m.ID)
 	if ok && mem.Address() == m.Address {
 		// member already exist
@@ -79,7 +79,7 @@ func (p *Pool) Add(m api.Member) error {
 	return nil
 }
 
-func (p *Pool) Update(m api.Member) error {
+func (p *pool) Update(m api.Member) error {
 	mem, ok := p.Get(m.ID)
 	if ok && mem.Address() == m.Address {
 		// member already exist
@@ -93,7 +93,7 @@ func (p *Pool) Update(m api.Member) error {
 	return mem.Update(m.Address)
 }
 
-func (p *Pool) Remove(m api.Member) error {
+func (p *pool) Remove(m api.Member) error {
 	mem, ok := p.Get(m.ID)
 	if !ok {
 		return fmt.Errorf("raft/membership: member %x not found", m.ID)
@@ -117,7 +117,7 @@ func (p *Pool) Remove(m api.Member) error {
 	return nil
 }
 
-func (p *Pool) Snapshot() []api.Member {
+func (p *pool) Snapshot() []api.Member {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	membs := []api.Member{}
@@ -128,7 +128,7 @@ func (p *Pool) Snapshot() []api.Member {
 	return membs
 }
 
-func (p *Pool) Restore(pool api.Pool) {
+func (p *pool) Restore(pool api.Pool) {
 	for _, m := range pool.Members {
 		if err := p.Add(m); err != nil {
 			log.Errorf("raft/membership: Failed to add member %x, Err: %s", m.ID, err)

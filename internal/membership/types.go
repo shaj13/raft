@@ -40,3 +40,14 @@ type Config interface {
 	Reporter() Reporter
 	Dial() net.Dial
 }
+
+type Pool interface {
+	NextID() uint64
+	Members() []Member
+	Get(id uint64) (Member, bool)
+	Add(m api.Member) error
+	Update(m api.Member) error
+	Remove(m api.Member) error
+	Snapshot() []api.Member
+	Restore(pool api.Pool)
+}

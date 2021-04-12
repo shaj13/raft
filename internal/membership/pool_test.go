@@ -10,7 +10,7 @@ import (
 )
 
 func TestPoolNextID(t *testing.T) {
-	p := New(context.Background(), testConfig)
+	p := New(context.Background(), testConfig).(*pool)
 	rec := make(map[uint64]struct{})
 
 	for i := 0; i < 10; i++ {

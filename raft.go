@@ -18,7 +18,7 @@ func New(ctx context.Context) (Cluster, interface{}) {
 	cfg.reporter = new(reporter)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = raftrpc.Dialer(ctx, cfg)
-	cfg.pool = membership.New(ctx, cfg.reporter, cfg, cfg.dial)
+	cfg.pool = membership.New(ctx, cfg)
 
 	daemon := daemon.New(ctx, cfg)
 
@@ -40,7 +40,7 @@ func New(ctx context.Context) (Cluster, interface{}) {
 type controller struct {
 	cluster *cluster
 	daemon  daemon.Daemon
-	pool    *membership.Pool
+	pool    membership.Pool
 }
 
 func (c *controller) Join(ctx context.Context, m *api.Member) (uint64, []api.Member, error) {

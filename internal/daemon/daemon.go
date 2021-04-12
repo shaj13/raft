@@ -59,7 +59,7 @@ func (e Event) ID() uint64 {
 type Config interface {
 	RaftConfig() *raft.Config
 	SnapInterval() uint64
-	Pool() *membership.Pool // TODO: use interface
+	Pool() membership.Pool
 	Storage() storage.Storage
 	Dial() net.Dial
 }
@@ -105,7 +105,7 @@ type daemon struct {
 	storage      storage.Storage
 	msgbus       *MsgBus
 	idgen        *idutil.Generator
-	pool         *membership.Pool // TODO: use an interface
+	pool         membership.Pool // TODO: use an interface
 	cState       raftpb.ConfState
 	started      *atomic.Bool
 	snapIndex    *atomic.Uint64
