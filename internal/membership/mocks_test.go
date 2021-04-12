@@ -52,7 +52,10 @@ func (m *mockReporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 	m.Called(id, status)
 }
 
-type mockConfig struct{}
+type mockConfig struct {
+	d net.Dial
+	r *mockReporter
+}
 
 func (m mockConfig) StreamTimeout() time.Duration {
 	return time.Second
@@ -63,9 +66,9 @@ func (m mockConfig) DrainTimeout() time.Duration {
 }
 
 func (m mockConfig) Reporter() Reporter {
-	return &mockReporter{Mock: mock.Mock{}}
+	return m.r
 }
 
 func (m mockConfig) Dial() net.Dial {
-	return nil
+	return m.d
 }

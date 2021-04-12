@@ -12,9 +12,7 @@ import (
 
 type constructor func(
 	ctx context.Context,
-	r Reporter,
 	cfg Config,
-	d net.Dial,
 	id uint64,
 	addr string,
 ) (Member, error)

@@ -39,7 +39,7 @@ func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool
 		return nil, false, nil
 	}
 
-	mem, err := c(f.ctx, f.rep, f.cfg, f.dial, id, addr)
+	mem, err := c(f.ctx, f.cfg, id, addr)
 	return mem, true, err
 }
 
@@ -57,24 +57,24 @@ func newFactory(ctx context.Context, cfg Config) *factory {
 	return f
 }
 
-func newLocal(_ context.Context, r Reporter, _ Config, _ net.Dial, id uint64, addr string) (Member, error) {
+func newLocal(_ context.Context, cfg Config, id uint64, addr string) (Member, error) {
 	return &local{
 		id:     id,
-		r:      r,
+		r:      cfg.Reporter(),
 		addr:   addr,
 		active: time.Now(),
 	}, nil
 }
 
-func newRemoved(_ context.Context, r Reporter, _ Config, _ net.Dial, id uint64, addr string) (Member, error) {
+func newRemoved(_ context.Context, _ Config, id uint64, addr string) (Member, error) {
 	return removed{
 		id:   id,
 		addr: addr,
 	}, nil
 }
 
-func newRemote(ctx context.Context, r Reporter, cfg Config, dial net.Dial, id uint64, addr string) (Member, error) {
-	rpc, err := dial(ctx, addr)
+func newRemote(ctx context.Context, cfg Config, id uint64, addr string) (Member, error) {
+	rpc, err := cfg.Dial()(ctx, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +85,8 @@ func newRemote(ctx context.Context, r Reporter, cfg Config, dial net.Dial, id ui
 	mem.id = id
 	mem.addr = addr
 	mem.cfg = cfg
-	mem.r = r
-	mem.dial = dial
+	mem.r = cfg.Reporter()
+	mem.dial = cfg.Dial()
 	mem.msgc = make(chan raftpb.Message, 4096)
 	mem.done = make(chan struct{})
 	// assuming member is active.

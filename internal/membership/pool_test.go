@@ -10,7 +10,7 @@ import (
 )
 
 func TestPoolNextID(t *testing.T) {
-	p := newTestPool()
+	p := New(context.Background(), testConfig)
 	rec := make(map[uint64]struct{})
 
 	for i := 0; i < 10; i++ {
@@ -26,7 +26,7 @@ func TestPoolNextID(t *testing.T) {
 
 func TestPoolUpdate(t *testing.T) {
 	m := &api.Member{ID: 1, Type: api.LocalMember}
-	p := newTestPool()
+	p := New(context.Background(), testConfig)
 	p.Add(*m)
 	m.Address = "5050"
 	p.Update(*m)
@@ -35,13 +35,13 @@ func TestPoolUpdate(t *testing.T) {
 }
 
 func TestPoolRemoveErr(t *testing.T) {
-	p := newTestPool()
+	p := New(context.Background(), testConfig)
 	err := p.Remove(api.Member{})
 	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestPoolRestore(t *testing.T) {
-	p := newTestPool()
+	p := New(context.Background(), testConfig)
 	ids := make(map[uint64]struct{})
 	pool := &api.Pool{
 		Members: []api.Member{},
@@ -64,7 +64,7 @@ func TestPoolRestore(t *testing.T) {
 }
 
 func TestPoolSnapshot(t *testing.T) {
-	p := newTestPool()
+	p := New(context.Background(), testConfig)
 	p.Add(api.Member{ID: p.NextID(), Type: api.LocalMember})
 	membs := p.Snapshot()
 	assert.Equal(t, len(p.Members()), len(membs))
@@ -76,8 +76,7 @@ func TestPoolRemove(t *testing.T) {
 	r := &mockReporter{mock.Mock{}}
 	r.On("ReportShutdown", m.ID).Return()
 
-	p := newTestPool()
-	p.factory.rep = r
+	p := New(context.Background(), mockConfig{r: r})
 	p.Add(*m)
 
 	// run twice to check removing
@@ -90,9 +89,4 @@ func TestPoolRemove(t *testing.T) {
 		assert.Equal(t, api.RemovedMember, mem.Type())
 	}
 
-}
-
-func newTestPool() *Pool {
-	p := New(context.Background(), testConfig)
-	return p
 }

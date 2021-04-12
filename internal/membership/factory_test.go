@@ -44,7 +44,8 @@ func TestNewRemote(t *testing.T) {
 	tr := &mockRPC{mock.Mock{}}
 	tr.On("Close").Return(nil)
 	dial := mockDial(tr, nil)
-	m, _ := newRemote(context.Background(), nil, testConfig, dial, 0, "")
+	cfg := mockConfig{d: dial}
+	m, _ := newRemote(context.Background(), cfg, 0, "")
 	m.Close()
 	tr.AssertCalled(t, "Close")
 }
