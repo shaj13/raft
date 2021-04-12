@@ -27,25 +27,10 @@ var (
 )
 
 const (
-	// Unreachable indicate remote memeber unreachable.
-	Unreachable Signal = iota
-	// Shutdown indicate current member removed and should stop.
-	Shutdown
-	// SnapshotOK indicate remote memeber received the snapshot.
-	SnapshotOK
-	// SnapshotFailure indicate remote memeber failed to receive the snapshot.
-	SnapshotFailure
-)
-
-const (
 	msg Event = iota + 1
 	propose
 	snapshot
 )
-
-// Signal is an interrupt sent to daemon to indicate
-// that an important event has occurred.
-type Signal int
 
 // TODO: add event comment
 type Event uint64
@@ -66,7 +51,6 @@ type Config interface {
 
 type Daemon interface {
 	MsgBus() *MsgBus
-	Notify(sig Signal, id uint64)
 	Push(m raftpb.Message) error
 	Status() (raft.Status, error)
 	Close() error
@@ -144,27 +128,6 @@ func (d *daemon) ReportShutdown(id uint64) {
 
 	// TODO: push to msgbus when events are defined.
 	// d.msgbus.Broadcast()
-}
-
-// Notify causes daemon to relay incoming signals to raft node.
-func (d *daemon) Notify(sig Signal, id uint64) {
-	if d.started.False() {
-		return
-	}
-
-	switch sig {
-	case Unreachable:
-		d.node.ReportUnreachable(id)
-	case SnapshotOK:
-		d.node.ReportSnapshot(id, raft.SnapshotFinish)
-	case SnapshotFailure:
-		d.node.ReportSnapshot(id, raft.SnapshotFailure)
-	case Shutdown:
-		// TODO: push to msgbus when events are defined.
-		// d.msgbus.Broadcast()
-	default:
-		log.Panicf("raft/daemon: Received %d unknown signal", sig)
-	}
 }
 
 // Push m to the daemon queue.

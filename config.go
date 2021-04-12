@@ -91,7 +91,7 @@ func defaultConfig() *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1,
-		statedir:         "/tmp/3nd",
+		statedir:         "/tmp/",
 		memberDialOptions: []grpc.DialOption{
 			grpc.WithInsecure(),
 		},
