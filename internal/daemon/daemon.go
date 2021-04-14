@@ -312,16 +312,9 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	}
 
 	d.idgen = idutil.NewGenerator(uint16(m.ID), time.Now())
-	// TODO: load this from the config object.
-	c := &raft.Config{
-		ID:                        m.ID,
-		ElectionTick:              10,
-		HeartbeatTick:             1,
-		Storage:                   d.cache,
-		MaxSizePerMsg:             1024 * 1024,
-		MaxInflightMsgs:           256,
-		MaxUncommittedEntriesSize: 1 << 30,
-	}
+	c := d.cfg.RaftConfig()
+	c.ID = m.ID
+	c.Storage = d.cache
 
 	if exist && len(pool) == 0 {
 		d.node = raft.RestartNode(c)

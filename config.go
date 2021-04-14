@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
+	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -15,6 +16,7 @@ import (
 
 type config struct {
 	// logger            Logger
+	rcfg              *raft.Config
 	streamTimeOut     time.Duration // 10s
 	drainTimeOut      time.Duration // 10s
 	memberDialOptions []grpc.DialOption
@@ -69,7 +71,7 @@ func (c *config) SnapInterval() uint64 {
 }
 
 func (c *config) RaftConfig() *raft.Config {
-	return nil
+	return c.rcfg
 }
 
 func (c *config) Pool() membership.Pool {
@@ -86,12 +88,19 @@ func (c *config) Reporter() membership.Reporter {
 
 func defaultConfig() *config {
 	return &config{
-		// logger:           &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)},
+		rcfg: &raft.Config{
+			Logger:                    log.Get(),
+			ElectionTick:              10,
+			HeartbeatTick:             1,
+			MaxSizePerMsg:             1024 * 1024,
+			MaxInflightMsgs:           256,
+			MaxUncommittedEntriesSize: 1 << 30,
+		},
 		streamTimeOut:    time.Second * 10,
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1,
-		statedir:         "/tmp/",
+		statedir:         "/tmp/3nd",
 		memberDialOptions: []grpc.DialOption{
 			grpc.WithInsecure(),
 		},

@@ -1,12 +1,13 @@
 package log
 
 import (
-	"fmt"
+	"log"
+	"os"
 
-	"go.uber.org/zap"
+	"go.etcd.io/etcd/raft/v3"
 )
 
-var lg Logger
+var lg Logger = &raft.DefaultLogger{Logger: log.New(os.Stderr, "", log.LstdFlags)}
 
 // Logger represents an active logging object that generates lines of
 // output to an io.Writer.
@@ -28,58 +29,6 @@ type Logger interface {
 
 	Panic(v ...interface{})
 	Panicf(format string, v ...interface{})
-}
-
-type logger struct {
-	sugar *zap.SugaredLogger
-}
-
-func (l *logger) Debug(args ...interface{}) {
-	l.sugar.Debug(args...)
-}
-
-func (l *logger) Debugf(format string, args ...interface{}) {
-	l.sugar.Debugf(format, args...)
-}
-
-func (l *logger) Info(args ...interface{}) {
-	l.sugar.Info(args...)
-}
-
-func (l *logger) Infof(format string, args ...interface{}) {
-	l.sugar.Infof(format, args...)
-}
-
-func (l *logger) Warning(args ...interface{}) {
-	l.sugar.Warn(args...)
-}
-
-func (l *logger) Warningf(format string, args ...interface{}) {
-	l.sugar.Warnf(format, args...)
-}
-
-func (l *logger) Error(args ...interface{}) {
-	l.sugar.Error(args...)
-}
-
-func (l *logger) Errorf(format string, args ...interface{}) {
-	l.sugar.Errorf(format, args...)
-}
-
-func (l *logger) Fatal(args ...interface{}) {
-	l.sugar.Fatal(args...)
-}
-
-func (l *logger) Fatalf(format string, args ...interface{}) {
-	l.sugar.Fatalf(format, args...)
-}
-
-func (l *logger) Panic(args ...interface{}) {
-	l.sugar.Panic(args...)
-}
-
-func (l *logger) Panicf(format string, args ...interface{}) {
-	l.sugar.Panicf(format, args...)
 }
 
 // Debug uses fmt.Sprint to construct and log a message.
@@ -150,14 +99,4 @@ func Set(l Logger) {
 // Get returns the logger used by the package-level output functions.
 func Get() Logger {
 	return lg
-}
-
-func init() {
-	zlg, err := zap.NewProduction()
-	if err != nil {
-		panic(
-			fmt.Sprintf("raft/log: default logger init Err: %s", err),
-		)
-	}
-	lg = &logger{sugar: zlg.Sugar()}
 }
