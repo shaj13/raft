@@ -11,8 +11,8 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func New(ctx context.Context) (Cluster, interface{}) {
-	cfg := defaultConfig()
+func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
+	cfg := newConfig(opts...)
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = raftrpc.Dialer(ctx, cfg)
