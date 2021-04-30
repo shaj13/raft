@@ -47,6 +47,7 @@ type Config interface {
 	Pool() membership.Pool
 	Storage() storage.Storage
 	Dial() net.Dial
+	TickInterval() time.Duration
 }
 
 type Daemon interface {
@@ -67,7 +68,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d := &daemon{}
 	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.cfg = cfg
-	d.ticker = time.NewTicker(100 * time.Millisecond) // TODO: read second from cfg
+	d.ticker = time.NewTicker(cfg.TickInterval())
 	d.wg = sync.WaitGroup{}
 	d.propwg = sync.WaitGroup{}
 	d.cache = raft.NewMemoryStorage()
