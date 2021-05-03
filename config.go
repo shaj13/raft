@@ -35,7 +35,7 @@ func (fn optionFunc) apply(c *config) {
 // Default Value: 100'ms.
 func WithTickInterval(d time.Duration) Option {
 	return optionFunc(func(c *config) {
-		c.streamTimeOut = d
+		c.tickInterval = d
 	})
 }
 
@@ -171,9 +171,9 @@ func WithMaxInflightMsgs(max int) Option {
 // steps down when quorum is not active for an electionTimeout.
 //
 // Default Value: false.
-func WithCheckQuorum(check bool) Option {
+func WithCheckQuorum() Option {
 	return optionFunc(func(c *config) {
-		c.rcfg.CheckQuorum = check
+		c.rcfg.CheckQuorum = true
 	})
 }
 
@@ -182,9 +182,9 @@ func WithCheckQuorum(check bool) Option {
 // rejoins the cluster.
 //
 // Default Value: false.
-func WithPreVote(preVote bool) Option {
+func WithPreVote() Option {
 	return optionFunc(func(c *config) {
-		c.rcfg.PreVote = preVote
+		c.rcfg.PreVote = true
 	})
 }
 
@@ -198,9 +198,9 @@ func WithPreVote(preVote bool) Option {
 // to the leader.
 //
 // Default Value: false.
-func WithDisableProposalForwarding(disable bool) Option {
+func WithDisableProposalForwarding() Option {
 	return optionFunc(func(c *config) {
-		c.rcfg.DisableProposalForwarding = disable
+		c.rcfg.DisableProposalForwarding = true
 	})
 }
 
@@ -221,7 +221,7 @@ type config struct {
 }
 
 func (c *config) TickInterval() time.Duration {
-	return c.TickInterval()
+	return c.tickInterval
 }
 
 func (c *config) StreamTimeout() time.Duration {
@@ -237,7 +237,7 @@ func (c *config) CallOption() []grpc.CallOption {
 }
 
 func (c *config) DialOption() []grpc.DialOption {
-	return []grpc.DialOption{grpc.WithInsecure()}
+	return c.dialOptions
 }
 
 func (c *config) Snapshoter() storage.Snapshoter {
@@ -296,9 +296,7 @@ func newConfig(opts ...Option) *config {
 		maxSnapshotFiles: 5,
 		snapInterval:     1000,
 		statedir:         "/tmp",
-		dialOptions: []grpc.DialOption{
-			grpc.WithInsecure(),
-		},
+		dialOptions:      []grpc.DialOption{},
 	}
 
 	for _, opt := range opts {
