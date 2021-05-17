@@ -52,24 +52,15 @@ func (c *cluster) Leave(ctx context.Context) error {
 }
 
 func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) error {
-	if c.Whoami() == 0 {
-		return fmt.Errorf("raft: node is not yet part of a raft cluster")
-	}
+	err := c.precondition(
+		joined(),
+		available(),
+		notMember(id),
+		addressInUse(addr),
+	)
 
-	if !c.IsAvailable() {
-		return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
-	}
-
-	if !c.IsMember(id) {
-		return fmt.Errorf("raft: unknown member %x", id)
-	}
-
-	if c.IsMemberRemoved(id) {
-		return fmt.Errorf("raft: member %x already removed", id)
-	}
-
-	if id := c.AddressInUse(addr); id > 0 {
-		return fmt.Errorf("raft: address used by member %x", id)
+	if err != nil {
+		return err
 	}
 
 	m := &api.Member{
@@ -81,20 +72,15 @@ func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) erro
 }
 
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
-	if c.Whoami() == 0 {
-		return fmt.Errorf("raft: node is not yet part of a raft cluster")
-	}
+	err := c.precondition(
+		joined(),
+		available(),
+		notMember(id),
+		memberRemoved(id),
+	)
 
-	if !c.IsAvailable() {
-		return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
-	}
-
-	if !c.IsMember(id) {
-		return fmt.Errorf("raft: unknown member %x", id)
-	}
-
-	if c.IsMemberRemoved(id) {
-		return fmt.Errorf("raft: member %x already removed", id)
+	if err != nil {
+		return err
 	}
 
 	m := &api.Member{
@@ -106,16 +92,14 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 }
 
 func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
-	if c.Whoami() == 0 {
-		return nil, fmt.Errorf("raft: node is not yet part of a raft cluster")
-	}
+	err := c.precondition(
+		joined(),
+		available(),
+		addressInUse(addr),
+	)
 
-	if !c.IsAvailable() {
-		return nil, fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
-	}
-
-	if id := c.AddressInUse(addr); id > 0 {
-		return nil, fmt.Errorf("raft: address used by member %x", id)
+	if err != nil {
+		return nil, err
 	}
 
 	m := &api.Member{
@@ -124,7 +108,7 @@ func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
 		Type:    api.RemoteMember,
 	}
 
-	err := c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
+	err = c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
 	if err != nil {
 		return nil, err
 	}
@@ -227,4 +211,58 @@ func (c *cluster) Whoami() uint64 {
 func (c *cluster) Leader() uint64 {
 	s, _ := c.daemon.Status()
 	return s.Lead
+}
+
+func (c *cluster) precondition(fns ...func(c *cluster) error) error {
+	for _, fn := range fns {
+		if err := fn(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func joined() func(c *cluster) error {
+	return func(c *cluster) error {
+		if c.Whoami() == 0 {
+			return fmt.Errorf("raft: node is not yet part of a raft cluster")
+		}
+		return nil
+	}
+}
+
+func available() func(c *cluster) error {
+	return func(c *cluster) error {
+		if !c.IsAvailable() {
+			return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
+		}
+		return nil
+	}
+}
+
+func notMember(id uint64) func(c *cluster) error {
+	return func(c *cluster) error {
+		if !c.IsMember(id) {
+			return fmt.Errorf("raft: unknown member %x", id)
+		}
+		return nil
+	}
+}
+
+func memberRemoved(id uint64) func(c *cluster) error {
+	return func(c *cluster) error {
+		if c.IsMemberRemoved(id) {
+			return fmt.Errorf("raft: member %x already removed", id)
+		}
+		return nil
+	}
+}
+
+func addressInUse(addr string) func(c *cluster) error {
+	return func(c *cluster) error {
+		if id := c.AddressInUse(addr); id > 0 {
+			return fmt.Errorf("raft: address used by member %x", id)
+		}
+		return nil
+	}
 }
