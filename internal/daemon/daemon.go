@@ -348,7 +348,7 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	)
 
 	join := func() {
-		var rpc net.RPC
+		var rpc net.Client
 		rpc, err = d.cfg.Dial()(ctx, cluster)
 		if err != nil {
 			return

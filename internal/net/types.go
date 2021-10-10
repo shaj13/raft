@@ -11,14 +11,14 @@ import (
 type Server interface{}
 
 // Dial connects to an RPC server at the specified network address.
-type Dial func(ctx context.Context, addr string) (RPC, error)
+type Dial func(ctx context.Context, addr string) (Client, error)
 
-// New returns a new Server to handle requests
+// NewServer returns a new Server to handle requests
 // to the set of services at the other end of the connection.
-type New func(ctx context.Context, cfg interface{}) (Server, error)
+type NewServer func(ctx context.Context, cfg interface{}) (Server, error)
 
-// RPC provides access to the exported methods of an object across a network.
-type RPC interface {
+// Client provides access to the exported methods of an object across a network.
+type Client interface {
 	Message(context.Context, raftpb.Message) error
 	Join(context.Context, api.Member) (uint64, []api.Member, error)
 	Close() error

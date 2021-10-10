@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-var _ net.RPC = &client{}
+var _ net.Client = &client{}
 
 var bufferPool = sync.Pool{
 	New: func() interface{} {
@@ -39,7 +39,7 @@ type DialConfig interface {
 // Dialer returns an dial function to connects,
 // to an GRPC server at the specified network address.
 func Dialer(ctx context.Context, v interface{}) net.Dial {
-	return func(ctx context.Context, addr string) (net.RPC, error) {
+	return func(ctx context.Context, addr string) (net.Client, error) {
 		c := v.(DialConfig)
 		conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
 		if err != nil {

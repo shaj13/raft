@@ -24,7 +24,7 @@ type remote struct {
 	msgc        chan raftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
-	rpc         net.RPC
+	rpc         net.Client
 	active      bool
 	addr        string
 	activeSince time.Time
@@ -127,7 +127,7 @@ func (r *remote) report(msg raftpb.Message, err error) {
 	}
 }
 
-func (r *remote) RPC() net.RPC {
+func (r *remote) RPC() net.Client {
 	r.mu.Lock()
 	rpc := r.rpc
 	r.mu.Unlock()
