@@ -29,14 +29,14 @@ type encoder struct {
 
 func (e *encoder) Encode(cb func(*api.Chunk) error) error {
 	for e.scanner.Scan() {
-		if err := cb(e.chunck()); err != nil {
+		if err := cb(e.chunk()); err != nil {
 			return err
 		}
 	}
 	return e.scanner.Err()
 }
 
-func (e *encoder) chunck() *api.Chunk {
+func (e *encoder) chunk() *api.Chunk {
 	c := &api.Chunk{
 		Index: e.index,
 		Data:  e.scanner.Bytes(),
