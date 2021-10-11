@@ -14,7 +14,7 @@ import (
 var testConfig = mockConfig{}
 
 func mockDial(m *mockRPC, err error) net.Dial {
-	return func(ctx context.Context, addr string) (net.RPC, error) {
+	return func(ctx context.Context, addr string) (net.Client, error) {
 		return m, err
 	}
 }
