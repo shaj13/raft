@@ -9,7 +9,6 @@ import (
 	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3"
-	"google.golang.org/grpc"
 )
 
 // Option configures raft library using the functional options paradigm popularized by Rob Pike and Dave Cheney.
@@ -55,15 +54,6 @@ func WithStreamTimeOut(d time.Duration) Option {
 func WithDrainTimeOut(d time.Duration) Option {
 	return optionFunc(func(c *config) {
 		c.drainTimeOut = d
-	})
-}
-
-// WithGRPCDialOption configures how we set up the grpc connection.
-//
-// Default Value: no defaults.
-func WithGRPCDialOption(opts ...grpc.DialOption) Option {
-	return optionFunc(func(c *config) {
-		c.dialOptions = opts
 	})
 }
 
@@ -209,7 +199,6 @@ type config struct {
 	tickInterval     time.Duration
 	streamTimeOut    time.Duration
 	drainTimeOut     time.Duration
-	dialOptions      []grpc.DialOption
 	statedir         string
 	maxSnapshotFiles int
 	snapInterval     uint64
@@ -230,14 +219,6 @@ func (c *config) StreamTimeout() time.Duration {
 
 func (c *config) DrainTimeout() time.Duration {
 	return c.drainTimeOut
-}
-
-func (c *config) CallOption() []grpc.CallOption {
-	return []grpc.CallOption{}
-}
-
-func (c *config) DialOption() []grpc.DialOption {
-	return c.dialOptions
 }
 
 func (c *config) Snapshoter() storage.Snapshoter {
@@ -296,7 +277,6 @@ func newConfig(opts ...Option) *config {
 		maxSnapshotFiles: 5,
 		snapInterval:     1000,
 		statedir:         "/tmp",
-		dialOptions:      []grpc.DialOption{},
 	}
 
 	for _, opt := range opts {

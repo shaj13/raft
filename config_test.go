@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 )
 
 func TestConfig(t *testing.T) {
@@ -32,12 +31,6 @@ func TestConfig(t *testing.T) {
 			expected: time.Nanosecond * 500,
 			opt:      WithDrainTimeOut(time.Nanosecond * 500),
 			value:    func(c *config) interface{} { return c.DrainTimeout() },
-		},
-		{
-			defaults: []grpc.DialOption{},
-			expected: []grpc.DialOption{grpc.EmptyDialOption{}},
-			opt:      WithGRPCDialOption(grpc.EmptyDialOption{}),
-			value:    func(c *config) interface{} { return c.DialOption() },
 		},
 		{
 			defaults: "/tmp",

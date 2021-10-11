@@ -8,6 +8,7 @@ import (
 
 	raft "github.com/shaj13/raftkit"
 	"github.com/shaj13/raftkit/api"
+	raftgrpc "github.com/shaj13/raftkit/net/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -17,6 +18,9 @@ var (
 )
 
 func init() {
+	raftgrpc.Register(
+		raftgrpc.WithDialOptions(grpc.WithInsecure()),
+	)
 	flag.StringVar(&addr, "raft", "", "raft server addr")
 	flag.StringVar(&join, "join", "", "join cluster addr")
 	flag.Parse()
