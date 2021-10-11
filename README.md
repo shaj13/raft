@@ -3,7 +3,8 @@
 
 ### TODO 
 - [ ] remove grpc from root pkg  
-- [ ] remove conntroller from net 
+- [ ] remove conntroller from net
+- [ ] net/grpc shoud get options froom hook like groupcache 
 - [ ] Move api to internal 
 - [ ] Move msgbus to internal 
 - [ ] fix all daemonn todo 
