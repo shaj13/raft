@@ -2,6 +2,7 @@
 
 
 ### TODO 
+- [ ] remove grpc from root pkg  
 - [ ] remove conntroller from net 
 - [ ] Move api to internal 
 - [ ] Move msgbus to internal 
