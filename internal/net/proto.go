@@ -13,7 +13,7 @@ var registry = make([]*protoPair, max)
 
 type protoPair struct {
 	nsrv NewServer
-	dial Dial
+	dial Dialer
 }
 
 // Proto is a portmanteau of protocol
@@ -24,13 +24,13 @@ type Proto uint
 // of the given proto function.
 // This is intended to be called from the init function,
 // in packages that implement proto function.
-func (c Proto) Register(srv NewServer, dial Dial) {
+func (c Proto) Register(ns NewServer, dial Dialer) {
 	if c <= 0 && c >= max { //nolint:staticcheck
 		panic("raft/net: Register of unknown codec function")
 	}
 
 	registry[c] = &protoPair{
-		nsrv: srv,
+		nsrv: ns,
 		dial: dial,
 	}
 }
@@ -42,7 +42,7 @@ func (c Proto) Available() bool {
 
 // Get returns proto server and client.
 // Get panics if the proto function is not linked into the binary.
-func (c Proto) Get() (NewServer, Dial) {
+func (c Proto) Get() (NewServer, Dialer) {
 	if !c.Available() {
 		panic("raft/net: Requested proto function #" + strconv.Itoa(int(c)) + " is unavailable")
 	}

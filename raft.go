@@ -6,16 +6,24 @@ import (
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
-	raftrpc "github.com/shaj13/raftkit/internal/net/grpc"
+	"github.com/shaj13/raftkit/internal/net"
 	"github.com/shaj13/raftkit/internal/storage/disk"
+	raftrpc "github.com/shaj13/raftkit/net/grpc"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
 	cfg := newConfig(opts...)
+
+	raftrpc.Register(
+		raftrpc.WithCallOptions(cfg.CallOption()...),
+		raftrpc.WithDialOptions(cfg.DialOption()...),
+	)
+
+	newServer, dialer := net.GRPC.Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
-	cfg.dial = raftrpc.Dialer(ctx, cfg)
+	cfg.dial = dialer(ctx, cfg)
 	cfg.pool = membership.New(ctx, cfg)
 	cfg.daemon = daemon.New(ctx, cfg)
 
@@ -27,7 +35,7 @@ func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
 	cfg.controller.(*controller).daemon = cfg.daemon
 	cfg.controller.(*controller).pool = cfg.pool
 
-	srv, _ := raftrpc.NewServer(ctx, cfg)
+	srv, _ := newServer(ctx, cfg)
 
 	return cluster, srv
 }

@@ -31,30 +31,28 @@ const (
 
 // DialConfig define common configuration used by the dial function.
 type DialConfig interface {
-	CallOption() []grpc.CallOption
-	DialOption() []grpc.DialOption
 	Snapshoter() storage.Snapshoter
 }
 
-// Dialer returns an dial function to connects,
-// to an GRPC server at the specified network address.
-func Dialer(ctx context.Context, v interface{}) net.Dial {
-	return func(ctx context.Context, addr string) (net.Client, error) {
-		c := v.(DialConfig)
-		conn, err := grpc.DialContext(ctx, addr, c.DialOption()...)
-		if err != nil {
-			return nil, err
-		}
+// Dialer return's grpc dialer.
+func Dialer(dopts []grpc.DialOption, copts []grpc.CallOption) net.Dialer {
+	return func(c context.Context, dc net.DialerConfig) net.Dial {
+		return func(ctx context.Context, addr string) (net.Client, error) {
+			conn, err := grpc.DialContext(ctx, addr, dopts...)
+			if err != nil {
+				return nil, err
+			}
 
-		return &client{
-			conn:       conn,
-			callOption: c.CallOption(),
-			snapshoter: c.Snapshoter(),
-		}, nil
+			return &client{
+				conn:       conn,
+				callOption: copts,
+				snapshoter: dc.(DialConfig).Snapshoter(),
+			}, nil
+		}
 	}
 }
 
-// Client implements net.RPC.
+// Client implements net.Client.
 type client struct {
 	conn       *grpc.ClientConn
 	callOption []grpc.CallOption

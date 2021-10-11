@@ -236,7 +236,7 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.
 	select {
 	case v := <-sub.Chan():
 		if v != nil {
-			return err.(error)
+			return v.(error)
 		}
 		return nil
 	case <-ctx.Done():

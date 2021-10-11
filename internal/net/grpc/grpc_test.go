@@ -148,15 +148,15 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 		return ln.Dial()
 	}
 
-	cfg := testConfig{
-		dialopts: []grpc.DialOption{
-			grpc.WithInsecure(),
-			grpc.WithContextDialer(dial),
-		},
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithContextDialer(dial),
 	}
 
+	cfg := new(testConfig)
+
 	ctx := context.TODO()
-	c, err := Dialer(ctx, cfg)(ctx, "")
+	c, err := Dialer(opts, nil)(ctx, cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}

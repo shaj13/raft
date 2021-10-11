@@ -29,11 +29,10 @@ type ServerConfig interface {
 // NewServer return an GRPC Server.
 //
 // NewServer compatible with net.New.
-func NewServer(ctx context.Context, v interface{}) (net.Server, error) {
-	c := v.(ServerConfig)
+func NewServer(ctx context.Context, cfg net.ServerConfig) (net.Server, error) {
 	return &server{
-		ctrl: c.Controller(),
-		snap: c.Snapshoter(),
+		ctrl: cfg.(ServerConfig).Controller(),
+		snap: cfg.(ServerConfig).Snapshoter(),
 	}, nil
 }
 
