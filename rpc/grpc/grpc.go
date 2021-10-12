@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"context"
+
 	"github.com/shaj13/raftkit/internal/rpc"
 	raftgrpc "github.com/shaj13/raftkit/internal/rpc/grpc"
 	"google.golang.org/grpc"
@@ -11,8 +13,8 @@ func init() {
 }
 
 type config struct {
-	callOpts []grpc.CallOption
-	dialOpts []grpc.DialOption
+	copts func(context.Context) []grpc.CallOption
+	dopts func(context.Context) []grpc.DialOption
 }
 
 // Option configures grpc using the functional options paradigm popularized by Rob Pike and Dave Cheney.
@@ -34,14 +36,18 @@ func (fn optionFunc) apply(c *config) {
 // WithCallOptions configures grpc client call from the given options.
 func WithCallOptions(opts ...grpc.CallOption) Option {
 	return optionFunc(func(c *config) {
-		c.callOpts = opts
+		c.copts = func(c context.Context) []grpc.CallOption {
+			return opts
+		}
 	})
 }
 
 // WithDialOptions configures grpc dial from the given options.
 func WithDialOptions(opts ...grpc.DialOption) Option {
 	return optionFunc(func(c *config) {
-		c.dialOpts = opts
+		c.dopts = func(c context.Context) []grpc.DialOption {
+			return opts
+		}
 	})
 }
 
@@ -56,7 +62,7 @@ func Register(opts ...Option) {
 		opt.apply(c)
 	}
 
-	dialer := raftgrpc.Dialer(c.dialOpts, c.callOpts)
+	dialer := raftgrpc.Dialer(c.dopts, c.copts)
 	ns := raftgrpc.NewServer
 
 	rpc.GRPC.Register(ns, dialer)

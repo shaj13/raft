@@ -35,18 +35,18 @@ type DialConfig interface {
 }
 
 // Dialer return's grpc dialer.
-func Dialer(dopts []grpc.DialOption, copts []grpc.CallOption) rpc.Dialer {
+func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) rpc.Dialer {
 	return func(c context.Context, dc rpc.DialerConfig) rpc.Dial {
 		return func(ctx context.Context, addr string) (rpc.Client, error) {
-			conn, err := grpc.DialContext(ctx, addr, dopts...)
+			conn, err := grpc.DialContext(ctx, addr, dopts(ctx)...)
 			if err != nil {
 				return nil, err
 			}
 
 			return &client{
-				conn:       conn,
-				callOption: copts,
-				snapshoter: dc.(DialConfig).Snapshoter(),
+				conn:    conn,
+				copts:   copts,
+				shotter: dc.(DialConfig).Snapshoter(),
 			}, nil
 		}
 	}
@@ -54,9 +54,9 @@ func Dialer(dopts []grpc.DialOption, copts []grpc.CallOption) rpc.Dialer {
 
 // Client implements rpc.Client.
 type client struct {
-	conn       *grpc.ClientConn
-	callOption []grpc.CallOption
-	snapshoter storage.Snapshoter
+	conn    *grpc.ClientConn
+	copts   func(context.Context) []grpc.CallOption
+	shotter storage.Snapshoter
 }
 
 func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
@@ -78,7 +78,7 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 		return 0, nil, err
 	}
 
-	stream, err := raftpb.NewRaftClient(c.conn).Join(ctx, &m, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 	if err != nil {
 		return fail(err)
 	}
@@ -130,7 +130,7 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 		return err
 	}
 
-	stream, err := raftpb.NewRaftClient(c.conn).Message(ctx, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Message(ctx, c.copts(ctx)...)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 }
 
 func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error) {
-	name, r, err := c.snapshoter.Reader(ctx, m.Snapshot)
+	name, r, err := c.shotter.Reader(ctx, m.Snapshot)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	stream, err := raftpb.NewRaftClient(c.conn).Snapshot(ctx, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Snapshot(ctx, c.copts(ctx)...)
 	if err != nil {
 		return err
 	}

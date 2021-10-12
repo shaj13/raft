@@ -121,7 +121,7 @@ func TestSnapshot(t *testing.T) {
 			snap := newTestSnapshoter("snap data")
 			srv.ctrl = ctrl
 			srv.snap = snap
-			c.snapshoter = snap
+			c.shotter = snap
 			err := c.snapshot(context.Background(), etcdraftpb.Message{})
 			ctrl.AssertCalled(t, method)
 			if tt.err != nil {
@@ -148,15 +148,18 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 		return ln.Dial()
 	}
 
-	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithContextDialer(dial),
+	dopts := func(context.Context) []grpc.DialOption {
+		return []grpc.DialOption{
+			grpc.WithInsecure(),
+			grpc.WithContextDialer(dial),
+		}
 	}
 
+	copts := func(c context.Context) []grpc.CallOption { return nil }
 	cfg := new(testConfig)
 
 	ctx := context.TODO()
-	c, err := Dialer(opts, nil)(ctx, cfg)(ctx, "")
+	c, err := Dialer(dopts, copts)(ctx, cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}
