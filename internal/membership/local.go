@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // local represents the current cluster member.
@@ -33,8 +33,8 @@ func (l *local) IsActive() bool {
 	return !l.active.IsZero()
 }
 
-func (l *local) Type() api.MemberType {
-	return api.LocalMember
+func (l *local) Type() raftpb.MemberType {
+	return raftpb.LocalMember
 }
 
 func (l *local) Update(add string) (err error) {
@@ -48,4 +48,4 @@ func (l *local) Close() {
 	l.r.ReportShutdown(l.ID())
 }
 
-func (l *local) Send(raftpb.Message) (err error) { return }
+func (l *local) Send(etcdraftpb.Message) (err error) { return }

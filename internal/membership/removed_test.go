@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func TestRemoved(t *testing.T) {
@@ -21,8 +21,8 @@ func TestRemoved(t *testing.T) {
 	assert.Equal(t, addr, r.Address())
 	assert.False(t, r.IsActive())
 	assert.Equal(t, time.Time{}, r.Since())
-	assert.Equal(t, api.RemovedMember, r.Type())
-	assert.Equal(t, r.Send(raftpb.Message{}), ErrRemovedMember)
+	assert.Equal(t, raftpb.RemovedMember, r.Type())
+	assert.Equal(t, r.Send(etcdraftpb.Message{}), ErrRemovedMember)
 	assert.Equal(t, r.Update(""), ErrRemovedMember)
 	assert.Equal(t, addr, r.Address())
 }

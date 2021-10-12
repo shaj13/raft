@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/atomic"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func TestReportUnreachable(t *testing.T) {
@@ -64,12 +64,12 @@ func TestPush(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started
-	err := d.Push(raftpb.Message{})
+	err := d.Push(etcdraftpb.Message{})
 	assert.Equal(t, ErrStopped, err)
 
 	// round #2 it return nil err when daemon started
 	d.started.Set()
-	err = d.Push(raftpb.Message{})
+	err = d.Push(etcdraftpb.Message{})
 	assert.NoError(t, err)
 }
 
@@ -143,7 +143,7 @@ func TestProposeConfChange(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started
-	err := d.ProposeConfChange(context.TODO(), nil, raftpb.ConfChangeAddNode)
+	err := d.ProposeConfChange(context.TODO(), nil, etcdraftpb.ConfChangeAddNode)
 	m.AssertNotCalled(t, method)
 	assert.Equal(t, ErrStopped, err)
 
@@ -151,7 +151,7 @@ func TestProposeConfChange(t *testing.T) {
 	expected := errors.New("TestProposeReplicate Error")
 	m.On(method, mock.Anything, mock.Anything).Return(expected)
 	d.started.Set()
-	err = d.ProposeConfChange(context.TODO(), &api.Member{}, raftpb.ConfChangeAddNode)
+	err = d.ProposeConfChange(context.TODO(), &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
 	assert.Equal(t, expected, err)
 
 	// round #3 it return ctx done
@@ -160,7 +160,7 @@ func TestProposeConfChange(t *testing.T) {
 	m.On(method, mock.Anything, mock.Anything).Return(nil)
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.ProposeConfChange(ctx, &api.Member{}, raftpb.ConfChangeAddNode)
+	err = d.ProposeConfChange(ctx, &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
 	assert.Contains(t, err.Error(), "canceled")
 }
 
@@ -182,12 +182,12 @@ func (m *mockNode) Propose(ctx context.Context, buf []byte) error {
 	return args.Error(0)
 }
 
-func (m *mockNode) ProposeConfChange(ctx context.Context, cc raftpb.ConfChangeI) error {
+func (m *mockNode) ProposeConfChange(ctx context.Context, cc etcdraftpb.ConfChangeI) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mockNode) Step(ctx context.Context, msg raftpb.Message) error {
+func (m *mockNode) Step(ctx context.Context, msg etcdraftpb.Message) error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -200,9 +200,9 @@ func (m *mockNode) Advance() {
 	m.Called()
 }
 
-func (m *mockNode) ApplyConfChange(cc raftpb.ConfChangeI) *raftpb.ConfState {
+func (m *mockNode) ApplyConfChange(cc etcdraftpb.ConfChangeI) *etcdraftpb.ConfState {
 	args := m.Called()
-	return args.Get(0).(*raftpb.ConfState)
+	return args.Get(0).(*etcdraftpb.ConfState)
 }
 
 func (m *mockNode) TransferLeadership(ctx context.Context, lead, transferee uint64) {

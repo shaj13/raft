@@ -9,11 +9,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -43,7 +43,7 @@ func TestMessage(t *testing.T) {
 			ctrl := &mockController{mock.Mock{}}
 			ctrl.On(method).Return(tt.err)
 			srv.ctrl = ctrl
-			err := c.Message(context.Background(), raftpb.Message{})
+			err := c.Message(context.Background(), etcdraftpb.Message{})
 			ctrl.AssertCalled(t, method)
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
@@ -61,19 +61,19 @@ func TestJoin(t *testing.T) {
 	table := []struct {
 		name  string
 		id    uint64
-		membs []api.Member
+		membs []raftpb.Member
 		err   error
 	}{
 		{
 			name:  "it return id and pool when joined",
 			id:    11,
-			membs: []api.Member{{ID: 12}},
+			membs: []raftpb.Member{{ID: 12}},
 			err:   nil,
 		},
 		{
 			name: "it return error when server return error",
 			id:   0,
-			// membs: []api.Member{},
+			// membs: []raftpb.Member{},
 			err: fmt.Errorf("TestJoin Error"),
 		},
 	}
@@ -83,7 +83,7 @@ func TestJoin(t *testing.T) {
 			ctrl := &mockController{mock.Mock{}}
 			ctrl.On(method).Return(tt.id, tt.membs, tt.err)
 			srv.ctrl = ctrl
-			id, pool, err := c.Join(context.Background(), api.Member{})
+			id, pool, err := c.Join(context.Background(), raftpb.Member{})
 			ctrl.AssertCalled(t, method)
 			assert.Equal(t, tt.id, id)
 			assert.Equal(t, tt.membs, pool)
@@ -122,7 +122,7 @@ func TestSnapshot(t *testing.T) {
 			srv.ctrl = ctrl
 			srv.snap = snap
 			c.snapshoter = snap
-			err := c.snapshot(context.Background(), raftpb.Message{})
+			err := c.snapshot(context.Background(), etcdraftpb.Message{})
 			ctrl.AssertCalled(t, method)
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
@@ -138,7 +138,7 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 	srv := new(server)
 
 	server := grpc.NewServer()
-	api.RegisterRaftServer(server, srv)
+	raftpb.RegisterRaftServer(server, srv)
 
 	go func() {
 		server.Serve(ln)
@@ -176,14 +176,14 @@ type mockController struct {
 	mock.Mock
 }
 
-func (m *mockController) Push(context.Context, raftpb.Message) error {
+func (m *mockController) Push(context.Context, etcdraftpb.Message) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mockController) Join(context.Context, *api.Member) (uint64, []api.Member, error) {
+func (m *mockController) Join(context.Context, *raftpb.Member) (uint64, []raftpb.Member, error) {
 	args := m.Called()
-	return args.Get(0).(uint64), args.Get(1).([]api.Member), args.Error(2)
+	return args.Get(0).(uint64), args.Get(1).([]raftpb.Member), args.Error(2)
 }
 
 type testSnapshoter struct {
@@ -193,14 +193,14 @@ type testSnapshoter struct {
 	gotname string
 }
 
-func (t *testSnapshoter) Reader(context.Context, raftpb.Snapshot) (string, io.ReadCloser, error) {
+func (t *testSnapshoter) Reader(context.Context, etcdraftpb.Snapshot) (string, io.ReadCloser, error) {
 	return t.expname, ioutil.NopCloser(bytes.NewBuffer(t.data)), nil
 }
 
-func (t *testSnapshoter) Writer(_ context.Context, n string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
+func (t *testSnapshoter) Writer(_ context.Context, n string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
 	t.gotname = n
-	peek := func() (raftpb.Snapshot, error) {
-		return raftpb.Snapshot{}, nil
+	peek := func() (etcdraftpb.Snapshot, error) {
+		return etcdraftpb.Snapshot{}, nil
 	}
 	return writeCloser{t.buf}, peek, nil
 }
@@ -209,7 +209,7 @@ func (t *testSnapshoter) Write(sf *storage.SnapshotFile) error {
 	return nil
 }
 
-func (t *testSnapshoter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+func (t *testSnapshoter) Read(snap etcdraftpb.Snapshot) (*storage.SnapshotFile, error) {
 	return nil, nil
 }
 

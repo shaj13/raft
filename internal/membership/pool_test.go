@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,7 +25,7 @@ func TestPoolNextID(t *testing.T) {
 }
 
 func TestPoolUpdate(t *testing.T) {
-	m := &api.Member{ID: 1, Type: api.LocalMember}
+	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
 	p := New(context.Background(), testConfig)
 	p.Add(*m)
 	m.Address = "5050"
@@ -36,19 +36,19 @@ func TestPoolUpdate(t *testing.T) {
 
 func TestPoolRemoveErr(t *testing.T) {
 	p := New(context.Background(), testConfig)
-	err := p.Remove(api.Member{})
+	err := p.Remove(raftpb.Member{})
 	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestPoolRestore(t *testing.T) {
 	p := New(context.Background(), testConfig)
 	ids := make(map[uint64]struct{})
-	pool := &api.Pool{
-		Members: []api.Member{},
+	pool := &raftpb.Pool{
+		Members: []raftpb.Member{},
 	}
 
 	for i := 0; i < 5; i++ {
-		m := api.Member{ID: uint64(i), Type: api.LocalMember}
+		m := raftpb.Member{ID: uint64(i), Type: raftpb.LocalMember}
 		ids[uint64(i)] = struct{}{}
 		pool.Members = append(pool.Members, m)
 	}
@@ -65,13 +65,13 @@ func TestPoolRestore(t *testing.T) {
 
 func TestPoolSnapshot(t *testing.T) {
 	p := New(context.Background(), testConfig)
-	p.Add(api.Member{ID: p.NextID(), Type: api.LocalMember})
+	p.Add(raftpb.Member{ID: p.NextID(), Type: raftpb.LocalMember})
 	membs := p.Snapshot()
 	assert.Equal(t, len(p.Members()), len(membs))
 }
 
 func TestPoolRemove(t *testing.T) {
-	m := &api.Member{ID: 1, Type: api.LocalMember}
+	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
 
 	r := &mockReporter{mock.Mock{}}
 	r.On("ReportShutdown", m.ID).Return()
@@ -82,11 +82,11 @@ func TestPoolRemove(t *testing.T) {
 	// run twice to check removing
 	// a removed member does not return error
 	for i := 0; i < 2; i++ {
-		m.Type = api.RemovedMember
+		m.Type = raftpb.RemovedMember
 		err := p.Remove(*m)
 		mem, _ := p.Get(m.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, api.RemovedMember, mem.Type())
+		assert.Equal(t, raftpb.RemovedMember, mem.Type())
 	}
 
 }

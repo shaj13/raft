@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/raftpb"
 )
 
 func init() {
@@ -56,7 +56,7 @@ func (p *pool) Get(id uint64) (Member, bool) {
 	return m, ok
 }
 
-func (p *pool) Add(m api.Member) error {
+func (p *pool) Add(m raftpb.Member) error {
 	mem, ok := p.Get(m.ID)
 	if ok && mem.Address() == m.Address {
 		// member already exist
@@ -79,7 +79,7 @@ func (p *pool) Add(m api.Member) error {
 	return nil
 }
 
-func (p *pool) Update(m api.Member) error {
+func (p *pool) Update(m raftpb.Member) error {
 	mem, ok := p.Get(m.ID)
 	if ok && mem.Address() == m.Address {
 		// member already exist
@@ -93,7 +93,7 @@ func (p *pool) Update(m api.Member) error {
 	return mem.Update(m.Address)
 }
 
-func (p *pool) Remove(m api.Member) error {
+func (p *pool) Remove(m raftpb.Member) error {
 	mem, ok := p.Get(m.ID)
 	if !ok {
 		return fmt.Errorf("raft/membership: member %x not found", m.ID)
@@ -117,10 +117,10 @@ func (p *pool) Remove(m api.Member) error {
 	return nil
 }
 
-func (p *pool) Snapshot() []api.Member {
+func (p *pool) Snapshot() []raftpb.Member {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	membs := []api.Member{}
+	membs := []raftpb.Member{}
 	for _, mem := range p.membs {
 		m := p.factory.To(mem)
 		membs = append(membs, m)
@@ -128,7 +128,7 @@ func (p *pool) Snapshot() []api.Member {
 	return membs
 }
 
-func (p *pool) Restore(pool api.Pool) {
+func (p *pool) Restore(pool raftpb.Pool) {
 	for _, m := range pool.Members {
 		if err := p.Add(m); err != nil {
 			log.Errorf("raft/membership: Failed to add member %x, Err: %s", m.ID, err)

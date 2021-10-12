@@ -7,11 +7,11 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -41,7 +41,7 @@ type server struct {
 	snap storage.Snapshoter
 }
 
-func (s *server) Message(stream api.Raft_MessageServer) (err error) {
+func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	dec := newDecoder(buf)
@@ -71,7 +71,7 @@ func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 		}
 	}
 
-	m := new(raftpb.Message)
+	m := new(etcdraftpb.Message)
 	if err := m.Unmarshal(buf.Bytes()); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (s *server) Message(stream api.Raft_MessageServer) (err error) {
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (s *server) Snapshot(stream api.Raft_SnapshotServer) (err error) {
+func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf(
@@ -149,8 +149,8 @@ func (s *server) Snapshot(stream api.Raft_SnapshotServer) (err error) {
 		return err
 	}
 
-	m := new(raftpb.Message)
-	m.Type = raftpb.MsgSnap
+	m := new(etcdraftpb.Message)
+	m.Type = etcdraftpb.MsgSnap
 	m.Snapshot = snap
 	m.From = from
 	m.To = to
@@ -158,7 +158,7 @@ func (s *server) Snapshot(stream api.Raft_SnapshotServer) (err error) {
 	return s.ctrl.Push(ctx, *m)
 }
 
-func (s *server) Join(m *api.Member, stream api.Raft_JoinServer) (err error) {
+func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft/net/grpc: Failed to handle join request, Err: %s", err)

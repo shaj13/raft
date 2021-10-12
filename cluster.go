@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type Cluster interface {
@@ -63,12 +63,12 @@ func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) erro
 		return err
 	}
 
-	m := &api.Member{
+	m := &raftpb.Member{
 		ID:   id,
-		Type: api.RemovedMember,
+		Type: raftpb.RemovedMember,
 	}
 
-	return c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeUpdateNode)
+	return c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeUpdateNode)
 }
 
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
@@ -83,12 +83,12 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	m := &api.Member{
+	m := &raftpb.Member{
 		ID:   id,
-		Type: api.RemovedMember,
+		Type: raftpb.RemovedMember,
 	}
 
-	return c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeRemoveNode)
+	return c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeRemoveNode)
 }
 
 func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
@@ -102,13 +102,13 @@ func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
 		return nil, err
 	}
 
-	m := &api.Member{
+	m := &raftpb.Member{
 		ID:      c.pool.NextID(),
 		Address: addr,
-		Type:    api.RemoteMember,
+		Type:    raftpb.RemoteMember,
 	}
 
-	err = c.daemon.ProposeConfChange(ctx, m, raftpb.ConfChangeAddNode)
+	err = c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
 	if err != nil {
 		return nil, err
 	}
@@ -133,14 +133,14 @@ func (c *cluster) members(cond func(m Member) bool) []Member {
 
 func (c *cluster) Members() []Member {
 	cond := func(m Member) bool {
-		return m.Type() != api.RemovedMember
+		return m.Type() != raftpb.RemovedMember
 	}
 	return c.members(cond)
 }
 
 func (c *cluster) RemovedMembers() []Member {
 	cond := func(m Member) bool {
-		return m.Type() == api.RemovedMember
+		return m.Type() == raftpb.RemovedMember
 	}
 	return c.members(cond)
 }
@@ -195,7 +195,7 @@ func (c *cluster) IsAvailable() bool {
 
 func (c *cluster) IsMemberRemoved(id uint64) bool {
 	m, _ := c.GetMemebr(id)
-	return m.Type() == api.RemovedMember
+	return m.Type() == raftpb.RemovedMember
 }
 
 func (c *cluster) IsMember(id uint64) bool {

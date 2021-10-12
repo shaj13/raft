@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
@@ -158,17 +158,17 @@ func TestSnapshotFileWriter(t *testing.T) {
 func snapshotTestFile() (storage.SnapshotFile, string) {
 	const data = "some app data"
 	return storage.SnapshotFile{
-		Snap: &raftpb.Snapshot{
-			Metadata: raftpb.SnapshotMetadata{
-				ConfState: raftpb.ConfState{
+		Snap: &etcdraftpb.Snapshot{
+			Metadata: etcdraftpb.SnapshotMetadata{
+				ConfState: etcdraftpb.ConfState{
 					Voters: []uint64{1, 2, 3},
 				},
 				Index: 1,
 				Term:  1,
 			},
 		},
-		Pool: &api.Pool{
-			Members: []api.Member{
+		Pool: &raftpb.Pool{
+			Members: []raftpb.Member{
 				{
 					Address: ":50052",
 					ID:      11,

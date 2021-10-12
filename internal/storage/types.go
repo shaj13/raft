@@ -4,28 +4,28 @@ import (
 	"context"
 	"io"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type SnapshotFile struct {
-	Snap *raftpb.Snapshot
-	Pool *api.Pool
+	Snap *etcdraftpb.Snapshot
+	Pool *raftpb.Pool
 	Data io.ReadCloser
 }
 
 type Snapshoter interface {
-	Reader(context.Context, raftpb.Snapshot) (string, io.ReadCloser, error)
-	Writer(context.Context, string) (io.WriteCloser, func() (raftpb.Snapshot, error), error)
+	Reader(context.Context, etcdraftpb.Snapshot) (string, io.ReadCloser, error)
+	Writer(context.Context, string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
 	Write(sf *SnapshotFile) error
-	Read(snap raftpb.Snapshot) (*SnapshotFile, error)
+	Read(snap etcdraftpb.Snapshot) (*SnapshotFile, error)
 }
 
 type Storage interface {
-	SaveSnapshot(snap raftpb.Snapshot) error
-	SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error
+	SaveSnapshot(snap etcdraftpb.Snapshot) error
+	SaveEntries(st etcdraftpb.HardState, entries []etcdraftpb.Entry) error
 	Snapshoter() Snapshoter
-	Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *SnapshotFile, error)
+	Boot(meta []byte) ([]byte, etcdraftpb.HardState, []etcdraftpb.Entry, *SnapshotFile, error)
 	Exist() bool
 	Close() error
 }

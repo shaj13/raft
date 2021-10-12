@@ -3,8 +3,8 @@ package rpc
 import (
 	"context"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // ServerConfig define common configuration used by the NewServer function.
@@ -28,14 +28,14 @@ type NewServer func(context.Context, ServerConfig) (Server, error)
 
 // Client provides access to the exported methods of an object across a network.
 type Client interface {
-	Message(context.Context, raftpb.Message) error
-	Join(context.Context, api.Member) (uint64, []api.Member, error)
+	Message(context.Context, etcdraftpb.Message) error
+	Join(context.Context, raftpb.Member) (uint64, []raftpb.Member, error)
 	Close() error
 }
 
-// Controller implements operations defined by raft API.
+// Controller implements operations defined by raft raftpb.
 // and acts as a bridge between the RPC and raft daemon.
 type Controller interface {
-	Push(context.Context, raftpb.Message) error
-	Join(context.Context, *api.Member) (uint64, []api.Member, error)
+	Push(context.Context, etcdraftpb.Message) error
+	Join(context.Context, *raftpb.Member) (uint64, []raftpb.Member, error)
 }

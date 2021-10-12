@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type constructor func(
@@ -23,8 +23,8 @@ type Member interface {
 	Since() time.Time
 	IsActive() bool
 	Update(string) error
-	Send(raftpb.Message) error
-	Type() api.MemberType
+	Send(etcdraftpb.Message) error
+	Type() raftpb.MemberType
 	Close()
 }
 
@@ -45,9 +45,9 @@ type Pool interface {
 	NextID() uint64
 	Members() []Member
 	Get(id uint64) (Member, bool)
-	Add(m api.Member) error
-	Update(m api.Member) error
-	Remove(m api.Member) error
-	Snapshot() []api.Member
-	Restore(pool api.Pool)
+	Add(m raftpb.Member) error
+	Update(m raftpb.Member) error
+	Remove(m raftpb.Member) error
+	Snapshot() []raftpb.Member
+	Restore(pool raftpb.Pool)
 }

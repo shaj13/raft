@@ -4,33 +4,33 @@ import (
 	"context"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type factory struct {
 	ctx          context.Context
 	cfg          Config
-	constructors map[api.MemberType]constructor
+	constructors map[raftpb.MemberType]constructor
 }
 
-func (f *factory) From(m api.Member) (Member, bool, error) {
+func (f *factory) From(m raftpb.Member) (Member, bool, error) {
 	return f.create(m.ID, m.Address, m.Type)
 }
 
-func (f *factory) To(m Member) api.Member {
-	return api.Member{
+func (f *factory) To(m Member) raftpb.Member {
+	return raftpb.Member{
 		ID:      m.ID(),
 		Address: m.Address(),
 		Type:    m.Type(),
 	}
 }
 
-func (f *factory) Cast(m Member, t api.MemberType) (Member, bool, error) {
+func (f *factory) Cast(m Member, t raftpb.MemberType) (Member, bool, error) {
 	return f.create(m.ID(), m.Address(), t)
 }
 
-func (f *factory) create(id uint64, addr string, t api.MemberType) (Member, bool, error) {
+func (f *factory) create(id uint64, addr string, t raftpb.MemberType) (Member, bool, error) {
 	c, ok := f.constructors[t]
 	if !ok {
 		return nil, false, nil
@@ -44,10 +44,10 @@ func newFactory(ctx context.Context, cfg Config) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
-	f.constructors = map[api.MemberType]constructor{
-		api.RemoteMember:  newRemote,
-		api.RemovedMember: newRemoved,
-		api.LocalMember:   newLocal,
+	f.constructors = map[raftpb.MemberType]constructor{
+		raftpb.RemoteMember:  newRemote,
+		raftpb.RemovedMember: newRemoved,
+		raftpb.LocalMember:   newLocal,
 	}
 	return f
 }
@@ -82,7 +82,7 @@ func newRemote(ctx context.Context, cfg Config, id uint64, addr string) (Member,
 	mem.cfg = cfg
 	mem.r = cfg.Reporter()
 	mem.dial = cfg.Dial()
-	mem.msgc = make(chan raftpb.Message, 4096)
+	mem.msgc = make(chan etcdraftpb.Message, 4096)
 	mem.done = make(chan struct{})
 	// assuming member is active.
 	mem.active = true

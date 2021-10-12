@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -59,9 +59,9 @@ type client struct {
 	snapshoter storage.Snapshoter
 }
 
-func (c *client) Message(ctx context.Context, m raftpb.Message) error {
+func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 	fn := c.message
-	if m.Type == raftpb.MsgSnap {
+	if m.Type == etcdraftpb.MsgSnap {
 		fn = c.snapshot
 	}
 
@@ -73,17 +73,17 @@ func (c *client) Message(ctx context.Context, m raftpb.Message) error {
 	return err
 }
 
-func (c *client) Join(ctx context.Context, m api.Member) (uint64, []api.Member, error) {
-	fail := func(err error) (uint64, []api.Member, error) {
+func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
+	fail := func(err error) (uint64, []raftpb.Member, error) {
 		return 0, nil, err
 	}
 
-	stream, err := api.NewRaftClient(c.conn).Join(ctx, &m, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Join(ctx, &m, c.callOption...)
 	if err != nil {
 		return fail(err)
 	}
 
-	membs := []api.Member{}
+	membs := []raftpb.Member{}
 	for {
 		m, err := stream.Recv()
 
@@ -124,13 +124,13 @@ func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *client) message(ctx context.Context, m raftpb.Message) (err error) {
+func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) {
 	data, err := m.Marshal()
 	if err != nil {
 		return err
 	}
 
-	stream, err := api.NewRaftClient(c.conn).Message(ctx, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Message(ctx, c.callOption...)
 	if err != nil {
 		return err
 	}
@@ -148,12 +148,12 @@ func (c *client) message(ctx context.Context, m raftpb.Message) (err error) {
 	}()
 
 	enc := newEncoder(buf)
-	return enc.Encode(func(c *api.Chunk) error {
+	return enc.Encode(func(c *raftpb.Chunk) error {
 		return stream.Send(c)
 	})
 }
 
-func (c *client) snapshot(ctx context.Context, m raftpb.Message) (err error) {
+func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error) {
 	name, r, err := c.snapshoter.Reader(ctx, m.Snapshot)
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func (c *client) snapshot(ctx context.Context, m raftpb.Message) (err error) {
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	stream, err := api.NewRaftClient(c.conn).Snapshot(ctx, c.callOption...)
+	stream, err := raftpb.NewRaftClient(c.conn).Snapshot(ctx, c.callOption...)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (c *client) snapshot(ctx context.Context, m raftpb.Message) (err error) {
 	}()
 
 	enc := newEncoder(r)
-	return enc.Encode(func(c *api.Chunk) error {
+	return enc.Encode(func(c *raftpb.Chunk) error {
 		return stream.Send(c)
 	})
 }

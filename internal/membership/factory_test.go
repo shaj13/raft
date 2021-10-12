@@ -4,16 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestFactory(t *testing.T) {
-	m := api.Member{
+	m := raftpb.Member{
 		Address: ":5052",
 		ID:      123,
-		Type:    api.LocalMember,
+		Type:    raftpb.LocalMember,
 	}
 
 	f := newFactory(
@@ -28,15 +28,15 @@ func TestFactory(t *testing.T) {
 	assert.Equal(t, m.ID, mem.ID())
 	assert.Equal(t, m.Type, mem.Type())
 
-	mem, ok, err = f.Cast(mem, api.RemovedMember)
+	mem, ok, err = f.Cast(mem, raftpb.RemovedMember)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 	assert.Equal(t, m.Address, mem.Address())
 	assert.Equal(t, m.ID, mem.ID())
-	assert.Equal(t, api.RemovedMember, mem.Type())
+	assert.Equal(t, raftpb.RemovedMember, mem.Type())
 
 	mm := f.To(mem)
-	m.Type = api.RemovedMember
+	m.Type = raftpb.RemovedMember
 	assert.Equal(t, m, mm)
 }
 

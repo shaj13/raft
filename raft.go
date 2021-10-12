@@ -3,12 +3,12 @@ package raft
 import (
 	"context"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage/disk"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
@@ -39,7 +39,7 @@ type controller struct {
 	pool    membership.Pool
 }
 
-func (c *controller) Join(ctx context.Context, m *api.Member) (uint64, []api.Member, error) {
+func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raftpb.Member, error) {
 	var (
 		memb Member
 		err  error
@@ -53,20 +53,20 @@ func (c *controller) Join(ctx context.Context, m *api.Member) (uint64, []api.Mem
 	}
 
 	if err != nil {
-		return 0, []api.Member{}, err
+		return 0, []raftpb.Member{}, err
 	}
 
 	pool := c.pool.Snapshot()
 
 	for i, m := range pool {
-		if m.Type == api.LocalMember {
-			(&m).Type = api.RemoteMember
+		if m.Type == raftpb.LocalMember {
+			(&m).Type = raftpb.RemoteMember
 			pool[i] = m
 			continue
 		}
 
 		if m.ID == memb.ID() {
-			(&m).Type = api.LocalMember
+			(&m).Type = raftpb.LocalMember
 			pool[i] = m
 			continue
 		}
@@ -75,6 +75,6 @@ func (c *controller) Join(ctx context.Context, m *api.Member) (uint64, []api.Mem
 	return memb.ID(), pool, nil
 }
 
-func (c *controller) Push(ctx context.Context, m raftpb.Message) error {
+func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
 	return c.daemon.Push(m)
 }

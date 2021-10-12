@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func TestRemote(t *testing.T) {
@@ -25,7 +25,7 @@ func TestRemote(t *testing.T) {
 	assert.Equal(t, r.Address(), addr)
 	assert.False(t, r.IsActive())
 	assert.Equal(t, r.Since(), time.Time{})
-	assert.Equal(t, r.Type(), api.RemoteMember)
+	assert.Equal(t, r.Type(), raftpb.RemoteMember)
 	assert.Nil(t, r.RPC())
 }
 
@@ -102,7 +102,7 @@ func TestRemoteStream(t *testing.T) {
 	r := new(remote)
 	r.rpc = m
 	r.cfg = testConfig
-	_ = r.stream(context.Background(), raftpb.Message{})
+	_ = r.stream(context.Background(), etcdraftpb.Message{})
 	m.AssertCalled(t, "Message")
 }
 
@@ -112,27 +112,27 @@ func TestRemoteReport(t *testing.T) {
 
 	table := []struct {
 		name     string
-		msg      raftpb.Message
+		msg      etcdraftpb.Message
 		err      error
 		called   string
 		callargs []interface{}
 	}{
 		{
 			name:     "it call ReportSnapshot with SnapshotFinish status",
-			msg:      raftpb.Message{Type: raftpb.MsgSnap},
+			msg:      etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
 			called:   "ReportSnapshot",
 			callargs: []interface{}{id, raft.SnapshotFinish},
 		},
 		{
 			name:     "it call ReportSnapshot with SnapshotFailure status",
-			msg:      raftpb.Message{Type: raftpb.MsgSnap},
+			msg:      etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
 			err:      err,
 			called:   "ReportSnapshot",
 			callargs: []interface{}{id, raft.SnapshotFailure},
 		},
 		{
 			name:     "it call ReportUnreachables",
-			msg:      raftpb.Message{},
+			msg:      etcdraftpb.Message{},
 			err:      err,
 			called:   "ReportUnreachable",
 			callargs: []interface{}{id},
@@ -159,19 +159,19 @@ func TestRemoteSend(t *testing.T) {
 	m.On("ReportUnreachable", uint64(0)).Return()
 
 	r := new(remote)
-	r.msgc = make(chan raftpb.Message)
+	r.msgc = make(chan etcdraftpb.Message)
 	r.r = m
 
 	// Round #1 it return error when ctx canceled
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	r.ctx = ctx
-	err := r.Send(raftpb.Message{})
+	err := r.Send(etcdraftpb.Message{})
 	assert.Contains(t, err.Error(), "canceled")
 
 	// Round #2 it return error when chan is full
 	r.ctx = context.Background()
-	err = r.Send(raftpb.Message{})
+	err = r.Send(etcdraftpb.Message{})
 	assert.Contains(t, err.Error(), "buffer is full")
 }
 
@@ -179,18 +179,18 @@ func TestRemoteDrain(t *testing.T) {
 	mt := &mockRPC{mock.Mock{}}
 	mt.On("Message").Return(nil)
 	r := new(remote)
-	r.msgc = make(chan raftpb.Message, 1)
+	r.msgc = make(chan etcdraftpb.Message, 1)
 	r.rpc = mt
 	r.cfg = testConfig
 	r.ctx = context.Background()
 
 	// Round #1 it return error when ctx done
-	_ = r.Send(raftpb.Message{})
+	_ = r.Send(etcdraftpb.Message{})
 	err := r.drain()
 	assert.Contains(t, err.Error(), "deadline exceeded")
 
 	// Round #2 it return nil error when all msgs flushed
-	_ = r.Send(raftpb.Message{})
+	_ = r.Send(etcdraftpb.Message{})
 	close(r.msgc)
 	err = r.drain()
 	assert.NoError(t, err)
@@ -210,10 +210,10 @@ func TestRemoteRun(t *testing.T) {
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
 	r.done = make(chan struct{})
-	r.msgc = make(chan raftpb.Message, 1)
+	r.msgc = make(chan etcdraftpb.Message, 1)
 	go r.run()
 
-	_ = r.Send(raftpb.Message{})
+	_ = r.Send(etcdraftpb.Message{})
 
 	for i := 0; i < 5; i++ {
 		if len(r.msgc) == 0 {

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 var ErrRemovedMember = errors.New("raft/membership: member was removed")
@@ -24,12 +24,12 @@ func (r removed) Address() string {
 	return r.addr
 }
 
-func (r removed) Send(raftpb.Message) error {
+func (r removed) Send(etcdraftpb.Message) error {
 	return ErrRemovedMember
 }
 
-func (r removed) Type() api.MemberType {
-	return api.RemovedMember
+func (r removed) Type() raftpb.MemberType {
+	return raftpb.RemovedMember
 }
 
 func (r removed) Update(string) error {

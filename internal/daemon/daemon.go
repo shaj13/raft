@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/atomic"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 var (
@@ -52,12 +52,12 @@ type Config interface {
 
 type Daemon interface {
 	MsgBus() *MsgBus
-	Push(m raftpb.Message) error
+	Push(m etcdraftpb.Message) error
 	Status() (raft.Status, error)
 	Close() error
 	ProposeReplicate(ctx context.Context, data []byte) error
-	ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.ConfChangeType) error
-	CreateSnapshot() (raftpb.Snapshot, error)
+	ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error
+	CreateSnapshot() (etcdraftpb.Snapshot, error)
 	Start(ctx context.Context, cluster, addr string) error
 	ReportUnreachable(id uint64)
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
@@ -94,7 +94,7 @@ type daemon struct {
 	msgbus       *MsgBus
 	idgen        *idutil.Generator
 	pool         membership.Pool // TODO: use an interface
-	cState       raftpb.ConfState
+	cState       etcdraftpb.ConfState
 	started      *atomic.Bool
 	snapIndex    *atomic.Uint64
 	appliedIndex *atomic.Uint64
@@ -132,14 +132,14 @@ func (d *daemon) ReportShutdown(id uint64) {
 }
 
 // Push m to the daemon queue.
-func (d *daemon) Push(m raftpb.Message) error {
+func (d *daemon) Push(m etcdraftpb.Message) error {
 	if d.started.False() {
 		return ErrStopped
 	}
 
 	// event id based on msg type.
 	event := msg
-	if m.Type == raftpb.MsgProp {
+	if m.Type == etcdraftpb.MsgProp {
 		event = propose
 	}
 
@@ -176,7 +176,7 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 	d.propwg.Add(1)
 	defer d.propwg.Done()
 
-	r := &api.Replicate{
+	r := &raftpb.Replicate{
 		CID:  d.idgen.Next(),
 		Data: data,
 	}
@@ -206,7 +206,7 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 }
 
 // ProposeConfChange proposes a configuration change to the cluster pool members.
-func (d *daemon) ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.ConfChangeType) error {
+func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
 	if d.started.False() {
 		return ErrStopped
 	}
@@ -218,7 +218,7 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.
 		return err
 	}
 
-	cc := raftpb.ConfChange{
+	cc := etcdraftpb.ConfChange{
 		ID:      d.idgen.Next(),
 		Type:    t,
 		NodeID:  m.ID,
@@ -245,7 +245,7 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *api.Member, t raftpb.
 }
 
 // CreateSnapshot begin a snapshot and return snap metadata.
-func (d *daemon) CreateSnapshot() (raftpb.Snapshot, error) {
+func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	appliedIndex := d.appliedIndex.Get()
 	snapIndex := d.snapIndex.Get()
 
@@ -274,7 +274,7 @@ func (d *daemon) CreateSnapshot() (raftpb.Snapshot, error) {
 
 	sf := storage.SnapshotFile{
 		Snap: &snap,
-		Pool: &api.Pool{
+		Pool: &raftpb.Pool{
 			Members: d.pool.Snapshot(),
 		},
 		Data: ioutil.NopCloser(bytes.NewBufferString("sample dta")),
@@ -340,11 +340,11 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	return d.eventLoop()
 }
 
-func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, []api.Member, error) {
+func (d *daemon) boot(ctx context.Context, cluster, addr string) (*raftpb.Member, []raftpb.Member, error) {
 	var (
 		err  error
-		pool []api.Member
-		mem  *api.Member
+		pool []raftpb.Member
+		mem  *raftpb.Member
 	)
 
 	join := func() {
@@ -358,11 +358,11 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	}
 
 	exist := d.storage.Exist()
-	mem = &api.Member{
+	mem = &raftpb.Member{
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: addr,
-		Type:    api.LocalMember,
+		Type:    raftpb.LocalMember,
 	}
 
 	if !exist && len(cluster) > 0 {
@@ -389,11 +389,11 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	// find the current member from wal conf-change entries,
 	// metadata isn't up to date, need to get the latest previous address.
 	for _, ent := range ents {
-		if ent.Type != raftpb.EntryConfChange {
+		if ent.Type != etcdraftpb.EntryConfChange {
 			continue
 		}
-		cc := new(raftpb.ConfChange)
-		old := new(api.Member)
+		cc := new(etcdraftpb.ConfChange)
+		old := new(raftpb.Member)
 		pbutil.MustUnmarshal(cc, ent.Data)
 		pbutil.MustUnmarshal(old, cc.Context)
 		if mem.ID == old.ID {
@@ -453,7 +453,7 @@ func (d *daemon) eventLoop() error {
 	}
 }
 
-func (d *daemon) publishSnapshot(snap raftpb.Snapshot) error {
+func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 	if raft.IsEmptySnap(snap) {
 		log.Debug("raft/daemon: ignore empty snapshot")
 		return nil
@@ -498,21 +498,21 @@ func (d *daemon) publishSnapshotFile(sf *storage.SnapshotFile) error {
 	return nil
 }
 
-func (d *daemon) publishCommitted(ents []raftpb.Entry) {
+func (d *daemon) publishCommitted(ents []etcdraftpb.Entry) {
 	for _, ent := range ents {
-		if ent.Type == raftpb.EntryNormal && ent.Data != nil {
+		if ent.Type == etcdraftpb.EntryNormal && ent.Data != nil {
 			d.publishReplicate(ent)
 		}
-		if ent.Type == raftpb.EntryConfChange {
+		if ent.Type == etcdraftpb.EntryConfChange {
 			d.publishConfChange(ent)
 		}
 		d.appliedIndex.Set(ent.Index)
 	}
 }
 
-func (d *daemon) publishReplicate(ent raftpb.Entry) {
+func (d *daemon) publishReplicate(ent etcdraftpb.Entry) {
 	var err error
-	r := new(api.Replicate)
+	r := new(raftpb.Replicate)
 	defer func() {
 		d.msgbus.Broadcast(r.CID, err)
 		if err != nil {
@@ -529,10 +529,10 @@ func (d *daemon) publishReplicate(ent raftpb.Entry) {
 	// TODO: publish it to end user
 }
 
-func (d *daemon) publishConfChange(ent raftpb.Entry) {
+func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	var err error
-	cc := new(raftpb.ConfChange)
-	mem := new(api.Member)
+	cc := new(etcdraftpb.ConfChange)
+	mem := new(raftpb.Member)
 
 	defer func() {
 		d.msgbus.Broadcast(cc.ID, err)
@@ -559,11 +559,11 @@ func (d *daemon) publishConfChange(ent raftpb.Entry) {
 
 	// TODO: need to check that removed added etc is not the current node
 	switch cc.Type {
-	case raftpb.ConfChangeAddNode:
+	case etcdraftpb.ConfChangeAddNode:
 		err = d.pool.Add(*mem)
-	case raftpb.ConfChangeUpdateNode:
+	case etcdraftpb.ConfChangeUpdateNode:
 		err = d.pool.Update(*mem)
-	case raftpb.ConfChangeRemoveNode:
+	case etcdraftpb.ConfChangeRemoveNode:
 		err = d.pool.Remove(*mem)
 	}
 
@@ -579,7 +579,7 @@ func (d *daemon) process(sub *Subscription) {
 	for {
 		select {
 		case v := <-sub.Chan():
-			if err := d.node.Step(d.ctx, v.(raftpb.Message)); err != nil {
+			if err := d.node.Step(d.ctx, v.(etcdraftpb.Message)); err != nil {
 				log.Warnf(
 					"raft/daemon: Failed to process raft message, Err: %s",
 					err,
@@ -591,8 +591,8 @@ func (d *daemon) process(sub *Subscription) {
 	}
 }
 
-func (d *daemon) send(msgs []raftpb.Message) {
-	lg := func(m raftpb.Message, str string) {
+func (d *daemon) send(msgs []etcdraftpb.Message) {
+	lg := func(m etcdraftpb.Message, str string) {
 		log.Warnf(
 			"raft/daemon: Failed to send message %s to member %x, Err: %s",
 			m.Type,

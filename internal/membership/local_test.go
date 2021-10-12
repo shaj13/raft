@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func TestLocal(t *testing.T) {
@@ -21,8 +21,8 @@ func TestLocal(t *testing.T) {
 	assert.Equal(t, l.Address(), addr)
 	assert.False(t, l.IsActive())
 	assert.Equal(t, l.Since(), time.Time{})
-	assert.Equal(t, l.Type(), api.LocalMember)
-	assert.NoError(t, l.Send(raftpb.Message{}))
+	assert.Equal(t, l.Type(), raftpb.LocalMember)
+	assert.NoError(t, l.Send(etcdraftpb.Message{}))
 	assert.NoError(t, l.Update(""))
 	assert.Empty(t, l.Address())
 }

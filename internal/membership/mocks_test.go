@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/stretchr/testify/mock"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 var testConfig = mockConfig{}
@@ -23,12 +23,12 @@ type mockRPC struct {
 	mock.Mock
 }
 
-func (m *mockRPC) Message(context.Context, raftpb.Message) error {
+func (m *mockRPC) Message(context.Context, etcdraftpb.Message) error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mockRPC) Join(context.Context, api.Member) (uint64, []api.Member, error) {
+func (m *mockRPC) Join(context.Context, raftpb.Member) (uint64, []raftpb.Member, error) {
 	args := m.Called()
 	return 0, nil, args.Error(2)
 }

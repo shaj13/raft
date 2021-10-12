@@ -13,11 +13,11 @@ import (
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
 
@@ -88,15 +88,15 @@ func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage
 
 func decodeSnapshot(path string) (sf *storage.SnapshotFile, err error) {
 	sf = new(storage.SnapshotFile)
-	sf.Snap = new(raftpb.Snapshot)
-	sf.Pool = new(api.Pool)
+	sf.Snap = new(etcdraftpb.Snapshot)
+	sf.Pool = new(raftpb.Pool)
 	sf.Data, err = decodeSnapshotByblocks(path, sf.Snap, sf.Pool)
 	return
 }
 
-func peekSnapshot(path string) (*raftpb.Snapshot, error) {
+func peekSnapshot(path string) (*etcdraftpb.Snapshot, error) {
 	sf := new(storage.SnapshotFile)
-	sf.Snap = new(raftpb.Snapshot)
+	sf.Snap = new(etcdraftpb.Snapshot)
 	r, err := decodeSnapshotByblocks(path, sf.Snap)
 	if err != nil {
 		return nil, err
@@ -136,7 +136,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 
 	msgs := []proto.Message{
 		// reserve header to rewrite it at the end.
-		&api.SnapshotHeader{
+		&raftpb.SnapshotHeader{
 			CRC: make([]byte, crc64.Size),
 		},
 		s.Snap,
@@ -176,7 +176,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) (err error) {
 		return err
 	}
 
-	h := &api.SnapshotHeader{
+	h := &raftpb.SnapshotHeader{
 		CRC: crc.Sum(nil),
 	}
 
@@ -205,7 +205,7 @@ func decodeSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadClose
 	}()
 
 	n := 0
-	header := new(api.SnapshotHeader)
+	header := new(raftpb.SnapshotHeader)
 	msgs = append(msgs, nil)
 	copy(msgs[1:], msgs[:])
 	msgs[0] = header

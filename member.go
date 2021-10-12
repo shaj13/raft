@@ -3,8 +3,8 @@ package raft
 import (
 	"time"
 
-	"github.com/shaj13/raftkit/api"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	"github.com/shaj13/raftkit/internal/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type Member interface {
@@ -13,7 +13,7 @@ type Member interface {
 	Since() time.Time
 	IsActive() bool
 	Update(string) error
-	Send(raftpb.Message) error
-	Type() api.MemberType
+	Send(etcdraftpb.Message) error
+	Type() raftpb.MemberType
 	Close()
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/shaj13/raftkit/api"
+	"github.com/shaj13/raftkit/internal/raftpb"
 )
 
 func newEncoder(r io.Reader) *encoder {
@@ -27,7 +27,7 @@ type encoder struct {
 	index   uint64
 }
 
-func (e *encoder) Encode(cb func(*api.Chunk) error) error {
+func (e *encoder) Encode(cb func(*raftpb.Chunk) error) error {
 	for e.scanner.Scan() {
 		if err := cb(e.chunk()); err != nil {
 			return err
@@ -36,8 +36,8 @@ func (e *encoder) Encode(cb func(*api.Chunk) error) error {
 	return e.scanner.Err()
 }
 
-func (e *encoder) chunk() *api.Chunk {
-	c := &api.Chunk{
+func (e *encoder) chunk() *raftpb.Chunk {
+	c := &raftpb.Chunk{
 		Index: e.index,
 		Data:  e.scanner.Bytes(),
 	}
@@ -46,7 +46,7 @@ func (e *encoder) chunk() *api.Chunk {
 }
 
 func (e *encoder) scan(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	n := bufio.MaxScanTokenSize - (&api.Chunk{Index: e.index}).Size()
+	n := bufio.MaxScanTokenSize - (&raftpb.Chunk{Index: e.index}).Size()
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
@@ -63,7 +63,7 @@ type decoder struct {
 	index uint64
 }
 
-func (d *decoder) Decode(c *api.Chunk) error {
+func (d *decoder) Decode(c *raftpb.Chunk) error {
 	defer func() {
 		d.index++
 	}()

@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"go.etcd.io/etcd/raft/v3"
-	"go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // remote represents the remote cluster member.
@@ -21,7 +21,7 @@ type remote struct {
 	r           Reporter
 	cfg         Config
 	dial        rpc.Dial
-	msgc        chan raftpb.Message
+	msgc        chan etcdraftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
 	rpc         rpc.Client
@@ -30,11 +30,11 @@ type remote struct {
 	activeSince time.Time
 }
 
-func (r *remote) Type() api.MemberType {
-	return api.RemoteMember
+func (r *remote) Type() raftpb.MemberType {
+	return raftpb.RemoteMember
 }
 
-func (r *remote) Send(msg raftpb.Message) (err error) {
+func (r *remote) Send(msg etcdraftpb.Message) (err error) {
 	defer func() {
 		if err != nil {
 			r.report(msg, err)
@@ -116,11 +116,11 @@ func (r *remote) setStatus(active bool) {
 	}
 }
 
-func (r *remote) report(msg raftpb.Message, err error) {
+func (r *remote) report(msg etcdraftpb.Message, err error) {
 	switch {
-	case err == nil && msg.Type == raftpb.MsgSnap:
+	case err == nil && msg.Type == etcdraftpb.MsgSnap:
 		r.r.ReportSnapshot(r.ID(), raft.SnapshotFinish)
-	case err != nil && msg.Type == raftpb.MsgSnap:
+	case err != nil && msg.Type == etcdraftpb.MsgSnap:
 		r.r.ReportSnapshot(r.ID(), raft.SnapshotFailure)
 	case err != nil:
 		r.r.ReportUnreachable(r.ID())
@@ -134,7 +134,7 @@ func (r *remote) RPC() rpc.Client {
 	return rpc
 }
 
-func (r *remote) stream(ctx context.Context, msg raftpb.Message) error {
+func (r *remote) stream(ctx context.Context, msg etcdraftpb.Message) error {
 	ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
 	defer cancel()
 	rpc := r.RPC()
