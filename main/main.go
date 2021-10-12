@@ -8,7 +8,7 @@ import (
 
 	raft "github.com/shaj13/raftkit"
 	"github.com/shaj13/raftkit/api"
-	raftgrpc "github.com/shaj13/raftkit/net/grpc"
+	raftgrpc "github.com/shaj13/raftkit/rpc/grpc"
 	"google.golang.org/grpc"
 )
 
