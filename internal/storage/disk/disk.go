@@ -30,7 +30,7 @@ func New(ctx context.Context, c Config) storage.Storage {
 		gc:      gc,
 		waldir:  waldir,
 		snapdir: snapdir,
-		shoter:  &snapshoter{snapdir: snapdir},
+		shoter:  &snapshotter{snapdir: snapdir},
 	}
 
 	return disk
@@ -39,7 +39,7 @@ func New(ctx context.Context, c Config) storage.Storage {
 // disk implements storage.Storage
 type disk struct {
 	wal     *wal.WAL
-	shoter  *snapshoter
+	shoter  *snapshotter
 	gc      *gc
 	waldir  string
 	snapdir string
@@ -155,7 +155,7 @@ func (d *disk) Exist() bool {
 	return wal.Exist(d.waldir)
 }
 
-func (d *disk) Snapshoter() storage.Snapshoter {
+func (d *disk) Snapshotter() storage.Snapshotter {
 	return d.shoter
 }
 

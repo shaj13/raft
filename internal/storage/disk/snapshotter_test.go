@@ -30,7 +30,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &snapshoter{snapdir: "./testdata/"}
+			s := &snapshotter{snapdir: "./testdata/"}
 			_, _, err := s.Reader(context.TODO(), tt.snap)
 			if err == nil {
 				t.Fatal("expected non nil error")
@@ -41,7 +41,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 }
 
 func TestSnapshoterReader(t *testing.T) {
-	s := &snapshoter{snapdir: "./testdata/"}
+	s := &snapshotter{snapdir: "./testdata/"}
 	name, r, err := s.Reader(context.TODO(), testSnap(1, 1))
 	assert.NoError(t, err)
 	assert.Equal(t, snapshotName(1, 1), name)
@@ -53,7 +53,7 @@ func TestSnapshoterReader(t *testing.T) {
 func TestSnapshoterWriter(t *testing.T) {
 	file := "testsnapshoterwriter_invalid"
 	ctx := context.TODO()
-	s := &snapshoter{snapdir: "/does_not_exist"}
+	s := &snapshotter{snapdir: "/does_not_exist"}
 
 	// Round #1 check file error
 	_, _, err := s.Writer(ctx, file)

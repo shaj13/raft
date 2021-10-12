@@ -32,13 +32,13 @@ type ServerConfig interface {
 func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 	return &server{
 		ctrl: cfg.(ServerConfig).Controller(),
-		snap: cfg.(ServerConfig).Snapshoter(),
+		snap: cfg.(ServerConfig).Snapshotter(),
 	}, nil
 }
 
 type server struct {
 	ctrl rpc.Controller
-	snap storage.Snapshoter
+	snap storage.Snapshotter
 }
 
 func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {

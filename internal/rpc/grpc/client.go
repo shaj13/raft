@@ -31,7 +31,7 @@ const (
 
 // DialConfig define common configuration used by the dial function.
 type DialConfig interface {
-	Snapshoter() storage.Snapshoter
+	Snapshotter() storage.Snapshotter
 }
 
 // Dialer return's grpc dialer.
@@ -46,7 +46,7 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 			return &client{
 				conn:    conn,
 				copts:   copts,
-				shotter: dc.(DialConfig).Snapshoter(),
+				shotter: dc.(DialConfig).Snapshotter(),
 			}, nil
 		}
 	}
@@ -56,7 +56,7 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 type client struct {
 	conn    *grpc.ClientConn
 	copts   func(context.Context) []grpc.CallOption
-	shotter storage.Snapshoter
+	shotter storage.Snapshotter
 }
 
 func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {

@@ -281,7 +281,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		Data: ioutil.NopCloser(bytes.NewBufferString("sample dta")),
 	}
 
-	if err := d.storage.Snapshoter().Write(&sf); err != nil {
+	if err := d.storage.Snapshotter().Write(&sf); err != nil {
 		return snap, err
 	}
 
@@ -474,7 +474,7 @@ func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 		return err
 	}
 
-	sf, err := d.storage.Snapshoter().Read(snap)
+	sf, err := d.storage.Snapshotter().Read(snap)
 	if err != nil {
 		return err
 	}

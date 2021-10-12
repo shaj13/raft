@@ -233,7 +233,7 @@ func (t testConfig) DialOption() []grpc.DialOption {
 	return t.dialopts
 }
 
-func (t testConfig) Snapshoter() storage.Snapshoter {
+func (t testConfig) Snapshotter() storage.Snapshotter {
 	return nil
 }
 

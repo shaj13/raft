@@ -11,13 +11,13 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-var _ storage.Snapshoter = &snapshoter{}
+var _ storage.Snapshotter = &snapshotter{}
 
-type snapshoter struct {
+type snapshotter struct {
 	snapdir string
 }
 
-func (s snapshoter) Reader(_ context.Context, snap raftpb.Snapshot) (string, io.ReadCloser, error) {
+func (s snapshotter) Reader(_ context.Context, snap raftpb.Snapshot) (string, io.ReadCloser, error) {
 	if raft.IsEmptySnap(snap) {
 		return "", nil, ErrEmptySnapshot
 	}
@@ -33,7 +33,7 @@ func (s snapshoter) Reader(_ context.Context, snap raftpb.Snapshot) (string, io.
 	return snapshotName(snap.Metadata.Term, snap.Metadata.Index), r, nil
 }
 
-func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
+func (s snapshotter) Writer(_ context.Context, name string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
 	path := filepath.Join(s.snapdir, name)
 	f, err := os.Create(path)
 	if err != nil {
@@ -56,15 +56,15 @@ func (s snapshoter) Writer(_ context.Context, name string) (io.WriteCloser, func
 	return w, peek, nil
 }
 
-func (s snapshoter) Write(sf *storage.SnapshotFile) error {
+func (s snapshotter) Write(sf *storage.SnapshotFile) error {
 	return encodeSnapshot(s.path(*sf.Snap), sf)
 }
 
-func (s snapshoter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
 	return decodeSnapshot(s.path(snap))
 }
 
-func (s snapshoter) path(snap raftpb.Snapshot) string {
+func (s snapshotter) path(snap raftpb.Snapshot) string {
 	name := snapshotName(snap.Metadata.Term, snap.Metadata.Index)
 	return filepath.Join(s.snapdir, name)
 }

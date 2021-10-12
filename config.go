@@ -221,8 +221,8 @@ func (c *config) DrainTimeout() time.Duration {
 	return c.drainTimeOut
 }
 
-func (c *config) Snapshoter() storage.Snapshoter {
-	return c.storage.Snapshoter()
+func (c *config) Snapshotter() storage.Snapshotter {
+	return c.storage.Snapshotter()
 }
 
 func (c *config) StateDir() string {
