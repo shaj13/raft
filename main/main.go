@@ -7,7 +7,6 @@ import (
 	"net"
 
 	raft "github.com/shaj13/raftkit"
-	api "github.com/shaj13/raftkit/internal/raftpb"
 	raftgrpc "github.com/shaj13/raftkit/rpc/grpc"
 	"google.golang.org/grpc"
 )
@@ -29,20 +28,20 @@ func init() {
 func main() {
 	ctx := context.Background()
 	cluster, srv := raft.New(ctx)
-	go startRaftServer(srv.(api.RaftServer))
+	go startRaftServer(srv)
 	if err := cluster.Join(ctx, join, addr); err != nil {
 		panic(err)
 	}
 }
 
-func startRaftServer(srv api.RaftServer) {
+func startRaftServer(srv interface{}) {
 	s := grpc.NewServer()
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	api.RegisterRaftServer(s, srv.(api.RaftServer))
+	raftgrpc.RegisterServer(s, srv)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

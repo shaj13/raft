@@ -9,3 +9,6 @@ const (
 // Proto is a portmanteau of protocol
 // and represents the underlying RPC protocol.
 type Proto uint
+
+// Server represents an RPC Server.
+type Server = rpc.Server

@@ -3,7 +3,10 @@ package grpc
 import (
 	"context"
 
+	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
+	intrpc "github.com/shaj13/raftkit/internal/rpc"
 	raftgrpc "github.com/shaj13/raftkit/internal/rpc/grpc"
 	"google.golang.org/grpc"
 )
@@ -65,5 +68,15 @@ func Register(opts ...Option) {
 	dialer := raftgrpc.Dialer(c.dopts, c.copts)
 	ns := raftgrpc.NewServer
 
-	rpc.GRPC.Register(ns, dialer)
+	intrpc.GRPC.Register(ns, dialer)
+}
+
+// RegisterServer registers rpc service and its implementation to the gRPC server.
+func RegisterServer(s *grpc.Server, v rpc.Server) {
+	if rs, ok := v.(raftpb.RaftServer); ok {
+		raftpb.RegisterRaftServer(s, rs)
+		return
+	}
+
+	log.Fatalf("raft/rpc/grpc: type %T does not implement rpc service")
 }

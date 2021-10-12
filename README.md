@@ -2,8 +2,8 @@
 
 
 ### TODO 
-- [ ] fix all daemonn todo 
 - [ ] update all logs under storage disk 
+- [ ] fix all daemonn todo 
 - [ ] Create Purge method under pool 
 - [ ] support http rpc 
 - [ ] support storage encryaption 
