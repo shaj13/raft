@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/api"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/stretchr/testify/mock"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -13,8 +13,8 @@ import (
 
 var testConfig = mockConfig{}
 
-func mockDial(m *mockRPC, err error) net.Dial {
-	return func(ctx context.Context, addr string) (net.Client, error) {
+func mockDial(m *mockRPC, err error) rpc.Dial {
+	return func(ctx context.Context, addr string) (rpc.Client, error) {
 		return m, err
 	}
 }
@@ -53,7 +53,7 @@ func (m *mockReporter) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 }
 
 type mockConfig struct {
-	d net.Dial
+	d rpc.Dial
 	r *mockReporter
 }
 
@@ -69,6 +69,6 @@ func (m mockConfig) Reporter() Reporter {
 	return m.r
 }
 
-func (m mockConfig) Dial() net.Dial {
+func (m mockConfig) Dial() rpc.Dial {
 	return m.d
 }

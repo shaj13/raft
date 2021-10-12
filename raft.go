@@ -6,14 +6,14 @@ import (
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage/disk"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
 	cfg := newConfig(opts...)
-	newServer, dialer := net.GRPC.Get()
+	newServer, dialer := rpc.GRPC.Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = dialer(ctx, cfg)

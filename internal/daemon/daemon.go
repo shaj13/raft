@@ -14,7 +14,7 @@ import (
 	"github.com/shaj13/raftkit/internal/atomic"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -46,7 +46,7 @@ type Config interface {
 	SnapInterval() uint64
 	Pool() membership.Pool
 	Storage() storage.Storage
-	Dial() net.Dial
+	Dial() rpc.Dial
 	TickInterval() time.Duration
 }
 
@@ -348,7 +348,7 @@ func (d *daemon) boot(ctx context.Context, cluster, addr string) (*api.Member, [
 	)
 
 	join := func() {
-		var rpc net.Client
+		var rpc rpc.Client
 		rpc, err = d.cfg.Dial()(ctx, cluster)
 		if err != nil {
 			return

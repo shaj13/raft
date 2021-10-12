@@ -6,7 +6,7 @@ import (
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3"
 )
@@ -202,10 +202,10 @@ type config struct {
 	statedir         string
 	maxSnapshotFiles int
 	snapInterval     uint64
-	controller       net.Controller
+	controller       rpc.Controller
 	storage          storage.Storage
 	pool             membership.Pool
-	dial             net.Dial
+	dial             rpc.Dial
 	daemon           daemon.Daemon
 }
 
@@ -233,7 +233,7 @@ func (c *config) MaxSnapshotFiles() int {
 	return c.maxSnapshotFiles
 }
 
-func (c *config) Controller() net.Controller {
+func (c *config) Controller() rpc.Controller {
 	return c.controller
 }
 
@@ -253,7 +253,7 @@ func (c *config) Pool() membership.Pool {
 	return c.pool
 }
 
-func (c *config) Dial() net.Dial {
+func (c *config) Dial() rpc.Dial {
 	return c.dial
 }
 

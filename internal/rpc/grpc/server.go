@@ -9,7 +9,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
@@ -23,13 +23,13 @@ var errSnapHeader = errors.New(
 // ServerConfig define common configuration used by the NewServer function.
 type ServerConfig interface {
 	DialConfig
-	Controller() net.Controller
+	Controller() rpc.Controller
 }
 
 // NewServer return an GRPC Server.
 //
-// NewServer compatible with net.New.
-func NewServer(ctx context.Context, cfg net.ServerConfig) (net.Server, error) {
+// NewServer compatible with rpc.New.
+func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 	return &server{
 		ctrl: cfg.(ServerConfig).Controller(),
 		snap: cfg.(ServerConfig).Snapshoter(),
@@ -37,7 +37,7 @@ func NewServer(ctx context.Context, cfg net.ServerConfig) (net.Server, error) {
 }
 
 type server struct {
-	ctrl net.Controller
+	ctrl rpc.Controller
 	snap storage.Snapshoter
 }
 

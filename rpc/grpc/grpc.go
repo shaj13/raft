@@ -1,8 +1,8 @@
 package grpc
 
 import (
-	"github.com/shaj13/raftkit/internal/net"
-	raftgrpc "github.com/shaj13/raftkit/internal/net/grpc"
+	"github.com/shaj13/raftkit/internal/rpc"
+	raftgrpc "github.com/shaj13/raftkit/internal/rpc/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -59,5 +59,5 @@ func Register(opts ...Option) {
 	dialer := raftgrpc.Dialer(c.dialOpts, c.callOpts)
 	ns := raftgrpc.NewServer
 
-	net.GRPC.Register(ns, dialer)
+	rpc.GRPC.Register(ns, dialer)
 }

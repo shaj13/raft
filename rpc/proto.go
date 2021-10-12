@@ -1,9 +1,9 @@
 package net
 
-import "github.com/shaj13/raftkit/internal/net"
+import "github.com/shaj13/raftkit/internal/rpc"
 
 const (
-	GRPC Proto = Proto(net.GRPC)
+	GRPC Proto = Proto(rpc.GRPC)
 )
 
 // Proto is a portmanteau of protocol

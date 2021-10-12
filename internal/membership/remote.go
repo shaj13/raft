@@ -8,7 +8,7 @@ import (
 
 	"github.com/shaj13/raftkit/api"
 	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/net"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -20,11 +20,11 @@ type remote struct {
 	id          uint64
 	r           Reporter
 	cfg         Config
-	dial        net.Dial
+	dial        rpc.Dial
 	msgc        chan raftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
-	rpc         net.Client
+	rpc         rpc.Client
 	active      bool
 	addr        string
 	activeSince time.Time
@@ -127,7 +127,7 @@ func (r *remote) report(msg raftpb.Message, err error) {
 	}
 }
 
-func (r *remote) RPC() net.Client {
+func (r *remote) RPC() rpc.Client {
 	r.mu.Lock()
 	rpc := r.rpc
 	r.mu.Unlock()
