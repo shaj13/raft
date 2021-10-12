@@ -1,4 +1,4 @@
-package daemon
+package msgbus
 
 import (
 	"math/rand"
@@ -9,8 +9,8 @@ import (
 	"go.etcd.io/etcd/pkg/v3/idutil"
 )
 
-// newMsgBus create a new msgbus.
-func newMsgBus() *MsgBus {
+// New create a new msgbus.
+func New() *MsgBus {
 	id := rand.Int63() + 1
 	idgen := idutil.NewGenerator(uint16(id), time.Now())
 	return &MsgBus{

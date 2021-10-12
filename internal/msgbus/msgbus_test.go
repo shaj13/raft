@@ -1,4 +1,4 @@
-package daemon
+package msgbus
 
 import (
 	"testing"
@@ -12,7 +12,7 @@ func TestMsgBus(t *testing.T) {
 	onceid := uint64(2)
 
 	val := "some value"
-	m := newMsgBus()
+	m := New()
 	s1 := m.Subscribe(eventid)
 	s2 := m.SubscribeOnce(onceid)
 	defer m.Clsoe()

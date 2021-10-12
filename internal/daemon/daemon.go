@@ -13,6 +13,7 @@ import (
 	"github.com/shaj13/raftkit/internal/atomic"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -51,7 +52,7 @@ type Config interface {
 }
 
 type Daemon interface {
-	MsgBus() *MsgBus
+	MsgBus() *msgbus.MsgBus
 	Push(m etcdraftpb.Message) error
 	Status() (raft.Status, error)
 	Close() error
@@ -73,7 +74,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d.propwg = sync.WaitGroup{}
 	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
-	d.msgbus = newMsgBus()
+	d.msgbus = msgbus.New()
 	d.pool = cfg.Pool()
 	d.started = atomic.NewBool()
 	d.appliedIndex = atomic.NewUint64()
@@ -91,7 +92,7 @@ type daemon struct {
 	propwg       sync.WaitGroup
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
-	msgbus       *MsgBus
+	msgbus       *msgbus.MsgBus
 	idgen        *idutil.Generator
 	pool         membership.Pool // TODO: use an interface
 	cState       etcdraftpb.ConfState
@@ -101,7 +102,7 @@ type daemon struct {
 }
 
 // MsgBus returns daemon msgbus.
-func (d *daemon) MsgBus() *MsgBus {
+func (d *daemon) MsgBus() *msgbus.MsgBus {
 	return d.msgbus
 }
 
@@ -571,7 +572,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 }
 
 // process the incoming messages from the given chan.
-func (d *daemon) process(sub *Subscription) {
+func (d *daemon) process(sub *msgbus.Subscription) {
 	d.wg.Add(1)
 	defer d.wg.Done()
 	defer sub.Unsubscribe()

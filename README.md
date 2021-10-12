@@ -3,8 +3,6 @@
 
 ### TODO 
 - [ ] net/grpc shoud get options froom hook like groupcache 
-- [ ] Move api to internal 
-- [ ] Move msgbus to internal 
 - [ ] fix all daemonn todo 
 - [ ] update all logs under storage disk 
 - [ ] Create Purge method under pool 

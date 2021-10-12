@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/atomic"
+	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -59,7 +60,7 @@ func TestReportShutdown(t *testing.T) {
 
 func TestPush(t *testing.T) {
 	d := &daemon{
-		msgbus:  newMsgBus(),
+		msgbus:  msgbus.New(),
 		started: atomic.NewBool(),
 	}
 
@@ -106,7 +107,7 @@ func TestProposeReplicate(t *testing.T) {
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    m,
 		started: atomic.NewBool(),
-		msgbus:  newMsgBus(),
+		msgbus:  msgbus.New(),
 	}
 
 	// round #1 it return err when daemon not started
@@ -139,7 +140,7 @@ func TestProposeConfChange(t *testing.T) {
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    m,
 		started: atomic.NewBool(),
-		msgbus:  newMsgBus(),
+		msgbus:  msgbus.New(),
 	}
 
 	// round #1 it return err when daemon not started
