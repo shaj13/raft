@@ -48,11 +48,11 @@ var (
 )
 
 var (
-	ErrEmptySnapshot  = errors.New("raft/disk: empty snapshot file")
-	ErrSnapshotFormat = errors.New("raft/disk: invalid snapshot file format")
-	ErrCRCMismatch    = errors.New("raft/disk: snapshot file corrupted, crc mismatch")
-	ErrClosedSnapshot = errors.New("raft/disk: read/write on closed snapshot")
-	ErrNoSnapshot     = errors.New("raft/disk: no available snapshot")
+	ErrEmptySnapshot  = errors.New("raft/storage/disk: empty snapshot file")
+	ErrSnapshotFormat = errors.New("raft/storage/disk: invalid snapshot file format")
+	ErrCRCMismatch    = errors.New("raft/storage/disk: snapshot file corrupted, crc mismatch")
+	ErrClosedSnapshot = errors.New("raft/storage/disk: read/write on closed snapshot")
+	ErrNoSnapshot     = errors.New("raft/storage/disk: no available snapshot")
 )
 
 func snapshotName(term, index uint64) string {
@@ -246,7 +246,7 @@ func decodeSnapshotByblocks(path string, msgs ...proto.Message) (rc io.ReadClose
 		return nil, err
 	}
 
-	if bytes.Compare(crc.Sum(nil), header.CRC) != 0 {
+	if !bytes.Equal(crc.Sum(nil), header.CRC) {
 		return nil, ErrCRCMismatch
 	}
 
@@ -290,7 +290,6 @@ func (f *fileReader) Reset(file *os.File) {
 type fileWriter struct {
 	*bufio.Writer
 	file *os.File
-	name string
 	err  error
 }
 

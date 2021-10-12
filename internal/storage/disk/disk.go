@@ -84,7 +84,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	if !fileutil.Exist(d.snapdir) {
 		if err := os.MkdirAll(d.snapdir, 0750); err != nil {
 			return fail(
-				fmt.Errorf("raft: failed to create snapshot dir, Err: %s", err),
+				fmt.Errorf("raft/storage/disk: create snapshot dir failed, Err: %s", err),
 			)
 		}
 	}
@@ -92,14 +92,14 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	if !wal.Exist(d.waldir) {
 		if err := os.MkdirAll(d.waldir, 0750); err != nil {
 			return fail(
-				fmt.Errorf("raft: failed to create WAL dir, Err: %s", err),
+				fmt.Errorf("raft/storage/disk: create WAL dir failed, Err: %s", err),
 			)
 		}
 
 		w, err := wal.Create(nil, d.waldir, meta)
 		if err != nil {
 			return fail(
-				fmt.Errorf("raft: failed to create WAL dir, Err: %s", err),
+				fmt.Errorf("raft/storage/disk: create WAL file failed, Err: %s", err),
 			)
 		}
 
@@ -111,7 +111,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft: failed to list WAL snapshots, Err: %s", err),
+			fmt.Errorf("raft/storage/disk: list WAL snapshots failed, Err: %s", err),
 		)
 	}
 
@@ -121,7 +121,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 		sf.Snap = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(
-			fmt.Errorf("raft: failed to load newest snapshot, Err: %s", err),
+			fmt.Errorf("raft/storage/disk: load newest snapshot failed, Err: %s", err),
 		)
 	}
 
@@ -133,14 +133,14 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	w, err := wal.Open(nil, d.waldir, walsnap)
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft: failed to open WAL, Err: %s", err),
+			fmt.Errorf("raft/storage/disk: open WAL failed, Err: %s", err),
 		)
 	}
 	meta, st, ents, err := w.ReadAll()
 
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft: failed to read WAL, Err: %s", err),
+			fmt.Errorf("raft/storage/disk: read WAL failed, Err: %s", err),
 		)
 	}
 

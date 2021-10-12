@@ -1,10 +1,8 @@
 # raftkit
 
-
 ### TODO 
-- [ ] update all logs under storage disk 
-- [ ] check if we need to return error closed for rmeote member ship. 
-- [ ] expose last seen method on memebrs. 
+- [ ] expose logger and optionn to set it, renname GEt and set
+- [ ] expose last seen and whenn member joined method on memebrs. 
 - [ ] fix all daemonn todo 
 - [ ] Create Purge method under pool 
 - [ ] support http rpc 

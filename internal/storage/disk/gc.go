@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/shaj13/raftkit/internal/log"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 )
 
@@ -36,7 +37,7 @@ func (gc *gc) Start() {
 			select {
 			case <-gc.notifyc:
 				if err := gc.purge(); err != nil {
-					// issue warning using log package
+					log.Warnf("raft/storage/disk: purging oldest snapshots/WALs files failed, Err %v", err)
 				}
 			case <-gc.ctx.Done():
 				close(gc.done)
