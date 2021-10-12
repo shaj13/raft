@@ -106,7 +106,9 @@ func (p *pool) Remove(m raftpb.Member) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	mem.Close()
+	if err := mem.Close(); err != nil {
+		log.Warnf("closing member %x conn failed, Err: %v", m.ID, err)
+	}
 
 	mem, ok, err := p.factory.Cast(mem, m.Type)
 	if !ok || err != nil {

@@ -36,6 +36,6 @@ func (r removed) Update(string) error {
 	return ErrRemovedMember
 }
 
-func (r removed) Close()               {}
+func (r removed) Close() (err error)   { return }
 func (r removed) Since() (t time.Time) { return }
 func (r removed) IsActive() (ok bool)  { return }

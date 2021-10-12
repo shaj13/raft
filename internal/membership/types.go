@@ -25,7 +25,7 @@ type Member interface {
 	Update(string) error
 	Send(etcdraftpb.Message) error
 	Type() raftpb.MemberType
-	Close()
+	Close() error
 }
 
 type Reporter interface {

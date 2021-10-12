@@ -44,8 +44,9 @@ func (l *local) Update(add string) (err error) {
 	return
 }
 
-func (l *local) Close() {
+func (l *local) Close() error {
 	l.r.ReportShutdown(l.ID())
+	return nil
 }
 
 func (l *local) Send(etcdraftpb.Message) (err error) { return }

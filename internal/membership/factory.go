@@ -76,7 +76,7 @@ func newRemote(ctx context.Context, cfg Config, id uint64, addr string) (Member,
 
 	mem := new(remote)
 	mem.ctx, mem.cancel = context.WithCancel(ctx)
-	mem.rpc = rpc
+	mem.rc = rpc
 	mem.id = id
 	mem.addr = addr
 	mem.cfg = cfg

@@ -26,7 +26,7 @@ func TestRemote(t *testing.T) {
 	assert.False(t, r.IsActive())
 	assert.Equal(t, r.Since(), time.Time{})
 	assert.Equal(t, r.Type(), raftpb.RemoteMember)
-	assert.Nil(t, r.RPC())
+	assert.Nil(t, r.client())
 }
 
 func TestRemoteSetStatus(t *testing.T) {
@@ -75,7 +75,8 @@ func TestRemoteUpdate(t *testing.T) {
 
 	r := new(remote)
 	r.addr = addr
-	r.rpc = m
+	r.rc = m
+	r.ctx = context.TODO()
 	r.dial = mockDial(nil, err)
 
 	// Round #1 it does not update addr if are the same
@@ -100,7 +101,7 @@ func TestRemoteStream(t *testing.T) {
 	m := &mockRPC{mock.Mock{}}
 	m.On("Message").Return(nil)
 	r := new(remote)
-	r.rpc = m
+	r.rc = m
 	r.cfg = testConfig
 	_ = r.stream(context.Background(), etcdraftpb.Message{})
 	m.AssertCalled(t, "Message")
@@ -180,7 +181,7 @@ func TestRemoteDrain(t *testing.T) {
 	mt.On("Message").Return(nil)
 	r := new(remote)
 	r.msgc = make(chan etcdraftpb.Message, 1)
-	r.rpc = mt
+	r.rc = mt
 	r.cfg = testConfig
 	r.ctx = context.Background()
 
@@ -206,7 +207,7 @@ func TestRemoteRun(t *testing.T) {
 	r := new(remote)
 	r.r = mr
 	r.cfg = testConfig
-	r.rpc = mt
+	r.rc = mt
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
 	r.done = make(chan struct{})
