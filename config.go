@@ -19,12 +19,23 @@ type Option interface {
 	apply(c *config)
 }
 
+// Logger represents an active logging object that generates lines of
+// output to an io.Writer.
+type Logger = log.Logger
+
 // OptionFunc implements Option interface.
 type optionFunc func(c *config)
 
 // Apply the configuration to the provided strategy.
 func (fn optionFunc) apply(c *config) {
 	fn(c)
+}
+
+// WithLogger sets logger that is used to generates lines of output.
+func WithLogger(lg Logger) Option {
+	return optionFunc(func(c *config) {
+		log.SetLogger(lg)
+	})
 }
 
 // WithTickInterval is the time interval to,
@@ -264,7 +275,6 @@ func (c *config) Reporter() membership.Reporter {
 func newConfig(opts ...Option) *config {
 	c := &config{
 		rcfg: &raft.Config{
-			Logger:                    log.Get(),
 			ElectionTick:              10,
 			HeartbeatTick:             1,
 			MaxSizePerMsg:             1024 * 1024,
@@ -282,6 +292,8 @@ func newConfig(opts ...Option) *config {
 	for _, opt := range opts {
 		opt.apply(c)
 	}
+
+	c.rcfg.Logger = log.GetLogger()
 
 	return c
 }

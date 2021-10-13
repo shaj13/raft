@@ -91,12 +91,12 @@ func Panicf(format string, args ...interface{}) {
 	lg.Panicf(format, args...)
 }
 
-// Set the logger used by the package-level output functions.
-func Set(l Logger) {
+// SetLogger the logger used by the package-level output functions.
+func SetLogger(l Logger) {
 	lg = l
 }
 
-// Get returns the logger used by the package-level output functions.
-func Get() Logger {
+// GetLogger returns the logger used by the package-level output functions.
+func GetLogger() Logger {
 	return lg
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shaj13/raftkit/internal/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,6 +15,12 @@ func TestConfig(t *testing.T) {
 		opt      Option
 		value    func(c *config) interface{}
 	}{
+		{
+			defaults: log.GetLogger(),
+			expected: nil,
+			opt:      WithLogger(nil),
+			value:    func(c *config) interface{} { return log.GetLogger() },
+		},
 		{
 			defaults: time.Millisecond * 100,
 			expected: time.Nanosecond * 500,
@@ -107,9 +114,10 @@ func TestConfig(t *testing.T) {
 	}
 
 	for _, tt := range table {
-		c1 := newConfig(tt.opt)
-		c2 := newConfig()
-		assert.Equal(t, tt.expected, tt.value(c1))
-		assert.Equal(t, tt.defaults, tt.value(c2))
+		c1 := newConfig()
+		assert.Equal(t, tt.defaults, tt.value(c1))
+
+		c2 := newConfig(tt.opt)
+		assert.Equal(t, tt.expected, tt.value(c2))
 	}
 }
