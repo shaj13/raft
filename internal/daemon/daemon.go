@@ -85,6 +85,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 type daemon struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
+	bState       *bootState
 	cfg          Config
 	node         raft.Node
 	ticker       *time.Ticker
@@ -94,7 +95,7 @@ type daemon struct {
 	storage      storage.Storage
 	msgbus       *msgbus.MsgBus
 	idgen        *idutil.Generator
-	pool         membership.Pool // TODO: use an interface
+	pool         membership.Pool
 	cState       etcdraftpb.ConfState
 	started      *atomic.Bool
 	snapIndex    *atomic.Uint64
@@ -307,26 +308,50 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
-	exist := d.storage.Exist()
-	m, pool, err := d.boot(ctx, cluster, addr)
-	if err != nil {
-		return err
+	// exist := d.storage.Exist()
+	// m, pool, err := d.boot(ctx, cluster, addr)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// c := d.cfg.RaftConfig()
+	// c.ID = m.ID
+	// c.Storage = d.cache
+
+	// if exist && len(pool) == 0 {
+	// 	d.node = raft.RestartNode(c)
+	// } else {
+	// 	pool = append(pool, *m)
+	// 	peers := make([]raft.Peer, len(pool))
+	// 	for i, m := range pool {
+	// 		peers[i] = raft.Peer{ID: m.ID, Context: pbutil.MustMarshal(&m)}
+	// 	}
+	// 	d.node = raft.StartNode(c, peers)
+	// }
+
+	ops := []Operator{}
+
+	ops = append(ops, setup{addr: addr})
+	ops = append(ops, storageBoot{})
+	if len(cluster) > 0 {
+		in := Join(cluster, time.Hour)
+		re := Reload()
+		ops = append(ops, Fallback(in, re))
+	} else {
+		in := InitCluster()
+		re := Reload()
+		ops = append(ops, Fallback(in, re))
+	}
+	ops = append(ops, stateSetup{})
+
+	for _, op := range ops {
+		if err := op.before(d); err != nil {
+			panic(err)
+		}
 	}
 
-	d.idgen = idutil.NewGenerator(uint16(m.ID), time.Now())
-	c := d.cfg.RaftConfig()
-	c.ID = m.ID
-	c.Storage = d.cache
-
-	if exist && len(pool) == 0 {
-		d.node = raft.RestartNode(c)
-	} else {
-		pool = append(pool, *m)
-		peers := make([]raft.Peer, len(pool))
-		for i, m := range pool {
-			peers[i] = raft.Peer{ID: m.ID, Context: pbutil.MustMarshal(&m)}
-		}
-		d.node = raft.StartNode(c, peers)
+	for _, op := range ops {
+		op.after(d)
 	}
 
 	// subscribe to propose message.
@@ -334,6 +359,7 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	// subscribe to recived received.
 	recv := d.msgbus.SubscribeBuffered(msg.ID(), 4096)
 
+	d.idgen = idutil.NewGenerator(uint16(d.bState.mem.ID), time.Now())
 	d.started.Set()
 	go d.process(prop)
 	go d.process(recv)
@@ -643,4 +669,14 @@ func (d *daemon) snapshots() {
 		}
 
 	}
+}
+
+type bootState struct {
+	wasExisted bool
+	mem        *raftpb.Member
+	membs      []raftpb.Member
+	raftCfg    *raft.Config
+	hState     etcdraftpb.HardState
+	ents       []etcdraftpb.Entry
+	sf         *storage.SnapshotFile
 }
