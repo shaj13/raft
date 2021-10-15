@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
-	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -308,29 +306,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
-	// exist := d.storage.Exist()
-	// m, pool, err := d.boot(ctx, cluster, addr)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// c := d.cfg.RaftConfig()
-	// c.ID = m.ID
-	// c.Storage = d.cache
-
-	// if exist && len(pool) == 0 {
-	// 	d.node = raft.RestartNode(c)
-	// } else {
-	// 	pool = append(pool, *m)
-	// 	peers := make([]raft.Peer, len(pool))
-	// 	for i, m := range pool {
-	// 		peers[i] = raft.Peer{ID: m.ID, Context: pbutil.MustMarshal(&m)}
-	// 	}
-	// 	d.node = raft.StartNode(c, peers)
-	// }
-
 	ops := []Operator{}
-
 	ops = append(ops, setup{addr: addr})
 	ops = append(ops, stateSetup{})
 	if len(cluster) > 0 {
@@ -338,7 +314,7 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 		re := Reload()
 		ops = append(ops, Fallback(in, re))
 	} else {
-		in := ForceNewCluster()
+		in := InitCluster()
 		re := Reload()
 		ops = append(ops, Fallback(in, re))
 	}
@@ -368,82 +344,6 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	return d.eventLoop()
 }
 
-func (d *daemon) boot(ctx context.Context, cluster, addr string) (*raftpb.Member, []raftpb.Member, error) {
-	var (
-		err  error
-		pool []raftpb.Member
-		mem  *raftpb.Member
-	)
-
-	join := func() {
-		var rpc rpc.Client
-		rpc, err = d.cfg.Dial()(ctx, cluster)
-		if err != nil {
-			return
-		}
-
-		mem.ID, pool, err = rpc.Join(ctx, *mem)
-	}
-
-	exist := d.storage.Exist()
-	mem = &raftpb.Member{
-		// generate a random id in case this is the first member in the cluster.
-		ID:      uint64(rand.Int63()) + 1,
-		Address: addr,
-		Type:    raftpb.LocalMember,
-	}
-
-	if !exist && len(cluster) > 0 {
-		mem.ID = 0
-		join()
-	}
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	meta := pbutil.MustMarshal(mem)
-	meta, hs, ents, snap, err := d.storage.Boot(meta)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !exist {
-		return mem, pool, nil
-	}
-
-	pbutil.MustUnmarshal(mem, meta)
-
-	// find the current member from wal conf-change entries,
-	// metadata isn't up to date, need to get the latest previous address.
-	for _, ent := range ents {
-		if ent.Type != etcdraftpb.EntryConfChange {
-			continue
-		}
-		cc := new(etcdraftpb.ConfChange)
-		old := new(raftpb.Member)
-		pbutil.MustUnmarshal(cc, ent.Data)
-		pbutil.MustUnmarshal(old, cc.Context)
-		if mem.ID == old.ID {
-			mem = old
-		}
-	}
-
-	// current member address changed, re-join the cluster.
-	if len(cluster) > 0 && mem.Address != addr {
-		join()
-	}
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	d.publishSnapshotFile(snap)
-	d.cache.SetHardState(hs)
-	d.cache.Append(ents)
-	return mem, pool, nil
-}
-
 func (d *daemon) eventLoop() error {
 	d.wg.Add(1)
 	defer d.wg.Done()
@@ -469,8 +369,8 @@ func (d *daemon) eventLoop() error {
 				return err
 			}
 
-			d.publishCommitted(rd.CommittedEntries)
 			d.send(rd.Messages)
+			d.publishCommitted(rd.CommittedEntries)
 
 			d.msgbus.Broadcast(snapshot.ID(), nil) // TODO: add snapid event
 
