@@ -332,7 +332,7 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	ops := []Operator{}
 
 	ops = append(ops, setup{addr: addr})
-	ops = append(ops, storageBoot{})
+	ops = append(ops, stateSetup{})
 	if len(cluster) > 0 {
 		in := Join(cluster, time.Hour)
 		re := Reload()
@@ -342,7 +342,6 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 		re := Reload()
 		ops = append(ops, Fallback(in, re))
 	}
-	ops = append(ops, stateSetup{})
 
 	for _, op := range ops {
 		if err := op.before(d); err != nil {
@@ -351,7 +350,9 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	}
 
 	for _, op := range ops {
-		op.after(d)
+		if err := op.after(d); err != nil {
+			panic(err)
+		}
 	}
 
 	// subscribe to propose message.
@@ -468,8 +469,8 @@ func (d *daemon) eventLoop() error {
 				return err
 			}
 
-			d.send(rd.Messages)
 			d.publishCommitted(rd.CommittedEntries)
+			d.send(rd.Messages)
 
 			d.msgbus.Broadcast(snapshot.ID(), nil) // TODO: add snapid event
 
@@ -482,7 +483,7 @@ func (d *daemon) eventLoop() error {
 
 func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 	if raft.IsEmptySnap(snap) {
-		log.Debug("raft/daemon: ignore empty snapshot")
+		// log.Debug("raft/daemon: ignore empty snapshot")
 		return nil
 	}
 
@@ -628,7 +629,7 @@ func (d *daemon) send(msgs []etcdraftpb.Message) {
 		)
 	}
 
-	log.Debug("raft/daemon: Sending messages to raft cluster members")
+	// log.Debug("raft/daemon: Sending messages to raft cluster members")
 
 	for _, m := range msgs {
 		mem, ok := d.pool.Get(m.To)

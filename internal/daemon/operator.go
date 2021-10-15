@@ -146,20 +146,6 @@ func (f *fallback) after(d *daemon) error {
 	return f.success.after(d)
 }
 
-type storageBoot struct{}
-
-func (s storageBoot) before(d *daemon) (err error) { return }
-func (s storageBoot) after(d *daemon) (err error) {
-	meta := pbutil.MustMarshal(d.bState.mem)
-	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
-	if err != nil {
-		return
-	}
-
-	pbutil.MustUnmarshal(d.bState.mem, meta)
-	return
-}
-
 type stateSetup struct{}
 
 func (s stateSetup) before(d *daemon) (err error) { return }
@@ -190,6 +176,14 @@ func (s setup) before(d *daemon) (err error) {
 }
 
 func (s setup) after(d *daemon) (err error) {
+	meta := pbutil.MustMarshal(d.bState.mem)
+	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
+	if err != nil {
+		return
+	}
+
+	pbutil.MustUnmarshal(d.bState.mem, meta)
+
 	cfg := d.cfg.RaftConfig()
 	cfg.ID = d.bState.mem.ID
 	cfg.Storage = d.cache
