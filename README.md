@@ -1,7 +1,10 @@
 # raftkit
 
 ### TODO 
-- [ ] expose logger and optionn to set it, renname GEt and set
+- [ ] cluster add creat snap method 
+- [ ] remove peek from snapshotter 
+- [ ] snapshot send file then re send msg
+- [ ] is there any way to make restore operator ? 
 - [ ] expose last seen and whenn member joined method on memebrs. 
 - [ ] fix all daemonn todo 
 - [ ] Create Purge method under pool 
