@@ -60,6 +60,8 @@ func WithDialOptions(opts ...grpc.DialOption) Option {
 // an init() function), and is not thread-safe.
 func Register(opts ...Option) {
 	c := new(config)
+	c.copts = func(c context.Context) []grpc.CallOption { return nil }
+	c.dopts = func(c context.Context) []grpc.DialOption { return nil }
 
 	for _, opt := range opts {
 		opt.apply(c)
