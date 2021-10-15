@@ -266,6 +266,8 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 	d.bState.raftCfg.Storage = d.cache
 	d.cache.SetHardState(hs)
 	d.cache.Append(ents)
-	// TODO save it to wal
+	if err := d.storage.SaveEntries(hs, ents); err != nil {
+		return err
+	}
 	return f.reload.after(d)
 }
