@@ -14,6 +14,7 @@ import (
 var (
 	addr string
 	join string
+	dir  string
 )
 
 func init() {
@@ -22,12 +23,13 @@ func init() {
 	)
 	flag.StringVar(&addr, "raft", "", "raft server addr")
 	flag.StringVar(&join, "join", "", "join cluster addr")
+	flag.StringVar(&dir, "dir", "", "join cluster addr")
 	flag.Parse()
 }
 
 func main() {
 	ctx := context.Background()
-	cluster, srv := raft.New(ctx)
+	cluster, srv := raft.New(ctx, raft.WithStateDIR(dir))
 	go startRaftServer(srv)
 	if err := cluster.Join(ctx, join, addr); err != nil {
 		panic(err)
