@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	ErrStopped = errors.New("raft/daemon: daemon not ready yet or has been stopped")
+	ErrStopped = errors.New("raft: daemon not ready yet or has been stopped")
 )
 
 const (
@@ -257,7 +257,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	}
 
 	log.Infof(
-		"raft/daemon: Start snapshot [applied index: %d | last snapshot index: %d]",
+		"raft.daemon: start snapshot [applied index: %d | last snapshot index: %d]",
 		appliedIndex,
 		snapIndex,
 	)
@@ -299,7 +299,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		return snap, err
 	}
 
-	log.Infof("raft/daemon: Compacted log at index %d", compactIndex)
+	log.Infof("raft.daemon: compacted log at index %d", compactIndex)
 
 	d.snapIndex.Set(appliedIndex)
 	return snap, err
@@ -483,7 +483,6 @@ func (d *daemon) eventLoop() error {
 
 func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 	if raft.IsEmptySnap(snap) {
-		// log.Debug("raft/daemon: ignore empty snapshot")
 		return nil
 	}
 
@@ -494,8 +493,6 @@ func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 			d.appliedIndex,
 		)
 	}
-
-	log.Infof("raft/daemon: Publishing snapshot at index %s", d.snapIndex)
 
 	if err := d.storage.SaveSnapshot(snap); err != nil {
 		return err
@@ -545,11 +542,12 @@ func (d *daemon) publishReplicate(ent etcdraftpb.Entry) {
 		d.msgbus.Broadcast(r.CID, err)
 		if err != nil {
 			log.Warnf(
-				"raft/daemon: An error occured while publish replicate data, Err: %s",
+				"raft.daemon: publishing replicate data failed, Err: %s",
 				err,
 			)
 		}
 	}()
+
 	if err = r.Unmarshal(ent.Data); err != nil {
 		return
 	}
@@ -566,7 +564,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		d.msgbus.Broadcast(cc.ID, err)
 		if err != nil {
 			log.Warnf(
-				"raft/daemon: An error occured while publish conf change, Err: %s",
+				"raft.daemon: publishing conf change failed, Err: %s",
 				err,
 			)
 		}
@@ -609,7 +607,7 @@ func (d *daemon) process(sub *msgbus.Subscription) {
 		case v := <-sub.Chan():
 			if err := d.node.Step(d.ctx, v.(etcdraftpb.Message)); err != nil {
 				log.Warnf(
-					"raft/daemon: Failed to process raft message, Err: %s",
+					"raft.daemon: process raft message failed, Err: %s",
 					err,
 				)
 			}
@@ -622,14 +620,12 @@ func (d *daemon) process(sub *msgbus.Subscription) {
 func (d *daemon) send(msgs []etcdraftpb.Message) {
 	lg := func(m etcdraftpb.Message, str string) {
 		log.Warnf(
-			"raft/daemon: Failed to send message %s to member %x, Err: %s",
+			"raft.daemon: sending message %s to member %x failed, Err: %s",
 			m.Type,
 			m.To,
 			str,
 		)
 	}
-
-	// log.Debug("raft/daemon: Sending messages to raft cluster members")
 
 	for _, m := range msgs {
 		mem, ok := d.pool.Get(m.To)
@@ -660,7 +656,7 @@ func (d *daemon) snapshots() {
 
 			if _, err := d.CreateSnapshot(); err != nil {
 				log.Errorf(
-					"raft/daemon: Failed to create new snapshot at index %s, Err: %s",
+					"raft.daemon: creating new snapshot at index %s failed, Err: %s",
 					d.appliedIndex,
 					err,
 				)
