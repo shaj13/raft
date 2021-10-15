@@ -10,6 +10,7 @@ import (
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
@@ -33,6 +34,12 @@ func ForceJoin(addr string, timeout time.Duration) Operator {
 // InitCluster TBD
 func InitCluster() Operator {
 	return initCluster{}
+}
+
+func ForceNewCluster() Operator {
+	return forceNewCluster{
+		reload: Reload().(reload),
+	}
 }
 
 // Reload
@@ -189,4 +196,76 @@ func (s setup) after(d *daemon) (err error) {
 	cfg.Storage = d.cache
 	d.bState.raftCfg = cfg
 	return
+}
+
+type forceNewCluster struct {
+	reload
+}
+
+func (f forceNewCluster) after(d *daemon) (err error) {
+	sf := d.bState.sf
+	local := *d.bState.mem
+	ents := d.bState.ents
+	hs := d.bState.hState
+	next := hs.Commit + 1
+
+	// override latest snapshot pool members.
+	if !raft.IsEmptySnap(*sf.Snap) {
+		sf.Pool = &raftpb.Pool{
+			Members: []raftpb.Member{local},
+		}
+
+		err := d.storage.Snapshotter().Write(sf)
+		if err != nil {
+			return err
+		}
+
+		sf, err = d.storage.Snapshotter().Read(*sf.Snap)
+		if err != nil {
+			return err
+		}
+
+		d.bState.sf = sf
+	}
+
+	// discard uncommitted entries
+	for i, ent := range ents {
+		if ent.Index > hs.Commit {
+			ents = ents[:i]
+			break
+		}
+	}
+
+	// issue remove conf changes.
+	for _, ent := range ents {
+		if ent.Type == etcdraftpb.EntryConfChange {
+			cc := new(etcdraftpb.ConfChange)
+			pbutil.MustUnmarshal(cc, ent.Data)
+			if cc.NodeID == local.ID || cc.Type == etcdraftpb.ConfChangeRemoveNode {
+				continue
+			}
+
+			cc.Type = etcdraftpb.ConfChangeRemoveNode
+			e := etcdraftpb.Entry{
+				Type:  etcdraftpb.EntryConfChange,
+				Data:  pbutil.MustMarshal(cc),
+				Term:  hs.Term,
+				Index: next,
+			}
+
+			ents = append(ents, e)
+			next++
+		}
+	}
+
+	if len(ents) != 0 {
+		hs.Commit = ents[len(ents)-1].Index
+	}
+
+	d.cache = raft.NewMemoryStorage()
+	d.bState.raftCfg.Storage = d.cache
+	d.cache.SetHardState(hs)
+	d.cache.Append(ents)
+	// TODO save it to wal
+	return f.reload.after(d)
 }

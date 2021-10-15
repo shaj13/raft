@@ -338,7 +338,7 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 		re := Reload()
 		ops = append(ops, Fallback(in, re))
 	} else {
-		in := InitCluster()
+		in := ForceNewCluster()
 		re := Reload()
 		ops = append(ops, Fallback(in, re))
 	}
