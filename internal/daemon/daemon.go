@@ -306,7 +306,8 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
-	if err := invoke(d, oprs[0], setup{addr: addr}, stateSetup{}); err != nil {
+	oprs = append(oprs, setup{addr: addr}, stateSetup{})
+	if err := invoke(d, oprs...); err != nil {
 		return err
 	}
 	// subscribe to propose message.

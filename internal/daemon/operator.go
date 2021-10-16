@@ -324,7 +324,6 @@ func (f forceNewCluster) String() string {
 }
 
 func invoke(d *daemon, oprs ...Operator) error {
-
 	for _, opr := range oprs {
 		a, ok := opr.(interface {
 			addOns() []Operator
