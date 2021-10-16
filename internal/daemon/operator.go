@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,8 +14,21 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+// order define a weight to operator be used on sort and conflict detection.
+var order = map[string]int{
+	new(setup).String():           0,
+	new(forceNewCluster).String(): 1,
+	new(stateSetup).String():      2,
+	new(forceJoin).String():       3,
+	new(join).String():            3,
+	new(initCluster).String():     3,
+	new(restart).String():         3,
+	new(fallback).String():        3,
+}
+
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
 type Operator interface {
+	fmt.Stringer
 	before(d *daemon) error
 	after(d *daemon) error
 }
@@ -37,9 +51,7 @@ func InitCluster() Operator {
 }
 
 func ForceNewCluster() Operator {
-	return forceNewCluster{
-		restart: restart{},
-	}
+	return forceNewCluster{}
 }
 
 // Reload
@@ -80,6 +92,10 @@ func (f forceJoin) after(d *daemon) error {
 	return nil
 }
 
+func (f forceJoin) String() string {
+	return "ForceJoin"
+}
+
 type join struct {
 	forceJoin
 }
@@ -91,8 +107,11 @@ func (j join) before(d *daemon) error {
 	return j.forceJoin.before(d)
 }
 
-type initCluster struct {
+func (j join) String() string {
+	return "Join"
 }
+
+type initCluster struct{}
 
 func (c initCluster) before(d *daemon) error {
 	if d.bState.wasExisted {
@@ -111,6 +130,10 @@ func (c initCluster) after(d *daemon) error {
 	return nil
 }
 
+func (ini initCluster) String() string {
+	return "InitCluster"
+}
+
 type restart struct{}
 
 func (r restart) before(d *daemon) error {
@@ -125,6 +148,10 @@ func (r restart) after(d *daemon) error {
 	return nil
 }
 
+func (r restart) String() string {
+	return "Restart"
+}
+
 type fallback struct {
 	operators []Operator
 	success   Operator
@@ -133,6 +160,14 @@ type fallback struct {
 func (f *fallback) before(d *daemon) error {
 	errs := []string{}
 	for _, op := range f.operators {
+		_, ok := op.(interface {
+			noFallback()
+		})
+		if ok {
+			return fmt.Errorf("raft: %s can't be used with fallback", op)
+		}
+
+		// call operator.
 		err := op.before(d)
 		if err == nil {
 			f.success = op
@@ -153,6 +188,10 @@ func (f *fallback) after(d *daemon) error {
 	return f.success.after(d)
 }
 
+func (f fallback) String() string {
+	return "Fallback"
+}
+
 type stateSetup struct{}
 
 func (s stateSetup) before(d *daemon) (err error) { return }
@@ -164,6 +203,10 @@ func (s stateSetup) after(d *daemon) (err error) {
 	d.cache.SetHardState(d.bState.hState)
 	d.cache.Append(d.bState.ents)
 	return
+}
+
+func (st stateSetup) String() string {
+	return "StateSetup"
 }
 
 type setup struct {
@@ -198,9 +241,14 @@ func (s setup) after(d *daemon) (err error) {
 	return
 }
 
-type forceNewCluster struct {
-	restart
+func (s setup) String() string {
+	return "Setup"
 }
+
+type forceNewCluster struct{}
+
+func (forceNewCluster) noFallback()                  {}
+func (forceNewCluster) before(d *daemon) (err error) { return }
 
 func (f forceNewCluster) after(d *daemon) (err error) {
 	sf := d.bState.sf
@@ -262,12 +310,46 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 		hs.Commit = ents[len(ents)-1].Index
 	}
 
-	d.cache = raft.NewMemoryStorage()
-	d.bState.raftCfg.Storage = d.cache
-	d.cache.SetHardState(hs)
-	d.cache.Append(ents)
-	if err := d.storage.SaveEntries(hs, ents); err != nil {
-		return err
+	d.bState.ents = ents
+	d.bState.hState = hs
+	return d.storage.SaveEntries(hs, ents)
+}
+
+func (f forceNewCluster) addOns() []Operator {
+	return []Operator{Restart()}
+}
+
+func (f forceNewCluster) String() string {
+	return "ForceNewCluster"
+}
+
+func invoke(d *daemon, oprs ...Operator) error {
+
+	for _, opr := range oprs {
+		a, ok := opr.(interface {
+			addOns() []Operator
+		})
+
+		if ok {
+			oprs = append(oprs, a.addOns()...)
+		}
 	}
-	return f.restart.after(d)
+
+	sort.SliceStable(oprs, func(i, j int) bool {
+		return order[oprs[i].String()] < order[oprs[j].String()]
+	})
+
+	for _, opr := range oprs {
+		if err := opr.before(d); err != nil {
+			return err
+		}
+	}
+
+	for _, opr := range oprs {
+		if err := opr.after(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

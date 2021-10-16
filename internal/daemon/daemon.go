@@ -306,21 +306,9 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
-	oprs = append([]Operator{stateSetup{}}, oprs...)      // index 1
-	oprs = append([]Operator{setup{addr: addr}}, oprs...) // index 0
-
-	for _, opr := range oprs {
-		if err := opr.before(d); err != nil {
-			panic(err)
-		}
+	if err := invoke(d, oprs[0], setup{addr: addr}, stateSetup{}); err != nil {
+		return err
 	}
-
-	for _, opr := range oprs {
-		if err := opr.after(d); err != nil {
-			return err
-		}
-	}
-
 	// subscribe to propose message.
 	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
 	// subscribe to recived received.
