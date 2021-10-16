@@ -144,7 +144,7 @@ type restart struct{}
 
 func (r restart) before(d *daemon) error {
 	if !d.bState.wasExisted {
-		return fmt.Errorf("raft: cluster not found")
+		return fmt.Errorf("raft: node state not found")
 	}
 	return nil
 }
@@ -338,6 +338,9 @@ func (r restore) after(d *daemon) (err error) { return }
 func (r restore) noFallback() {}
 
 func (r restore) before(d *daemon) (err error) {
+	if d.bState.wasExisted {
+		return fmt.Errorf("raft: found orphan node state")
+	}
 	// update state to existed.
 	d.bState.wasExisted = true
 
@@ -359,9 +362,10 @@ func (r restore) before(d *daemon) (err error) {
 	}
 
 	// copy membs to be used as membership pool.
-	membs := make([]raftpb.Member, len(d.bState.membs)+1)
-	copy(d.bState.membs, membs)
-	membs = append(membs, *d.bState.mem)
+	// membs := make([]raftpb.Member, len(d.bState.membs)+1)
+	// copy(d.bState.membs, membs)
+	// membs = append(membs, *d.bState.mem)
+	membs := []raftpb.Member{*d.bState.mem}
 
 	// issue conf change for membs.
 	ents := make([]etcdraftpb.Entry, len(membs))
@@ -421,7 +425,6 @@ func (r restore) before(d *daemon) (err error) {
 	}
 
 	// close storage so next operator can boot it again.
-	fmt.Println("finish")
 	return d.storage.Close()
 }
 
