@@ -32,19 +32,19 @@ func ForceJoin(addr string, timeout time.Duration) Operator {
 }
 
 // InitCluster TBD
-func InitCluster() Operator {
-	return initCluster{}
+func InitCluster(addr string) Operator {
+	return initCluster{addr: addr}
 }
 
 func ForceNewCluster() Operator {
 	return forceNewCluster{
-		reload: Reload().(reload),
+		restart: restart{},
 	}
 }
 
 // Reload
-func Reload() Operator {
-	return reload{}
+func Restart() Operator {
+	return restart{}
 }
 
 func Fallback(ops ...Operator) Operator {
@@ -91,13 +91,15 @@ func (j join) before(d *daemon) error {
 	return j.forceJoin.before(d)
 }
 
-type initCluster struct{}
+type initCluster struct {
+	addr string
+}
 
 func (c initCluster) before(d *daemon) error {
 	if d.bState.wasExisted {
 		return fmt.Errorf("raft: cluster is already exist")
 	}
-
+	d.bState.mem.Address = c.addr
 	return nil
 }
 
@@ -111,16 +113,16 @@ func (c initCluster) after(d *daemon) error {
 	return nil
 }
 
-type reload struct{}
+type restart struct{}
 
-func (r reload) before(d *daemon) error {
+func (r restart) before(d *daemon) error {
 	if !d.bState.wasExisted {
 		return fmt.Errorf("raft: cluster not found")
 	}
 	return nil
 }
 
-func (r reload) after(d *daemon) error {
+func (r restart) after(d *daemon) error {
 	d.node = raft.RestartNode(d.bState.raftCfg)
 	return nil
 }
@@ -199,7 +201,7 @@ func (s setup) after(d *daemon) (err error) {
 }
 
 type forceNewCluster struct {
-	reload
+	restart
 }
 
 func (f forceNewCluster) after(d *daemon) (err error) {
@@ -269,5 +271,5 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 	if err := d.storage.SaveEntries(hs, ents); err != nil {
 		return err
 	}
-	return f.reload.after(d)
+	return f.restart.after(d)
 }

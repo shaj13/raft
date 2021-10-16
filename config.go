@@ -11,7 +11,11 @@ import (
 	"go.etcd.io/etcd/raft/v3"
 )
 
-// Option configures raft library using the functional options paradigm popularized by Rob Pike and Dave Cheney.
+// Logger represents an active logging object that generates lines of
+// output to an io.Writer.
+type Logger = log.Logger
+
+// Option configures raft node using the functional options paradigm popularized by Rob Pike and Dave Cheney.
 // If you're unfamiliar with this style,
 // see https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html and
 // https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis.
@@ -19,14 +23,26 @@ type Option interface {
 	apply(c *config)
 }
 
-// Logger represents an active logging object that generates lines of
-// output to an io.Writer.
-type Logger = log.Logger
+// StartOption configures how we start the raft node using the functional options paradigm popularized by Rob Pike and Dave Cheney.
+// If you're unfamiliar with this style,
+// see https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html and
+// https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis.
+type StartOption interface {
+	apply(c *startConfig)
+}
+
+// startOptionFunc implements StartOption interface.
+type startOptionFunc func(c *startConfig)
+
+// apply the configuration to the provided config.
+func (fn startOptionFunc) apply(c *startConfig) {
+	fn(c)
+}
 
 // OptionFunc implements Option interface.
 type optionFunc func(c *config)
 
-// Apply the configuration to the provided strategy.
+// apply the configuration to the provided config.
 func (fn optionFunc) apply(c *config) {
 	fn(c)
 }
@@ -203,6 +219,80 @@ func WithDisableProposalForwarding() Option {
 	return optionFunc(func(c *config) {
 		c.rcfg.DisableProposalForwarding = true
 	})
+}
+
+// WithJoin send rpc request to join an existing cluster.
+func WithJoin(addr string, timeout time.Duration) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.Join(addr, timeout)
+		c.appendOperator(opr)
+	})
+}
+
+// WithForceJoin send rpc request to join an existing cluster even if already part of a cluster.
+func WithForceJoin(addr string, timeout time.Duration) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.ForceJoin(addr, timeout)
+		c.appendOperator(opr)
+	})
+}
+
+// WithInitCluster initialize a new cluster and create first raft node on the given address.
+func WithInitCluster(addr string) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.InitCluster(addr)
+		c.appendOperator(opr)
+	})
+}
+
+// WithForceNewCluster initialize a new cluster from state dir. One use case for
+// this feature would be in restoring cluster quorum.
+func WithForceNewCluster() StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.ForceNewCluster()
+		c.appendOperator(opr)
+	})
+}
+
+// WithRestart restart raft node from state dir.
+func WithRestart() StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.Restart()
+		c.appendOperator(opr)
+	})
+}
+
+// WithFallback can be used if other options do not succeed.
+//
+// 	WithFallback(
+//		WithJoin(),
+//		WithRestart,
+//	)
+//
+func WithFallback(opts ...StartOption) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		// create new startConfig annd apply all opts,
+		// then copy all operators to fallback.
+		nc := new(startConfig)
+		nc.apply(opts...)
+
+		opr := daemon.Fallback(nc.operators...)
+		c.appendOperator(opr)
+	})
+}
+
+type startConfig struct {
+	operators []daemon.Operator
+}
+
+func (c *startConfig) appendOperator(opr daemon.Operator) {
+	c.operators = append(c.operators, opr)
+}
+
+func (c *startConfig) apply(opts ...StartOption) {
+	for _, opt := range opts {
+		opt.apply(c)
+	}
 }
 
 type config struct {

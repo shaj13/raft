@@ -311,11 +311,11 @@ func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
 	ops = append(ops, stateSetup{})
 	if len(cluster) > 0 {
 		in := Join(cluster, time.Hour)
-		re := Reload()
+		re := Restart()
 		ops = append(ops, Fallback(in, re))
 	} else {
-		in := InitCluster()
-		re := Reload()
+		in := InitCluster("")
+		re := Restart()
 		ops = append(ops, Fallback(in, re))
 	}
 

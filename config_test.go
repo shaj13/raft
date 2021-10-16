@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -119,5 +120,29 @@ func TestConfig(t *testing.T) {
 
 		c2 := newConfig(tt.opt)
 		assert.Equal(t, tt.expected, tt.value(c2))
+	}
+}
+
+func TestStartConfig(t *testing.T) {
+	table := []struct {
+		expected string
+		opt      StartOption
+	}{
+		{expected: "daemon.join", opt: WithJoin("", 0)},
+		{expected: "daemon.forceJoin", opt: WithForceJoin("", 0)},
+		{expected: "daemon.initCluster", opt: WithInitCluster("")},
+		{expected: "daemon.forceNewCluster", opt: WithForceNewCluster()},
+		{expected: "daemon.restart", opt: WithRestart()},
+		{expected: "*daemon.fallback", opt: WithFallback()},
+	}
+
+	for _, tt := range table {
+		c := new(startConfig)
+		c.apply(tt.opt)
+		got := ""
+		if len(c.operators) != 0 {
+			got = fmt.Sprintf("%T", c.operators[0])
+		}
+		assert.Equal(t, "" + tt.expected, got)
 	}
 }
