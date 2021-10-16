@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -108,7 +109,7 @@ type join struct {
 
 func (j join) before(d *daemon) error {
 	if d.bState.wasExisted {
-		return fmt.Errorf("raft: this node is already part of a cluster")
+		return errors.New("raft: this node is already part of a cluster")
 	}
 	return j.forceJoin.before(d)
 }
@@ -121,7 +122,7 @@ type initCluster struct{}
 
 func (c initCluster) before(d *daemon) error {
 	if d.bState.wasExisted {
-		return fmt.Errorf("raft: cluster is already exist")
+		return errors.New("raft: cluster is already exist")
 	}
 	return nil
 }
@@ -144,7 +145,7 @@ type restart struct{}
 
 func (r restart) before(d *daemon) error {
 	if !d.bState.wasExisted {
-		return fmt.Errorf("raft: node state not found")
+		return errors.New("raft: node state not found")
 	}
 	return nil
 }
@@ -339,7 +340,7 @@ func (r restore) noFallback() {}
 
 func (r restore) before(d *daemon) (err error) {
 	if d.bState.wasExisted {
-		return fmt.Errorf("raft: found orphan node state")
+		return errors.New("raft: found orphan node state")
 	}
 	// update state to existed.
 	d.bState.wasExisted = true
