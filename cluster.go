@@ -13,7 +13,7 @@ import (
 )
 
 type Cluster interface {
-	Start(addr string, opts ...StartOption) error
+	Start(opts ...StartOption) error
 	Leave(ctx context.Context) error
 	UpdateMember(ctx context.Context, id uint64, addr string) error
 	RemoveMember(ctx context.Context, id uint64) error
@@ -40,10 +40,10 @@ func (c *cluster) StateSubscribe()  {}
 func (c *cluster) MemberSubscribe() {}
 
 func (c *cluster) StepDown() {}
-func (c *cluster) Start(addr string, opts ...StartOption) error {
+func (c *cluster) Start(opts ...StartOption) error {
 	cfg := new(startConfig)
 	cfg.apply(opts...)
-	return c.daemon.Start(addr, cfg.operators...)
+	return c.daemon.Start(cfg.addr, cfg.operators...)
 }
 
 func (c *cluster) Leave(ctx context.Context) error {

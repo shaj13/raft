@@ -11,6 +11,13 @@ import (
 	"go.etcd.io/etcd/raft/v3"
 )
 
+// URL return's string represents a member URL.
+// The general form represented is:
+//
+//	{id}={addr}
+//
+var MemberURL = membership.URL
+
 // Logger represents an active logging object that generates lines of
 // output to an io.Writer.
 type Logger = log.Logger
@@ -247,6 +254,8 @@ func WithInitCluster() StartOption {
 
 // WithForceNewCluster initialize a new cluster from state dir. One use case for
 // this feature would be in restoring cluster quorum.
+//
+// Note: ForceNewCluster preserve the same node id.
 func WithForceNewCluster() StartOption {
 	return startOptionFunc(func(c *startConfig) {
 		opr := daemon.ForceNewCluster()
@@ -271,6 +280,42 @@ func WithRestart() StartOption {
 	})
 }
 
+// WithMembers add the given members to the raft node.
+// use raft.MemberURL as input:
+//
+//  WithMembers(raft.MemberURL(<id>,"<addr>"), ....)
+//
+// WithMembers safe to be used with initiate cluster kind options,
+// ("WithForceNewCluster", "WithRestore", "WithInitCluster")
+// Otherwise, it may conflicts with other options like WithJoin.
+//
+// As long as only one url given, WithMembers will only set the current node id and address,
+// then it will be safe to be composed with other options even "WithJoin".
+//
+// WithMembers and WithInitCluster must be applied to all cluster nodes when they are composed,
+// Otherwise, the quorum will be lost and the cluster become unavailable.
+//
+//  Node A:
+//  n.Start(WithInitCluster(), WithMembers(<node A url>, <node B url>))
+//
+//  Node B:
+//  n.Start(WithInitCluster(), WithMembers(<node B url>, <node A url>))
+//
+// Note: first URL will be assigned to the current node.
+func WithMembers(urls ...string) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.Members(urls...)
+		c.appendOperator(opr)
+	})
+}
+
+// WithAddress set the raft node address.
+func WithAddress(addr string) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		c.addr = addr
+	})
+}
+
 // WithFallback can be used if other options do not succeed.
 //
 // 	WithFallback(
@@ -292,6 +337,7 @@ func WithFallback(opts ...StartOption) StartOption {
 
 type startConfig struct {
 	operators []daemon.Operator
+	addr      string
 }
 
 func (c *startConfig) appendOperator(opr daemon.Operator) {

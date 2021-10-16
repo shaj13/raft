@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -19,14 +20,15 @@ import (
 // order define a weight to operator be used on sort and conflict detection.
 var order = map[string]int{
 	new(setup).String():           0,
-	new(forceNewCluster).String(): 1,
-	new(restore).String():         1,
-	new(stateSetup).String():      2,
-	new(forceJoin).String():       3,
-	new(join).String():            3,
-	new(initCluster).String():     3,
-	new(restart).String():         3,
-	new(fallback).String():        3,
+	new(members).String():         1,
+	new(forceNewCluster).String(): 2,
+	new(restore).String():         2,
+	new(stateSetup).String():      3,
+	new(forceJoin).String():       4,
+	new(join).String():            4,
+	new(initCluster).String():     4,
+	new(restart).String():         4,
+	new(fallback).String():        4,
 }
 
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
@@ -34,6 +36,10 @@ type Operator interface {
 	fmt.Stringer
 	before(d *daemon) error
 	after(d *daemon) error
+}
+
+func Members(urls ...string) Operator {
+	return members{urls: urls}
 }
 
 // Join TBD
@@ -128,12 +134,18 @@ func (c initCluster) before(d *daemon) error {
 }
 
 func (c initCluster) after(d *daemon) error {
-	peer := raft.Peer{
-		ID:      d.bState.mem.ID,
-		Context: pbutil.MustMarshal(d.bState.mem),
+	membs := d.bState.membs
+	membs = append([]raftpb.Member{*d.bState.mem}, membs...)
+	peers := make([]raft.Peer, len(membs))
+
+	for i, mem := range membs {
+		peers[i] = raft.Peer{
+			ID:      mem.ID,
+			Context: pbutil.MustMarshal(&mem),
+		}
 	}
 
-	d.node = raft.StartNode(d.bState.raftCfg, []raft.Peer{peer})
+	d.node = raft.StartNode(d.bState.raftCfg, peers)
 	return nil
 }
 
@@ -233,6 +245,10 @@ func (s setup) before(d *daemon) (err error) {
 }
 
 func (s setup) after(d *daemon) (err error) {
+	if len(d.bState.mem.Address) == 0 {
+		return errors.New("raft: no address set, use raft.WithAddress() or raft.WithMembers")
+	}
+
 	meta := pbutil.MustMarshal(d.bState.mem)
 	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
 	if err != nil {
@@ -260,6 +276,7 @@ func (forceNewCluster) before(d *daemon) (err error) { return }
 func (f forceNewCluster) after(d *daemon) (err error) {
 	sf := d.bState.sf
 	local := *d.bState.mem
+	membs := d.bState.membs
 	ents := d.bState.ents
 	hs := d.bState.hState
 	next := hs.Commit + 1
@@ -267,7 +284,7 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 	// override latest snapshot pool members.
 	if !raft.IsEmptySnap(*sf.Snap) {
 		sf.Pool = &raftpb.Pool{
-			Members: []raftpb.Member{local},
+			Members: append([]raftpb.Member{local}, membs...),
 		}
 
 		err := d.storage.Snapshotter().Write(sf)
@@ -311,6 +328,26 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 			ents = append(ents, e)
 			next++
 		}
+	}
+
+	// issue add conf change.
+	for _, mem := range membs {
+		cc := etcdraftpb.ConfChange{
+			Type:    etcdraftpb.ConfChangeAddNode,
+			NodeID:  mem.ID,
+			Context: pbutil.MustMarshal(&mem),
+		}
+
+		e := etcdraftpb.Entry{
+			Type:  etcdraftpb.EntryConfChange,
+			Data:  pbutil.MustMarshal(&cc),
+			Term:  hs.Term,
+			Index: next,
+		}
+
+		ents = append(ents, e)
+		next++
+
 	}
 
 	if len(ents) != 0 {
@@ -363,10 +400,9 @@ func (r restore) before(d *daemon) (err error) {
 	}
 
 	// copy membs to be used as membership pool.
-	// membs := make([]raftpb.Member, len(d.bState.membs)+1)
-	// copy(d.bState.membs, membs)
-	// membs = append(membs, *d.bState.mem)
-	membs := []raftpb.Member{*d.bState.mem}
+	membs := make([]raftpb.Member, len(d.bState.membs))
+	copy(membs, d.bState.membs)
+	membs = append(membs, *d.bState.mem)
 
 	// issue conf change for membs.
 	ents := make([]etcdraftpb.Entry, len(membs))
@@ -435,6 +471,42 @@ func (r restore) addOns() []Operator {
 
 func (r restore) String() string {
 	return "Restore"
+}
+
+type members struct {
+	urls []string
+}
+
+func (m members) after(d *daemon) (err error) { return }
+
+func (m members) noFallback() {}
+
+func (m members) before(d *daemon) (err error) {
+	for i, raw := range m.urls {
+		id, addr, err := membership.ParseURL(raw)
+		if err != nil {
+			return err
+		}
+
+		mem := raftpb.Member{
+			ID:      id,
+			Address: addr,
+			Type:    raftpb.RemoteMember,
+		}
+
+		if i == 0 {
+			mem.Type = raftpb.LocalMember
+			d.bState.mem = &mem
+			continue
+		}
+
+		d.bState.membs = append(d.bState.membs, mem)
+	}
+
+	return
+}
+func (m members) String() string {
+	return "Members"
 }
 
 func invoke(d *daemon, oprs ...Operator) error {
