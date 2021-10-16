@@ -134,6 +134,7 @@ func TestStartConfig(t *testing.T) {
 		{expected: "daemon.forceNewCluster", opt: WithForceNewCluster()},
 		{expected: "daemon.restart", opt: WithRestart()},
 		{expected: "*daemon.fallback", opt: WithFallback()},
+		{expected: "daemon.restore", opt: WithRestore("")},
 	}
 
 	for _, tt := range table {

@@ -254,6 +254,15 @@ func WithForceNewCluster() StartOption {
 	})
 }
 
+// WithRestore initialize a new cluster from snapshot file. One use case for
+// this feature would be in restoring cluster data.
+func WithRestore(path string) StartOption {
+	return startOptionFunc(func(c *startConfig) {
+		opr := daemon.Restore(path)
+		c.appendOperator(opr)
+	})
+}
+
 // WithRestart restart raft node from state dir.
 func WithRestart() StartOption {
 	return startOptionFunc(func(c *startConfig) {

@@ -18,6 +18,7 @@ import (
 var order = map[string]int{
 	new(setup).String():           0,
 	new(forceNewCluster).String(): 1,
+	new(restore).String():         1,
 	new(stateSetup).String():      2,
 	new(forceJoin).String():       3,
 	new(join).String():            3,
@@ -52,6 +53,10 @@ func InitCluster() Operator {
 
 func ForceNewCluster() Operator {
 	return forceNewCluster{}
+}
+
+func Restore(path string) Operator {
+	return restore{path: path}
 }
 
 // Reload
@@ -228,6 +233,7 @@ func (s setup) before(d *daemon) (err error) {
 func (s setup) after(d *daemon) (err error) {
 	meta := pbutil.MustMarshal(d.bState.mem)
 	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
+	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
 	if err != nil {
 		return
 	}
@@ -321,6 +327,99 @@ func (f forceNewCluster) addOns() []Operator {
 
 func (f forceNewCluster) String() string {
 	return "ForceNewCluster"
+}
+
+type restore struct {
+	path string
+}
+
+func (r restore) after(d *daemon) (err error) { return }
+
+func (r restore) noFallback() {}
+
+func (r restore) before(d *daemon) (err error) {
+	panic("still not ready")
+	sf, err := d.storage.Snapshotter().Read(etcdraftpb.Snapshot{}) // read from publishSnapshot
+	if err != nil {
+		return err
+	}
+
+	if !raft.IsEmptySnap(*sf.Snap) {
+		return fmt.Errorf("raft: empty snapshot")
+	}
+
+	// copy membs to be used as membership pool.
+	membs := make([]raftpb.Member, len(d.bState.membs)+1)
+	copy(d.bState.membs, membs)
+	membs = append(membs, *d.bState.mem)
+
+	// issue conf change for membs.
+	ents := make([]etcdraftpb.Entry, len(membs))
+	nodeIDs := make([]uint64, len(membs))
+	for i, m := range membs {
+		nodeIDs[i] = m.ID
+		cc := etcdraftpb.ConfChange{
+			Type:    etcdraftpb.ConfChangeAddNode,
+			NodeID:  m.ID,
+			Context: pbutil.MustMarshal(&m),
+		}
+
+		ents[i] = etcdraftpb.Entry{
+			Type:  etcdraftpb.EntryConfChange,
+			Term:  1,
+			Index: uint64(i + 1),
+			Data:  pbutil.MustMarshal(&cc),
+		}
+	}
+
+	commit, term := uint64(len(ents)), uint64(1)
+	hs := etcdraftpb.HardState{
+		Term:   term,
+		Vote:   membs[0].ID,
+		Commit: commit,
+	}
+
+	// save entries to wal.
+	if err := d.storage.SaveEntries(hs, ents); err != nil {
+		return err
+	}
+
+	confState := etcdraftpb.ConfState{
+		Voters: nodeIDs,
+	}
+
+	snap := etcdraftpb.Snapshot{
+		Metadata: etcdraftpb.SnapshotMetadata{
+			Index:     commit,
+			Term:      term,
+			ConfState: confState,
+		},
+	}
+
+	// update snapshot file meta.
+	sf.Pool.Members = membs
+	sf.Snap = &snap
+
+	// save new snapshot file to state dir.
+	if err := d.storage.Snapshotter().Write(sf); err != nil {
+		return err
+	}
+
+	// save snapshot to wal.
+	if err := d.storage.SaveSnapshot(snap); err != nil {
+		return err
+	}
+
+	// close wall so next operator can boot it again/
+	return d.storage.Close()
+}
+
+func (r restore) addOns() []Operator {
+	return []Operator{Restart()}
+}
+
+func (r restore) String() string {
+	return "Restore"
 }
 
 func invoke(d *daemon, oprs ...Operator) error {
