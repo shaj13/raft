@@ -237,10 +237,10 @@ func WithForceJoin(addr string, timeout time.Duration) StartOption {
 	})
 }
 
-// WithInitCluster initialize a new cluster and create first raft node on the given address.
-func WithInitCluster(addr string) StartOption {
+// WithInitCluster initialize a new cluster and create first raft node.
+func WithInitCluster() StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.InitCluster(addr)
+		opr := daemon.InitCluster()
 		c.appendOperator(opr)
 	})
 }

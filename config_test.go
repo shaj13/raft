@@ -130,7 +130,7 @@ func TestStartConfig(t *testing.T) {
 	}{
 		{expected: "daemon.join", opt: WithJoin("", 0)},
 		{expected: "daemon.forceJoin", opt: WithForceJoin("", 0)},
-		{expected: "daemon.initCluster", opt: WithInitCluster("")},
+		{expected: "daemon.initCluster", opt: WithInitCluster()},
 		{expected: "daemon.forceNewCluster", opt: WithForceNewCluster()},
 		{expected: "daemon.restart", opt: WithRestart()},
 		{expected: "*daemon.fallback", opt: WithFallback()},
@@ -143,6 +143,6 @@ func TestStartConfig(t *testing.T) {
 		if len(c.operators) != 0 {
 			got = fmt.Sprintf("%T", c.operators[0])
 		}
-		assert.Equal(t, "" + tt.expected, got)
+		assert.Equal(t, ""+tt.expected, got)
 	}
 }

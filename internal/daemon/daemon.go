@@ -57,7 +57,7 @@ type Daemon interface {
 	ProposeReplicate(ctx context.Context, data []byte) error
 	ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error
 	CreateSnapshot() (etcdraftpb.Snapshot, error)
-	Start(ctx context.Context, cluster, addr string) error
+	Start(addr string, oprs ...Operator) error
 	ReportUnreachable(id uint64)
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
 	ReportShutdown(id uint64)
@@ -305,29 +305,19 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 // TODO: more comment
 // Start daemon.
-func (d *daemon) Start(ctx context.Context, cluster, addr string) error {
-	ops := []Operator{}
-	ops = append(ops, setup{addr: addr})
-	ops = append(ops, stateSetup{})
-	if len(cluster) > 0 {
-		in := Join(cluster, time.Hour)
-		re := Restart()
-		ops = append(ops, Fallback(in, re))
-	} else {
-		in := InitCluster("")
-		re := Restart()
-		ops = append(ops, Fallback(in, re))
-	}
+func (d *daemon) Start(addr string, oprs ...Operator) error {
+	oprs = append([]Operator{stateSetup{}}, oprs...)      // index 1
+	oprs = append([]Operator{setup{addr: addr}}, oprs...) // index 0
 
-	for _, op := range ops {
-		if err := op.before(d); err != nil {
+	for _, opr := range oprs {
+		if err := opr.before(d); err != nil {
 			panic(err)
 		}
 	}
 
-	for _, op := range ops {
-		if err := op.after(d); err != nil {
-			panic(err)
+	for _, opr := range oprs {
+		if err := opr.after(d); err != nil {
+			return err
 		}
 	}
 

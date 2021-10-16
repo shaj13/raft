@@ -32,8 +32,8 @@ func ForceJoin(addr string, timeout time.Duration) Operator {
 }
 
 // InitCluster TBD
-func InitCluster(addr string) Operator {
-	return initCluster{addr: addr}
+func InitCluster() Operator {
+	return initCluster{}
 }
 
 func ForceNewCluster() Operator {
@@ -92,14 +92,12 @@ func (j join) before(d *daemon) error {
 }
 
 type initCluster struct {
-	addr string
 }
 
 func (c initCluster) before(d *daemon) error {
 	if d.bState.wasExisted {
 		return fmt.Errorf("raft: cluster is already exist")
 	}
-	d.bState.mem.Address = c.addr
 	return nil
 }
 

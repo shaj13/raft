@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"time"
 
 	raft "github.com/shaj13/raftkit"
 	raftgrpc "github.com/shaj13/raftkit/rpc/grpc"
@@ -28,10 +29,22 @@ func init() {
 }
 
 func main() {
+	var opt raft.StartOption
+	if join != "" {
+		opt = raft.WithFallback(
+			raft.WithJoin(join, time.Second),
+			raft.WithRestart(),
+		)
+	} else {
+		opt = raft.WithFallback(
+			raft.WithInitCluster(),
+			raft.WithRestart(),
+		)
+	}
 	ctx := context.Background()
 	cluster, srv := raft.New(ctx, raft.WithStateDIR(dir))
 	go startRaftServer(srv)
-	if err := cluster.Join(ctx, join, addr); err != nil {
+	if err := cluster.Start(addr, opt); err != nil {
 		panic(err)
 	}
 }
