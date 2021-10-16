@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -135,7 +136,7 @@ func (c initCluster) after(d *daemon) error {
 	return nil
 }
 
-func (ini initCluster) String() string {
+func (c initCluster) String() string {
 	return "InitCluster"
 }
 
@@ -232,7 +233,6 @@ func (s setup) before(d *daemon) (err error) {
 
 func (s setup) after(d *daemon) (err error) {
 	meta := pbutil.MustMarshal(d.bState.mem)
-	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
 	meta, d.bState.hState, d.bState.ents, d.bState.sf, err = d.storage.Boot(meta)
 	if err != nil {
 		return
@@ -338,14 +338,24 @@ func (r restore) after(d *daemon) (err error) { return }
 func (r restore) noFallback() {}
 
 func (r restore) before(d *daemon) (err error) {
-	panic("still not ready")
-	sf, err := d.storage.Snapshotter().Read(etcdraftpb.Snapshot{}) // read from publishSnapshot
+	// update state to existed.
+	d.bState.wasExisted = true
+
+	// TODO: remove this when snapshotter updated
+	st := d.storage.Snapshotter().(interface {
+		ReadFromPath(path string) (*storage.SnapshotFile, error)
+	})
+
+	sf, err := st.ReadFromPath(r.path)
 	if err != nil {
 		return err
 	}
 
-	if !raft.IsEmptySnap(*sf.Snap) {
-		return fmt.Errorf("raft: empty snapshot")
+	// boot storage.
+	meta := pbutil.MustMarshal(d.bState.mem)
+	_, _, _, _, err = d.storage.Boot(meta)
+	if err != nil {
+		return err
 	}
 
 	// copy membs to be used as membership pool.
@@ -379,7 +389,7 @@ func (r restore) before(d *daemon) (err error) {
 		Commit: commit,
 	}
 
-	// save entries to wal.
+	// save entries to storgae.
 	if err := d.storage.SaveEntries(hs, ents); err != nil {
 		return err
 	}
@@ -405,12 +415,13 @@ func (r restore) before(d *daemon) (err error) {
 		return err
 	}
 
-	// save snapshot to wal.
+	// save snapshot to storage.
 	if err := d.storage.SaveSnapshot(snap); err != nil {
 		return err
 	}
 
-	// close wall so next operator can boot it again/
+	// close storage so next operator can boot it again.
+	fmt.Println("finish")
 	return d.storage.Close()
 }
 

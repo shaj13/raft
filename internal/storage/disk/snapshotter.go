@@ -64,6 +64,10 @@ func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
 	return decodeSnapshot(s.path(snap))
 }
 
+func (s snapshotter) ReadFromPath(path string) (*storage.SnapshotFile, error) {
+	return decodeSnapshot(path)
+}
+
 func (s snapshotter) path(snap raftpb.Snapshot) string {
 	name := snapshotName(snap.Metadata.Term, snap.Metadata.Index)
 	return filepath.Join(s.snapdir, name)
