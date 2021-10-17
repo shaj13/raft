@@ -17,7 +17,14 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// order define a weight to operator be used on sort and conflict detection.
+// node operations funcs.
+// abstracted for testing purposes.
+var (
+	startNode   = raft.StartNode
+	restartNode = raft.RestartNode
+)
+
+// order define a weight to operators to obtain the execution order.
 var order = map[string]int{
 	new(setup).String():           0,
 	new(members).String():         1,
@@ -106,8 +113,7 @@ func (f forceJoin) after(d *daemon) error {
 		}
 	}
 
-	d.node = raft.RestartNode(d.ost.cfg)
-	return nil
+	return restart{}.after(d)
 }
 
 func (f forceJoin) String() string {
@@ -150,7 +156,7 @@ func (c initCluster) after(d *daemon) error {
 		}
 	}
 
-	d.node = raft.StartNode(d.ost.cfg, peers)
+	d.node = startNode(d.ost.cfg, peers)
 	return nil
 }
 
@@ -168,7 +174,7 @@ func (r restart) before(d *daemon) error {
 }
 
 func (r restart) after(d *daemon) error {
-	d.node = raft.RestartNode(d.ost.cfg)
+	d.node = restartNode(d.ost.cfg)
 	return nil
 }
 
