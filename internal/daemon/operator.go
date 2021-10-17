@@ -38,40 +38,45 @@ type Operator interface {
 	after(d *daemon) error
 }
 
+// Members return's operator that add the given members to the raft node.
 func Members(urls ...string) Operator {
 	return members{urls: urls}
 }
 
-// Join TBD
+// Join return's operator that send rpc request to join an existing cluster.
 func Join(addr string, timeout time.Duration) Operator {
 	return join{
 		forceJoin: ForceJoin(addr, timeout).(forceJoin),
 	}
 }
 
-// ForceJoin TBD
+// ForceJoin return's operator that send rpc request to join an existing cluster,
+// even if already part of a cluster.
 func ForceJoin(addr string, timeout time.Duration) Operator {
 	return forceJoin{addr: addr, timeout: timeout}
 }
 
-// InitCluster TBD
+// InitCluster return's operator that initialize a new cluster and create first raft node..
 func InitCluster() Operator {
 	return initCluster{}
 }
 
+// ForceNewCluster return's operator that initialize a new cluster from state dir.
 func ForceNewCluster() Operator {
 	return forceNewCluster{}
 }
 
+// Restore return's operator that initialize a new cluster from snapshot file
 func Restore(path string) Operator {
 	return restore{path: path}
 }
 
-// Reload
+// Restart return's operator that restart raft node from state dir.
 func Restart() Operator {
 	return restart{}
 }
 
+// Fallback return's operator that can be used if other operators do not succeed.
 func Fallback(ops ...Operator) Operator {
 	return &fallback{operators: ops}
 }
