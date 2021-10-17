@@ -39,6 +39,8 @@ var order = map[string]int{
 }
 
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
+//
+// go:generate mockgen -package daemon  -source internal/daemon/operator.go -destination internal/daemon/mock_test.go
 type Operator interface {
 	fmt.Stringer
 	before(d *daemon) error
