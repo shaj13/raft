@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/raft/v3"
 )
 
 func TestInvoke(t *testing.T) {
@@ -54,3 +56,123 @@ func TestInvoke(t *testing.T) {
 	err = invoke(nil, opr)
 	require.Equal(t, ErrStopped, err)
 }
+
+func TestMembers(t *testing.T) {
+	d := new(daemon)
+	d.ost = new(operatorsState)
+
+	// it should return's err on invalid url.
+	err := Members("").before(d)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "url")
+
+	// it should parse members.
+	err = Members("1=:8080", "2=:9090").before(d)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), d.ost.local.ID)
+	require.Equal(t, ":8080", d.ost.local.Address)
+	require.Equal(t, raftpb.LocalMember, d.ost.local.Type)
+	require.Equal(t, 1, len(d.ost.membs))
+	require.Equal(t, uint64(2), d.ost.membs[0].ID)
+	require.Equal(t, ":9090", d.ost.membs[0].Address)
+	require.Equal(t, raftpb.RemoteMember, d.ost.membs[0].Type)
+
+	err = Members().after(d)
+	require.NoError(t, err)
+}
+
+func TestJoin(t *testing.T) {
+	d := new(daemon)
+	d.ost = new(operatorsState)
+	d.ost.wasExisted = true
+
+	err := Join("", 0).before(d)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already part")
+}
+
+func TestInitCluster(t *testing.T) {
+	d := new(daemon)
+	d.ost = new(operatorsState)
+	d.ost.wasExisted = true
+
+	err := InitCluster().before(d)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already exist")
+
+	var peers []raft.Peer
+	temp := startNode
+	defer func() {
+		startNode = temp
+	}()
+
+	startNode = func(c *raft.Config, p []raft.Peer) raft.Node {
+		peers = p
+		return nil
+	}
+
+	_ = Members("1=:8080", "2=:9090").before(d)
+	err = InitCluster().after(d)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(peers))
+	require.Equal(t, uint64(1), peers[0].ID)
+	require.Equal(t, uint64(2), peers[1].ID)
+}
+
+func TestRestart(t *testing.T) {
+	d := new(daemon)
+	d.ost = new(operatorsState)
+
+	err := Restart().before(d)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "state not found")
+
+	temp := restartNode
+	defer func() {
+		restartNode = temp
+	}()
+
+	called := false
+	restartNode = func(c *raft.Config) raft.Node {
+		called = true
+		return nil
+	}
+	err = Restart().after(d)
+	require.NoError(t, err)
+	require.True(t, called)
+}
+
+func TestFallback(t *testing.T) {
+	fn := func() { Fallback().after(nil) }
+	require.PanicsWithValue(t, "fallback.after called before fallback.before", fn)
+
+	err := Fallback(noFallbackTest{}).before(nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "can't be used with fallback")
+
+	ctrl := gomock.NewController(t)
+	first := NewMockOperator(ctrl)
+	second := NewMockOperator(ctrl)
+	first.EXPECT().before(gomock.Any()).Return(fmt.Errorf("1"))
+	second.EXPECT().before(gomock.Any()).Return(fmt.Errorf("2"))
+	err = Fallback(first, second).before(nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "1, 2")
+
+	first = NewMockOperator(ctrl)
+	first.EXPECT().before(gomock.Any()).MaxTimes(1)
+	first.EXPECT().after(gomock.Any()).MaxTimes(1)
+	opr := Fallback(first)
+	err = opr.before(nil)
+	require.NoError(t, err)
+	err = opr.after(nil)
+	require.NoError(t, err)
+	ctrl.Finish()
+}
+
+type noFallbackTest struct {
+	*MockOperator
+}
+
+func (noFallbackTest) noFallback()    {}
+func (noFallbackTest) String() string { return "" }
