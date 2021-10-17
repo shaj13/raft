@@ -83,7 +83,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 type daemon struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
-	bState       *bootState
+	ost          *operatorsState
 	cfg          Config
 	node         raft.Node
 	ticker       *time.Ticker
@@ -315,7 +315,7 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	// subscribe to recived received.
 	recv := d.msgbus.SubscribeBuffered(msg.ID(), 4096)
 
-	d.idgen = idutil.NewGenerator(uint16(d.bState.mem.ID), time.Now())
+	d.idgen = idutil.NewGenerator(uint16(d.ost.local.ID), time.Now())
 	d.started.Set()
 	go d.process(prop)
 	go d.process(recv)
@@ -545,14 +545,4 @@ func (d *daemon) snapshots() {
 		}
 
 	}
-}
-
-type bootState struct {
-	wasExisted bool
-	mem        *raftpb.Member
-	membs      []raftpb.Member
-	raftCfg    *raft.Config
-	hState     etcdraftpb.HardState
-	ents       []etcdraftpb.Entry
-	sf         *storage.SnapshotFile
 }
