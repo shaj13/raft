@@ -410,6 +410,67 @@ func TestForceNewCluster(t *testing.T) {
 	require.Equal(t, 5, confChange)
 }
 
+func TestRestore(t *testing.T) {
+	hs := etcdraftpb.HardState{
+		Term:   1,
+		Vote:   1,
+		Commit: 1,
+	}
+	ctrl := gomock.NewController(t)
+	stg := mocks.NewMockStorage(ctrl)
+	shotter := mocks.NewMockSnapshotter(ctrl)
+	opr := restore{}
+	d := new(daemon)
+	d.ost = new(operatorsState)
+	d.ost.local = &raftpb.Member{ID: 1}
+	d.storage = stg
+
+	stg.
+		EXPECT().
+		Boot(gomock.Any()).
+		Return(nil, etcdraftpb.HardState{}, nil, nil, nil)
+
+	stg.
+		EXPECT().
+		Snapshotter().
+		Return(shotter).
+		MaxTimes(2)
+
+	stg.
+		EXPECT().
+		SaveEntries(gomock.Eq(hs), gomock.Any()).
+		Return(nil)
+
+	stg.
+		EXPECT().
+		SaveSnapshot(gomock.Any()).
+		Return(nil)
+
+	stg.
+		EXPECT().
+		Close().
+		Return(nil)
+
+	shotter.
+		EXPECT().
+		ReadFromPath(gomock.Any()).
+		Return(&storage.SnapshotFile{Pool: &raftpb.Pool{}}, nil)
+
+	shotter.
+		EXPECT().
+		Write(gomock.Any()).
+		Return(nil)
+
+	d.ost.wasExisted = true
+	err := opr.before(d)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "found orphan node state")
+
+	d.ost.wasExisted = false
+	err = opr.before(d)
+	require.NoError(t, err)
+}
+
 func mockRestartNode(called *bool) func() {
 	temp := restartNode
 	fn := func() {

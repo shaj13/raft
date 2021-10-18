@@ -394,12 +394,7 @@ func (r restore) before(d *daemon) (err error) {
 	// update state to existed.
 	d.ost.wasExisted = true
 
-	// TODO: remove this when snapshotter updated
-	st := d.storage.Snapshotter().(interface {
-		ReadFromPath(path string) (*storage.SnapshotFile, error)
-	})
-
-	sf, err := st.ReadFromPath(r.path)
+	sf, err := d.storage.Snapshotter().ReadFromPath(r.path)
 	if err != nil {
 		return err
 	}
