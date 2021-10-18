@@ -8,6 +8,8 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+//go:generate mockgen -package mocks -source internal/storage/types.go -destination internal/mocks/storage.go
+
 type SnapshotFile struct {
 	Snap *etcdraftpb.Snapshot
 	Pool *raftpb.Pool

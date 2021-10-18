@@ -295,10 +295,11 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
-	oprs = append(oprs, setup{addr: addr}, stateSetup{})
+	oprs = append(oprs, setup{addr: addr}, stateSetup{publishSnapshotFile: d.publishSnapshotFile})
 	if err := invoke(d, oprs...); err != nil {
 		return err
 	}
+	
 	// subscribe to propose message.
 	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
 	// subscribe to recived received.

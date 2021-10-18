@@ -215,14 +215,20 @@ func (f fallback) String() string {
 	return "Fallback"
 }
 
-type stateSetup struct{}
+type stateSetup struct {
+	publishSnapshotFile func(*storage.SnapshotFile) error
+}
 
 func (s stateSetup) before(d *daemon) (err error) { return }
 func (s stateSetup) after(d *daemon) (err error) {
 	if !d.ost.wasExisted {
 		return
 	}
-	d.publishSnapshotFile(d.ost.sf)
+
+	if err := s.publishSnapshotFile(d.ost.sf); err != nil {
+		return err
+	}
+
 	d.cache.SetHardState(d.ost.hst)
 	d.cache.Append(d.ost.ents)
 	return
@@ -259,12 +265,14 @@ func (s setup) after(d *daemon) (err error) {
 		return
 	}
 
-	pbutil.MustUnmarshal(d.ost.local, meta)
+	local := new(raftpb.Member)
+	pbutil.MustUnmarshal(local, meta)
 
 	cfg := d.cfg.RaftConfig()
-	cfg.ID = d.ost.local.ID
+	cfg.ID = local.ID
 	cfg.Storage = d.cache
 	d.ost.cfg = cfg
+	d.ost.local = local
 	return
 }
 
