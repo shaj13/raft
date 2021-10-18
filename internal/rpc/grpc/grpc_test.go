@@ -216,6 +216,10 @@ func (t *testSnapshoter) Read(snap etcdraftpb.Snapshot) (*storage.SnapshotFile, 
 	return nil, nil
 }
 
+func (t *testSnapshoter) ReadFromPath(string) (*storage.SnapshotFile, error) {
+	return nil, nil
+}
+
 func (t *testSnapshoter) Assert(tb testing.TB) {
 	assert.Equal(tb, t.expname, t.gotname)
 	assert.Equal(tb, t.data, t.buf.Bytes())

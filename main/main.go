@@ -44,7 +44,7 @@ func main() {
 	ctx := context.Background()
 	cluster, srv := raft.New(ctx, raft.WithStateDIR(dir))
 	go startRaftServer(srv)
-	if err := cluster.Start(addr, opt); err != nil {
+	if err := cluster.Start(opt, raft.WithAddress(":8081")); err != nil {
 		panic(err)
 	}
 }

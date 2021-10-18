@@ -52,6 +52,21 @@ func (mr *MockSnapshotterMockRecorder) Read(snap interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSnapshotter)(nil).Read), snap)
 }
 
+// ReadFromPath mocks base method.
+func (m *MockSnapshotter) ReadFromPath(path string) (*storage.SnapshotFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadFromPath", path)
+	ret0, _ := ret[0].(*storage.SnapshotFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadFromPath indicates an expected call of ReadFromPath.
+func (mr *MockSnapshotterMockRecorder) ReadFromPath(path interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromPath", reflect.TypeOf((*MockSnapshotter)(nil).ReadFromPath), path)
+}
+
 // Reader mocks base method.
 func (m *MockSnapshotter) Reader(arg0 context.Context, arg1 raftpb.Snapshot) (string, io.ReadCloser, error) {
 	m.ctrl.T.Helper()

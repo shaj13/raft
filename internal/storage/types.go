@@ -21,6 +21,7 @@ type Snapshotter interface {
 	Writer(context.Context, string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
 	Write(sf *SnapshotFile) error
 	Read(snap etcdraftpb.Snapshot) (*SnapshotFile, error)
+	ReadFromPath(path string) (*SnapshotFile, error)
 }
 
 type Storage interface {
