@@ -514,16 +514,6 @@ func (m members) String() string {
 	return "Members"
 }
 
-type operatorsState struct {
-	wasExisted bool
-	local      *raftpb.Member
-	membs      []raftpb.Member
-	cfg        *raft.Config
-	hst        etcdraftpb.HardState
-	ents       []etcdraftpb.Entry
-	sf         *storage.SnapshotFile
-}
-
 func invoke(d *daemon, oprs ...Operator) error {
 	for _, opr := range oprs {
 		a, ok := opr.(interface {
