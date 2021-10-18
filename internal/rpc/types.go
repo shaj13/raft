@@ -7,6 +7,8 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+//go:generate mockgen -package mocks  -source internal/rpc/types.go -destination internal/mocks/rpc.go
+
 // ServerConfig define common configuration used by the NewServer function.
 type ServerConfig interface{}
 
@@ -27,6 +29,8 @@ type Dial func(context.Context, string) (Client, error)
 type NewServer func(context.Context, ServerConfig) (Server, error)
 
 // Client provides access to the exported methods of an object across a network.
+//
+//go:generate mockgen -package mocks  -source internal/rpc/types.go -destination internal/mocks/rpc.go
 type Client interface {
 	Message(context.Context, etcdraftpb.Message) error
 	Join(context.Context, raftpb.Member) (uint64, []raftpb.Member, error)

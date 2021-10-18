@@ -38,15 +38,6 @@ var order = map[string]int{
 	new(fallback).String():        4,
 }
 
-// Operator is a bootstrapper func that determine the action that is to be performed or considered.
-//
-// go:generate mockgen -package daemon  -source internal/daemon/operator.go -destination internal/daemon/mock_test.go
-type Operator interface {
-	fmt.Stringer
-	before(d *daemon) error
-	after(d *daemon) error
-}
-
 // Members return's operator that add the given members to the raft node.
 func Members(urls ...string) Operator {
 	return members{urls: urls}

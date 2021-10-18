@@ -1,11 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/shaj13/raftkit/internal/mocks"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 )
@@ -120,26 +123,19 @@ func TestInitCluster(t *testing.T) {
 }
 
 func TestRestart(t *testing.T) {
+	nodeRestarted := false
 	d := new(daemon)
 	d.ost = new(operatorsState)
+
+	defer mockRestartNode(&nodeRestarted)()
 
 	err := Restart().before(d)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "state not found")
 
-	temp := restartNode
-	defer func() {
-		restartNode = temp
-	}()
-
-	called := false
-	restartNode = func(c *raft.Config) raft.Node {
-		called = true
-		return nil
-	}
 	err = Restart().after(d)
 	require.NoError(t, err)
-	require.True(t, called)
+	require.True(t, nodeRestarted)
 }
 
 func TestFallback(t *testing.T) {
@@ -168,6 +164,70 @@ func TestFallback(t *testing.T) {
 	err = opr.after(nil)
 	require.NoError(t, err)
 	ctrl.Finish()
+}
+
+func TestForceJoin(t *testing.T) {
+	nodeRestarted := false
+	localID := uint64(1)
+	membs := []raftpb.Member{
+		{ID: 2},
+	}
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	client := mocks.NewMockClient(ctrl)
+	pool := mocks.NewMockPool(ctrl)
+	dial := func(context.Context, string) (rpc.Client, error) {
+		return client, nil
+	}
+	d := new(daemon)
+	d.ost = new(operatorsState)
+	d.ost.local = &raftpb.Member{
+		ID: 10,
+	}
+	d.pool = pool
+	d.cfg = cfg
+
+	// setup mocks expectation.
+	cfg.
+		EXPECT().
+		Dial().
+		Return(dial)
+
+	client.
+		EXPECT().
+		Join(gomock.Any(), gomock.Eq(*d.ost.local)).
+		Return(localID, membs, nil)
+
+	pool.
+		EXPECT().
+		Add(gomock.Eq(membs[0])).
+		Return(nil)
+
+	defer mockRestartNode(&nodeRestarted)()
+
+	// it call join and set ost.
+	err := ForceJoin("", 0).before(d)
+	require.NoError(t, err)
+	require.Equal(t, localID, d.ost.local.ID)
+	require.Equal(t, membs, d.ost.membs)
+
+	// it call pool add.
+	err = ForceJoin("", 0).after(d)
+	require.NoError(t, err)
+	require.True(t, nodeRestarted)
+}
+
+func mockRestartNode(called *bool) func() {
+	temp := restartNode
+	fn := func() {
+		restartNode = temp
+	}
+
+	restartNode = func(c *raft.Config) raft.Node {
+		*called = true
+		return nil
+	}
+	return fn
 }
 
 type noFallbackTest struct {

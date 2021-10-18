@@ -14,7 +14,6 @@ import (
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
@@ -37,16 +36,6 @@ type Event uint64
 // ID returns event id.
 func (e Event) ID() uint64 {
 	return uint64(e)
-}
-
-// TODO: config comment
-type Config interface {
-	RaftConfig() *raft.Config
-	SnapInterval() uint64
-	Pool() membership.Pool
-	Storage() storage.Storage
-	Dial() rpc.Dial
-	TickInterval() time.Duration
 }
 
 type Daemon interface {

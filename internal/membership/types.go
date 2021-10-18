@@ -10,6 +10,8 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+//go:generate mockgen -package mocks  -source internal/membership/types.go -destination internal/mocks/membership.go
+
 type constructor func(
 	ctx context.Context,
 	cfg Config,
