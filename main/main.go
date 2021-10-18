@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"log"
-	"net"
+	"net/http"
+	"strings"
 	"time"
 
 	raft "github.com/shaj13/raftkit"
-	raftgrpc "github.com/shaj13/raftkit/rpc/grpc"
-	"google.golang.org/grpc"
+	rafthttp "github.com/shaj13/raftkit/rpc/http"
+	// "google.golang.org/grpc"
 )
 
 var (
@@ -19,9 +20,9 @@ var (
 )
 
 func init() {
-	raftgrpc.Register(
-		raftgrpc.WithDialOptions(grpc.WithInsecure()),
-	)
+	// raftgrpc.Register(
+	// 	raftgrpc.WithDialOptions(grpc.WithInsecure()),
+	// )
 	flag.StringVar(&addr, "raft", "", "raft server addr")
 	flag.StringVar(&join, "join", "", "join cluster addr")
 	flag.StringVar(&dir, "dir", "", "join cluster addr")
@@ -44,20 +45,25 @@ func main() {
 	ctx := context.Background()
 	cluster, srv := raft.New(ctx, raft.WithStateDIR(dir))
 	go startRaftServer(srv)
-	if err := cluster.Start(opt, raft.WithAddress(":8081")); err != nil {
+	if err := cluster.Start(opt, raft.WithAddress(addr)); err != nil {
 		panic(err)
 	}
 }
 
 func startRaftServer(srv interface{}) {
-	s := grpc.NewServer()
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
+	// s := grpc.NewServer()
+	// lis, err := net.Listen("tcp", addr)
+	// if err != nil {
+	// 	log.Fatalf("failed to listen: %v", err)
+	// }
 
-	raftgrpc.RegisterServer(s, srv)
-	if err := s.Serve(lis); err != nil {
+	// raftgrpc.RegisterServer(s, srv)
+	// if err := s.Serve(lis); err != nil {
+	// 	log.Fatalf("failed to serve: %v", err)
+	// }
+
+	h := rafthttp.Handler(srv)
+	if err := http.ListenAndServe(strings.TrimPrefix(addr, "http://"), h); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

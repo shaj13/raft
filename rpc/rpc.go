@@ -1,9 +1,10 @@
-package net
+package rpc
 
 import "github.com/shaj13/raftkit/internal/rpc"
 
 const (
 	GRPC Proto = Proto(rpc.GRPC)
+	HTTP Proto = Proto(rpc.HTTP)
 )
 
 // Proto is a portmanteau of protocol

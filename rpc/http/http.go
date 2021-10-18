@@ -1,14 +1,13 @@
-package grpc
+package http
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/raftpb"
 	intrpc "github.com/shaj13/raftkit/internal/rpc"
-	raftgrpc "github.com/shaj13/raftkit/internal/rpc/grpc"
+	rafthttp "github.com/shaj13/raftkit/internal/rpc/http"
 	"github.com/shaj13/raftkit/rpc"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -16,8 +15,8 @@ func init() {
 }
 
 type config struct {
-	copts func(context.Context) []grpc.CallOption
-	dopts func(context.Context) []grpc.DialOption
+	tr       func(context.Context) http.RoundTripper
+	basePath string
 }
 
 // Option configures grpc using the functional options paradigm popularized by Rob Pike and Dave Cheney.
@@ -36,20 +35,23 @@ func (fn optionFunc) apply(c *config) {
 	fn(c)
 }
 
-// WithCallOptions configures grpc client call from the given options.
-func WithCallOptions(opts ...grpc.CallOption) Option {
+// WithTransport optionally specifies an http.RoundTripper for the client
+// to use when it makes a request.
+// Default: http.DefaultTransport.
+func WithTransport(tr http.RoundTripper) Option {
 	return optionFunc(func(c *config) {
-		c.copts = func(c context.Context) []grpc.CallOption {
-			return opts
+		c.tr = func(c context.Context) http.RoundTripper {
+			return tr
 		}
 	})
 }
 
-// WithDialOptions configures grpc dial from the given options.
-func WithDialOptions(opts ...grpc.DialOption) Option {
+// WithBasePath specifies the HTTP path that will serve raft requests.
+// Default: "/_raft/".
+func WithBasePath(tr http.RoundTripper) Option {
 	return optionFunc(func(c *config) {
-		c.dopts = func(c context.Context) []grpc.DialOption {
-			return opts
+		c.tr = func(c context.Context) http.RoundTripper {
+			return tr
 		}
 	})
 }
@@ -60,25 +62,25 @@ func WithDialOptions(opts ...grpc.DialOption) Option {
 // an init() function), and is not thread-safe.
 func Register(opts ...Option) {
 	c := new(config)
-	c.copts = func(c context.Context) []grpc.CallOption { return nil }
-	c.dopts = func(c context.Context) []grpc.DialOption { return nil }
+	c.tr = func(c context.Context) http.RoundTripper { return http.DefaultTransport }
+	c.basePath = "/_raft/"
 
 	for _, opt := range opts {
 		opt.apply(c)
 	}
 
-	dialer := raftgrpc.Dialer(c.dopts, c.copts)
-	ns := raftgrpc.NewServer
+	dialer := rafthttp.Dialer(c.tr, c.basePath)
+	ns := rafthttp.NewServerFunc(c.basePath)
 
 	intrpc.GRPC.Register(ns, dialer)
 }
 
-// RegisterServer registers rpc service and its implementation to the gRPC server.
-func RegisterServer(s *grpc.Server, v rpc.Server) {
-	if rs, ok := v.(raftpb.RaftServer); ok {
-		raftpb.RegisterRaftServer(s, rs)
-		return
+// Handler return's http.Handler for rpc server.
+func Handler(v rpc.Server) http.Handler {
+	if h, ok := v.(http.Handler); ok {
+		return h
 	}
 
-	log.Fatalf("raft.rpc.grpc: type %T does not implement rpc service", v)
+	log.Fatalf("raft.rpc.http: type %T does not implement rpc service", v)
+	return nil
 }

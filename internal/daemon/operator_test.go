@@ -282,18 +282,39 @@ func TestStateSetup(t *testing.T) {
 	}{
 		{
 			name: "it return nil error when ost.wasExited = false",
-			ost:  operatorsState{wasExisted: false},
+			ost: operatorsState{
+				wasExisted: false,
+				sf:         &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+			},
 		},
 		{
-			name:      "it return error when puplish snap return error",
-			ost:       operatorsState{wasExisted: true},
+			name: "it return error when puplish snap return error",
+			ost: operatorsState{
+				wasExisted: true,
+				sf: &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{
+					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
+				}},
+			},
 			called:    true,
 			expectErr: true,
 		},
 		{
-			name:   "it return nil error when puplish snap success",
-			ost:    operatorsState{wasExisted: true},
+			name: "it return nil error when puplish snap success",
+			ost: operatorsState{
+				wasExisted: true,
+				sf: &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{
+					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
+				}},
+			},
 			called: true,
+		},
+		{
+			name: "it return nil error when and not call publish snap",
+			ost: operatorsState{
+				wasExisted: true,
+				sf:         &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+			},
+			called: false,
 		},
 	}
 

@@ -225,8 +225,10 @@ func (s stateSetup) after(d *daemon) (err error) {
 		return
 	}
 
-	if err := s.publishSnapshotFile(d.ost.sf); err != nil {
-		return err
+	if !raft.IsEmptySnap(*d.ost.sf.Snap) {
+		if err := s.publishSnapshotFile(d.ost.sf); err != nil {
+			return err
+		}
 	}
 
 	d.cache.SetHardState(d.ost.hst)

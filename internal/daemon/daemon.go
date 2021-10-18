@@ -299,7 +299,7 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	if err := invoke(d, oprs...); err != nil {
 		return err
 	}
-	
+
 	// subscribe to propose message.
 	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
 	// subscribe to recived received.

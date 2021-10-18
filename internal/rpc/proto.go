@@ -6,6 +6,7 @@ import (
 
 const (
 	GRPC Proto = iota + 1
+	HTTP
 	max
 )
 
