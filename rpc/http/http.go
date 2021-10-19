@@ -19,7 +19,7 @@ type config struct {
 	basePath string
 }
 
-// Option configures grpc using the functional options paradigm popularized by Rob Pike and Dave Cheney.
+// Option configures http using the functional options paradigm popularized by Rob Pike and Dave Cheney.
 // If you're unfamiliar with this style,
 // see https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html and
 // https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis.
@@ -56,7 +56,7 @@ func WithBasePath(tr http.RoundTripper) Option {
 	})
 }
 
-// Register registers the gRPC for use with all clients and servers communication.
+// Register registers the http for use with all clients and servers communication.
 //
 // NOTE: this function must only be called during initialization time (i.e. in
 // an init() function), and is not thread-safe.
@@ -72,7 +72,7 @@ func Register(opts ...Option) {
 	dialer := rafthttp.Dialer(c.tr, c.basePath)
 	ns := rafthttp.NewServerFunc(c.basePath)
 
-	intrpc.GRPC.Register(ns, dialer)
+	intrpc.HTTP.Register(ns, dialer)
 }
 
 // Handler return's http.Handler for rpc server.
