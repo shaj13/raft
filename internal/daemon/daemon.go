@@ -452,6 +452,12 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		return
 	}
 
+	// got remote member as a local, cast it back to remote.
+	// this can happen when leader replicate conf change from his perspective to follower.
+	if mem.ID != d.ost.local.ID && mem.Type == raftpb.LocalMember { // TODO: dont use ost.
+		mem.Type = raftpb.RemoteMember
+	}
+
 	// TODO: need to check that removed added etc is not the current node
 	switch cc.Type {
 	case etcdraftpb.ConfChangeAddNode:
