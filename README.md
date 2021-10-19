@@ -13,5 +13,6 @@
 - [ ] spike: how to restore data from snapshot ? 
 - [ ] check the conf change v2 in etcd 
 - [ ] spike: do we need to store metadata in ctx ? 
+- [ ] operator should use ost as arg not from daemon ? 
 
 
