@@ -86,27 +86,27 @@ type forceJoin struct {
 	timeout time.Duration
 }
 
-func (f forceJoin) before(d *daemon) error {
+func (f forceJoin) before(ost *operatorsState) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), f.timeout)
 	defer cancel()
 
-	rpc, err := d.cfg.Dial()(ctx, f.addr)
+	rpc, err := ost.daemon.cfg.Dial()(ctx, f.addr)
 	if err != nil {
 		return err
 	}
 
-	d.ost.local.ID, d.ost.membs, err = rpc.Join(ctx, *d.ost.local)
+	ost.local.ID, ost.membs, err = rpc.Join(ctx, *ost.local)
 	return err
 }
 
-func (f forceJoin) after(d *daemon) error {
-	for _, mem := range d.ost.membs {
-		if err := d.pool.Add(mem); err != nil {
+func (f forceJoin) after(ost *operatorsState) error {
+	for _, mem := range ost.membs {
+		if err := ost.daemon.pool.Add(mem); err != nil {
 			return err
 		}
 	}
 
-	return restart{}.after(d)
+	return restart{}.after(ost)
 }
 
 func (f forceJoin) String() string {
@@ -117,11 +117,11 @@ type join struct {
 	forceJoin
 }
 
-func (j join) before(d *daemon) error {
-	if d.ost.wasExisted {
+func (j join) before(ost *operatorsState) error {
+	if ost.hasExistingState {
 		return errors.New("raft: this node is already part of a cluster")
 	}
-	return j.forceJoin.before(d)
+	return j.forceJoin.before(ost)
 }
 
 func (j join) String() string {
@@ -130,16 +130,16 @@ func (j join) String() string {
 
 type initCluster struct{}
 
-func (c initCluster) before(d *daemon) error {
-	if d.ost.wasExisted {
+func (c initCluster) before(ost *operatorsState) error {
+	if ost.hasExistingState {
 		return errors.New("raft: cluster is already exist")
 	}
 	return nil
 }
 
-func (c initCluster) after(d *daemon) error {
-	membs := d.ost.membs
-	membs = append([]raftpb.Member{*d.ost.local}, membs...)
+func (c initCluster) after(ost *operatorsState) error {
+	membs := ost.membs
+	membs = append([]raftpb.Member{*ost.local}, membs...)
 	peers := make([]raft.Peer, len(membs))
 
 	for i, mem := range membs {
@@ -149,7 +149,7 @@ func (c initCluster) after(d *daemon) error {
 		}
 	}
 
-	d.node = startNode(d.ost.cfg, peers)
+	ost.daemon.node = startNode(ost.cfg, peers)
 	return nil
 }
 
@@ -159,15 +159,15 @@ func (c initCluster) String() string {
 
 type restart struct{}
 
-func (r restart) before(d *daemon) error {
-	if !d.ost.wasExisted {
+func (r restart) before(ost *operatorsState) error {
+	if !ost.hasExistingState {
 		return errors.New("raft: node state not found")
 	}
 	return nil
 }
 
-func (r restart) after(d *daemon) error {
-	d.node = restartNode(d.ost.cfg)
+func (r restart) after(ost *operatorsState) error {
+	ost.daemon.node = restartNode(ost.cfg)
 	return nil
 }
 
@@ -180,7 +180,7 @@ type fallback struct {
 	success   Operator
 }
 
-func (f *fallback) before(d *daemon) error {
+func (f *fallback) before(ost *operatorsState) error {
 	errs := []string{}
 	for _, op := range f.operators {
 		_, ok := op.(interface {
@@ -191,7 +191,7 @@ func (f *fallback) before(d *daemon) error {
 		}
 
 		// call operator.
-		err := op.before(d)
+		err := op.before(ost)
 		if err == nil {
 			f.success = op
 			return nil
@@ -203,12 +203,12 @@ func (f *fallback) before(d *daemon) error {
 	return fmt.Errorf(strings.Join(errs, ", "))
 }
 
-func (f *fallback) after(d *daemon) error {
+func (f *fallback) after(ost *operatorsState) error {
 	if f.success == nil {
 		panic("fallback.after called before fallback.before")
 	}
 
-	return f.success.after(d)
+	return f.success.after(ost)
 }
 
 func (f fallback) String() string {
@@ -219,20 +219,20 @@ type stateSetup struct {
 	publishSnapshotFile func(*storage.SnapshotFile) error
 }
 
-func (s stateSetup) before(d *daemon) (err error) { return }
-func (s stateSetup) after(d *daemon) (err error) {
-	if !d.ost.wasExisted {
+func (s stateSetup) before(ost *operatorsState) (err error) { return }
+func (s stateSetup) after(ost *operatorsState) (err error) {
+	if !ost.hasExistingState {
 		return
 	}
 
-	if !raft.IsEmptySnap(*d.ost.sf.Snap) {
-		if err := s.publishSnapshotFile(d.ost.sf); err != nil {
+	if !raft.IsEmptySnap(*ost.sf.Snap) {
+		if err := s.publishSnapshotFile(ost.sf); err != nil {
 			return err
 		}
 	}
 
-	d.cache.SetHardState(d.ost.hst)
-	d.cache.Append(d.ost.ents)
+	ost.daemon.cache.SetHardState(ost.hst)
+	ost.daemon.cache.Append(ost.ents)
 	return
 }
 
@@ -244,10 +244,9 @@ type setup struct {
 	addr string
 }
 
-func (s setup) before(d *daemon) (err error) {
-	d.ost = new(operatorsState)
-	d.ost.wasExisted = d.storage.Exist()
-	d.ost.local = &raftpb.Member{
+func (s setup) before(ost *operatorsState) (err error) {
+	ost.hasExistingState = ost.daemon.storage.Exist()
+	ost.local = &raftpb.Member{
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: s.addr,
@@ -256,13 +255,13 @@ func (s setup) before(d *daemon) (err error) {
 	return
 }
 
-func (s setup) after(d *daemon) (err error) {
-	if len(d.ost.local.Address) == 0 {
+func (s setup) after(ost *operatorsState) (err error) {
+	if len(ost.local.Address) == 0 {
 		return errors.New("raft: no address set, use raft.WithAddress() or raft.WithMembers")
 	}
 
-	meta := pbutil.MustMarshal(d.ost.local)
-	meta, d.ost.hst, d.ost.ents, d.ost.sf, err = d.storage.Boot(meta)
+	meta := pbutil.MustMarshal(ost.local)
+	meta, ost.hst, ost.ents, ost.sf, err = ost.daemon.storage.Boot(meta)
 	if err != nil {
 		return
 	}
@@ -270,11 +269,11 @@ func (s setup) after(d *daemon) (err error) {
 	local := new(raftpb.Member)
 	pbutil.MustUnmarshal(local, meta)
 
-	cfg := d.cfg.RaftConfig()
+	cfg := ost.daemon.cfg.RaftConfig()
 	cfg.ID = local.ID
-	cfg.Storage = d.cache
-	d.ost.cfg = cfg
-	d.ost.local = local
+	cfg.Storage = ost.daemon.cache
+	ost.cfg = cfg
+	ost.local = local
 	return
 }
 
@@ -284,15 +283,16 @@ func (s setup) String() string {
 
 type forceNewCluster struct{}
 
-func (forceNewCluster) noFallback()                  {}
-func (forceNewCluster) before(d *daemon) (err error) { return }
+func (forceNewCluster) noFallback()                            {}
+func (forceNewCluster) before(ost *operatorsState) (err error) { return }
 
-func (f forceNewCluster) after(d *daemon) (err error) {
-	sf := d.ost.sf
-	local := *d.ost.local
-	membs := d.ost.membs
-	ents := d.ost.ents
-	hs := d.ost.hst
+func (f forceNewCluster) after(ost *operatorsState) (err error) {
+	storage := ost.daemon.storage
+	sf := ost.sf
+	local := *ost.local
+	membs := ost.membs
+	ents := ost.ents
+	hs := ost.hst
 	next := hs.Commit + 1
 
 	// override latest snapshot pool members.
@@ -301,17 +301,17 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 			Members: append([]raftpb.Member{local}, membs...),
 		}
 
-		err := d.storage.Snapshotter().Write(sf)
+		err := storage.Snapshotter().Write(sf)
 		if err != nil {
 			return err
 		}
 
-		sf, err = d.storage.Snapshotter().Read(*sf.Snap)
+		sf, err = storage.Snapshotter().Read(*sf.Snap)
 		if err != nil {
 			return err
 		}
 
-		d.ost.sf = sf
+		ost.sf = sf
 	}
 
 	// discard uncommitted entries
@@ -368,9 +368,9 @@ func (f forceNewCluster) after(d *daemon) (err error) {
 		hs.Commit = ents[len(ents)-1].Index
 	}
 
-	d.ost.ents = ents
-	d.ost.hst = hs
-	return d.storage.SaveEntries(hs, ents)
+	ost.ents = ents
+	ost.hst = hs
+	return storage.SaveEntries(hs, ents)
 }
 
 func (f forceNewCluster) addOns() []Operator {
@@ -385,33 +385,36 @@ type restore struct {
 	path string
 }
 
-func (r restore) after(d *daemon) (err error) { return }
+func (r restore) after(ost *operatorsState) (err error) { return }
 
 func (r restore) noFallback() {}
 
-func (r restore) before(d *daemon) (err error) {
-	if d.ost.wasExisted {
+func (r restore) before(ost *operatorsState) (err error) {
+	if ost.hasExistingState {
 		return errors.New("raft: found orphan node state")
 	}
-	// update state to existed.
-	d.ost.wasExisted = true
 
-	sf, err := d.storage.Snapshotter().ReadFromPath(r.path)
+	storage := ost.daemon.storage
+
+	// update state to existed.
+	ost.hasExistingState = true
+
+	sf, err := storage.Snapshotter().ReadFromPath(r.path)
 	if err != nil {
 		return err
 	}
 
 	// boot storage.
-	meta := pbutil.MustMarshal(d.ost.local)
-	_, _, _, _, err = d.storage.Boot(meta)
+	meta := pbutil.MustMarshal(ost.local)
+	_, _, _, _, err = storage.Boot(meta)
 	if err != nil {
 		return err
 	}
 
 	// copy membs to be used as membership pool.
-	membs := make([]raftpb.Member, len(d.ost.membs))
-	copy(membs, d.ost.membs)
-	membs = append(membs, *d.ost.local)
+	membs := make([]raftpb.Member, len(ost.membs))
+	copy(membs, ost.membs)
+	membs = append(membs, *ost.local)
 
 	// issue conf change for membs.
 	ents := make([]etcdraftpb.Entry, len(membs))
@@ -440,7 +443,7 @@ func (r restore) before(d *daemon) (err error) {
 	}
 
 	// save entries to storgae.
-	if err := d.storage.SaveEntries(hs, ents); err != nil {
+	if err := storage.SaveEntries(hs, ents); err != nil {
 		return err
 	}
 
@@ -461,17 +464,17 @@ func (r restore) before(d *daemon) (err error) {
 	sf.Snap = &snap
 
 	// save new snapshot file to state dir.
-	if err := d.storage.Snapshotter().Write(sf); err != nil {
+	if err := storage.Snapshotter().Write(sf); err != nil {
 		return err
 	}
 
 	// save snapshot to storage.
-	if err := d.storage.SaveSnapshot(snap); err != nil {
+	if err := storage.SaveSnapshot(snap); err != nil {
 		return err
 	}
 
 	// close storage so next operator can boot it again.
-	return d.storage.Close()
+	return storage.Close()
 }
 
 func (r restore) addOns() []Operator {
@@ -486,11 +489,11 @@ type members struct {
 	urls []string
 }
 
-func (m members) after(d *daemon) (err error) { return }
+func (m members) after(ost *operatorsState) (err error) { return }
 
 func (m members) noFallback() {}
 
-func (m members) before(d *daemon) (err error) {
+func (m members) before(ost *operatorsState) (err error) {
 	for i, raw := range m.urls {
 		id, addr, err := membership.ParseURL(raw)
 		if err != nil {
@@ -505,11 +508,11 @@ func (m members) before(d *daemon) (err error) {
 
 		if i == 0 {
 			mem.Type = raftpb.LocalMember
-			d.ost.local = &mem
+			ost.local = &mem
 			continue
 		}
 
-		d.ost.membs = append(d.ost.membs, mem)
+		ost.membs = append(ost.membs, mem)
 	}
 
 	return
@@ -519,7 +522,7 @@ func (m members) String() string {
 	return "Members"
 }
 
-func invoke(d *daemon, oprs ...Operator) error {
+func invoke(d *daemon, oprs ...Operator) (*operatorsState, error) {
 	for _, opr := range oprs {
 		a, ok := opr.(interface {
 			addOns() []Operator
@@ -534,17 +537,20 @@ func invoke(d *daemon, oprs ...Operator) error {
 		return order[oprs[i].String()] < order[oprs[j].String()]
 	})
 
+	ost := new(operatorsState)
+	ost.daemon = d
+
 	for _, opr := range oprs {
-		if err := opr.before(d); err != nil {
-			return err
+		if err := opr.before(ost); err != nil {
+			return nil, err
 		}
 	}
 
 	for _, opr := range oprs {
-		if err := opr.after(d); err != nil {
-			return err
+		if err := opr.after(ost); err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return ost, nil
 }

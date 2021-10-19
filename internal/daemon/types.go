@@ -17,8 +17,8 @@ import (
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
 type Operator interface {
 	fmt.Stringer
-	before(d *daemon) error
-	after(d *daemon) error
+	before(ost *operatorsState) error
+	after(ost *operatorsState) error
 }
 
 type Config interface {
@@ -31,11 +31,12 @@ type Config interface {
 }
 
 type operatorsState struct {
-	wasExisted bool
-	local      *raftpb.Member
-	membs      []raftpb.Member
-	cfg        *raft.Config
-	hst        etcdraftpb.HardState
-	ents       []etcdraftpb.Entry
-	sf         *storage.SnapshotFile
+	hasExistingState bool
+	local            *raftpb.Member
+	membs            []raftpb.Member
+	cfg              *raft.Config
+	hst              etcdraftpb.HardState
+	ents             []etcdraftpb.Entry
+	sf               *storage.SnapshotFile
+	daemon           *daemon
 }

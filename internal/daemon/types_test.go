@@ -53,31 +53,31 @@ func (mr *MockOperatorMockRecorder) String() *gomock.Call {
 }
 
 // after mocks base method.
-func (m *MockOperator) after(d *daemon) error {
+func (m *MockOperator) after(ost *operatorsState) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "after", d)
+	ret := m.ctrl.Call(m, "after", ost)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // after indicates an expected call of after.
-func (mr *MockOperatorMockRecorder) after(d interface{}) *gomock.Call {
+func (mr *MockOperatorMockRecorder) after(ost interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "after", reflect.TypeOf((*MockOperator)(nil).after), d)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "after", reflect.TypeOf((*MockOperator)(nil).after), ost)
 }
 
 // before mocks base method.
-func (m *MockOperator) before(d *daemon) error {
+func (m *MockOperator) before(ost *operatorsState) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "before", d)
+	ret := m.ctrl.Call(m, "before", ost)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // before indicates an expected call of before.
-func (mr *MockOperatorMockRecorder) before(d interface{}) *gomock.Call {
+func (mr *MockOperatorMockRecorder) before(ost interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "before", reflect.TypeOf((*MockOperator)(nil).before), d)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "before", reflect.TypeOf((*MockOperator)(nil).before), ost)
 }
 
 // MockConfig is a mock of Config interface.

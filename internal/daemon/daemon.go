@@ -72,7 +72,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 type daemon struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
-	ost          *operatorsState
+	local        *raftpb.Member
 	cfg          Config
 	node         raft.Node
 	ticker       *time.Ticker
@@ -296,16 +296,19 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
 	oprs = append(oprs, setup{addr: addr}, stateSetup{publishSnapshotFile: d.publishSnapshotFile})
-	if err := invoke(d, oprs...); err != nil {
+	ost, err := invoke(d, oprs...)
+	if err != nil {
 		return err
 	}
 
+	// set local member.
+	d.local = ost.local
 	// subscribe to propose message.
 	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
 	// subscribe to recived received.
 	recv := d.msgbus.SubscribeBuffered(msg.ID(), 4096)
 
-	d.idgen = idutil.NewGenerator(uint16(d.ost.local.ID), time.Now())
+	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
 	d.started.Set()
 	go d.process(prop)
 	go d.process(recv)
@@ -454,7 +457,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 
 	// got remote member as a local, cast it back to remote.
 	// this can happen when leader replicate conf change from his perspective to follower.
-	if mem.ID != d.ost.local.ID && mem.Type == raftpb.LocalMember { // TODO: dont use ost.
+	if mem.ID != d.local.ID && mem.Type == raftpb.LocalMember {
 		mem.Type = raftpb.RemoteMember
 	}
 
