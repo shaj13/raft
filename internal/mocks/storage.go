@@ -5,7 +5,6 @@
 package mocks
 
 import (
-	context "context"
 	io "io"
 	reflect "reflect"
 
@@ -68,9 +67,9 @@ func (mr *MockSnapshotterMockRecorder) ReadFromPath(path interface{}) *gomock.Ca
 }
 
 // Reader mocks base method.
-func (m *MockSnapshotter) Reader(arg0 context.Context, arg1 raftpb.Snapshot) (string, io.ReadCloser, error) {
+func (m *MockSnapshotter) Reader(arg0 raftpb.Snapshot) (string, io.ReadCloser, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reader", arg0, arg1)
+	ret := m.ctrl.Call(m, "Reader", arg0)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(io.ReadCloser)
 	ret2, _ := ret[2].(error)
@@ -78,9 +77,9 @@ func (m *MockSnapshotter) Reader(arg0 context.Context, arg1 raftpb.Snapshot) (st
 }
 
 // Reader indicates an expected call of Reader.
-func (mr *MockSnapshotterMockRecorder) Reader(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Reader(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockSnapshotter)(nil).Reader), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockSnapshotter)(nil).Reader), arg0)
 }
 
 // Write mocks base method.
@@ -98,9 +97,9 @@ func (mr *MockSnapshotterMockRecorder) Write(sf interface{}) *gomock.Call {
 }
 
 // Writer mocks base method.
-func (m *MockSnapshotter) Writer(arg0 context.Context, arg1 string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
+func (m *MockSnapshotter) Writer(arg0 string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Writer", arg0, arg1)
+	ret := m.ctrl.Call(m, "Writer", arg0)
 	ret0, _ := ret[0].(io.WriteCloser)
 	ret1, _ := ret[1].(func() (raftpb.Snapshot, error))
 	ret2, _ := ret[2].(error)
@@ -108,9 +107,9 @@ func (m *MockSnapshotter) Writer(arg0 context.Context, arg1 string) (io.WriteClo
 }
 
 // Writer indicates an expected call of Writer.
-func (mr *MockSnapshotterMockRecorder) Writer(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Writer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockSnapshotter)(nil).Writer), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockSnapshotter)(nil).Writer), arg0)
 }
 
 // MockStorage is a mock of Storage interface.

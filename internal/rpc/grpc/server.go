@@ -104,7 +104,7 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 
 	log.Debugf("raft.grpc: downloading sanpshot %s file", snapname)
 
-	w, peek, err := s.snap.Writer(ctx, snapname)
+	w, peek, err := s.snap.Writer(snapname)
 	if err != nil {
 		return err
 	}

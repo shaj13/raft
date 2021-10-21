@@ -1,7 +1,6 @@
 package disk
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -31,7 +30,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &snapshotter{snapdir: "./testdata/"}
-			_, _, err := s.Reader(context.TODO(), tt.snap)
+			_, _, err := s.Reader(tt.snap)
 			if err == nil {
 				t.Fatal("expected non nil error")
 			}
@@ -42,7 +41,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 
 func TestSnapshoterReader(t *testing.T) {
 	s := &snapshotter{snapdir: "./testdata/"}
-	name, r, err := s.Reader(context.TODO(), testSnap(1, 1))
+	name, r, err := s.Reader(testSnap(1, 1))
 	assert.NoError(t, err)
 	assert.Equal(t, snapshotName(1, 1), name)
 	if assert.NotNil(t, r) {
@@ -52,16 +51,15 @@ func TestSnapshoterReader(t *testing.T) {
 
 func TestSnapshoterWriter(t *testing.T) {
 	file := "testsnapshoterwriter_invalid"
-	ctx := context.TODO()
 	s := &snapshotter{snapdir: "/does_not_exist"}
 
 	// Round #1 check file error
-	_, _, err := s.Writer(ctx, file)
+	_, _, err := s.Writer(file)
 	assert.Contains(t, err.Error(), "no such file or directory")
 
 	// Round #2 check write and peek
 	s.snapdir = "./testdata"
-	w, peek, err := s.Writer(ctx, file)
+	w, peek, err := s.Writer(file)
 
 	if !assert.NoError(t, err) {
 		return

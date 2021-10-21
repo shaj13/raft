@@ -69,7 +69,7 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	log.Debugf("raft.http: downloading sanpshot %s file", snapname)
 
-	wr, peek, err := s.snap.Writer(r.Context(), snapname)
+	wr, peek, err := s.snap.Writer(snapname)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

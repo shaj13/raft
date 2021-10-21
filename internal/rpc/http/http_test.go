@@ -123,12 +123,12 @@ func TestSnapshot(t *testing.T) {
 			shotter := mocks.NewMockSnapshotter(ctrl)
 			shotter.
 				EXPECT().
-				Reader(gomock.Any(), gomock.Any()).
+				Reader(gomock.Any()).
 				Return(expName, ioutil.NopCloser(strings.NewReader(snapData)), nil)
 			shotter.
 				EXPECT().
-				Writer(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(_ context.Context, name string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
+				Writer(gomock.Any()).
+				DoAndReturn(func(name string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
 					gotName = name
 					peek := func() (etcdraftpb.Snapshot, error) {
 						return etcdraftpb.Snapshot{}, nil

@@ -85,7 +85,7 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 }
 
 func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error) {
-	name, r, err := c.shotter.Reader(ctx, m.Snapshot)
+	name, r, err := c.shotter.Reader(m.Snapshot)
 	if err != nil {
 		return err
 	}

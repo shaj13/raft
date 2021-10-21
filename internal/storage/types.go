@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"context"
 	"io"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -17,8 +16,8 @@ type SnapshotFile struct {
 }
 
 type Snapshotter interface {
-	Reader(context.Context, etcdraftpb.Snapshot) (string, io.ReadCloser, error)
-	Writer(context.Context, string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
+	Reader(etcdraftpb.Snapshot) (string, io.ReadCloser, error)
+	Writer(string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
 	Write(sf *SnapshotFile) error
 	Read(snap etcdraftpb.Snapshot) (*SnapshotFile, error)
 	ReadFromPath(path string) (*SnapshotFile, error)
