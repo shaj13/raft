@@ -13,7 +13,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/mocks"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
@@ -47,7 +46,7 @@ func TestMessage(t *testing.T) {
 			srv.ctrl = rpcCtrl
 			err := c.Message(context.Background(), etcdraftpb.Message{})
 			if tt.err != nil {
-				assert.Contains(t, err.Error(), tt.err.Error())
+				require.Contains(t, err.Error(), tt.err.Error())
 			}
 		})
 	}
@@ -83,10 +82,10 @@ func TestJoin(t *testing.T) {
 			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.id, tt.membs, tt.err)
 			srv.ctrl = rpcCtrl
 			id, pool, err := c.Join(context.Background(), raftpb.Member{})
-			assert.Equal(t, tt.id, id)
-			assert.Equal(t, tt.membs, pool)
+			require.Equal(t, tt.id, id)
+			require.Equal(t, tt.membs, pool)
 			if tt.err != nil {
-				assert.Contains(t, err.Error(), tt.err.Error())
+				require.Contains(t, err.Error(), tt.err.Error())
 			}
 		})
 	}
@@ -143,7 +142,7 @@ func TestSnapshot(t *testing.T) {
 			c.shotter = shotter
 			err := c.snapshot(context.Background(), etcdraftpb.Message{})
 			if tt.err != nil {
-				assert.Contains(t, err.Error(), tt.err.Error())
+				require.Contains(t, err.Error(), tt.err.Error())
 			} else {
 				require.Equal(t, expName, gotName)
 				require.Equal(t, snapData, buf.String())
