@@ -73,7 +73,7 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 
 	id, err := strconv.ParseUint(h.Get(memberIDHeader), 0, 64)
 	if err != nil {
-		return 0, nil, fmt.Errorf("raft/rpc/http: parse member id: %v", err)
+		return 0, nil, fmt.Errorf("raft/http: parse member id: %v", err)
 	}
 
 	return id, pool.Members, nil
@@ -145,16 +145,16 @@ func (c *client) request(ctx context.Context, uri string, h http.Header, body io
 
 	_, err = io.Copy(b, res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("raft/rpc/http: reading response body: %v", err)
+		return nil, fmt.Errorf("raft/http: reading response body: %v", err)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("raft/rpc/http: server returned: %v : %v", res.Status, b.String())
+		return nil, fmt.Errorf("raft/http: server returned: %v : %v", res.Status, b.String())
 	}
 
 	err = out.Unmarshal(b.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("raft/rpc/http: decoding response body: %v", err)
+		return nil, fmt.Errorf("raft/http: decoding response body: %v", err)
 	}
 
 	return res.Header, nil

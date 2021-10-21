@@ -15,6 +15,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+// NewServerFunc retur'ns func that create an http server.
 func NewServerFunc(basePath string) rpc.NewServer {
 	return func(c context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 		s := &server{
@@ -24,13 +25,6 @@ func NewServerFunc(basePath string) rpc.NewServer {
 		return mux(s, basePath), nil
 	}
 }
-
-// NewServer return an http Server.
-//
-// NewServer compatible with rpc.New.
-// func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
-
-// }
 
 type server struct {
 	ctrl rpc.Controller
@@ -58,7 +52,7 @@ func (s *server) message(w http.ResponseWriter, r *http.Request) (int, error) {
 func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	vals := r.Header.Values(snapshotHeader)
 	if len(vals) < 3 {
-		return http.StatusBadRequest, errors.New("raft/rpc/http: snapshot header missing")
+		return http.StatusBadRequest, errors.New("raft/http: snapshot header missing")
 	}
 
 	snapname := vals[0]
@@ -73,10 +67,7 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusBadRequest, err
 	}
 
-	log.Debugf(
-		"raft.rpc.http: start downloading sanpshot %s file",
-		snapname,
-	)
+	log.Debugf("raft.http: downloading sanpshot %s file", snapname)
 
 	wr, peek, err := s.snap.Writer(r.Context(), snapname)
 	if err != nil {
@@ -119,6 +110,8 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusBadRequest, err
 	}
 
+	log.Debugf("raft.http: new member asks to join the cluster on address %s", m.Address)
+
 	id, membs, err := s.ctrl.Join(r.Context(), m)
 	if err != nil {
 		return http.StatusInternalServerError, err
@@ -152,11 +145,15 @@ func httpHandler(h handler) http.HandlerFunc {
 
 		code, err := h(w, r)
 		if err != nil {
+			log.Warnf("raft.http: handle %s: %v", r.URL.Path, err)
 			http.Error(w, err.Error(), code)
 			return
 		}
 
-		w.WriteHeader(code)
+		// Write calls WriteHeader(http.StatusOK)
+		if code != http.StatusOK {
+			w.WriteHeader(code)
+		}
 	})
 }
 

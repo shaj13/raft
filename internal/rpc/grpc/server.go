@@ -41,7 +41,7 @@ func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 	defer func() {
 		bufferPool.Put(buf)
 		if err != nil {
-			log.Warnf("raft/grpc: handle incoming message: %v", err)
+			log.Warnf("raft.grpc: handle incoming message: %v", err)
 		}
 	}()
 
@@ -75,7 +75,7 @@ func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft/grpc: downloading snapshot: %v", err)
+			log.Warnf("raft.grpc: downloading snapshot: %v", err)
 		}
 	}()
 
@@ -102,7 +102,7 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 		return err
 	}
 
-	log.Debugf("raft/grpc: downloading sanpshot %s file", snapname)
+	log.Debugf("raft.grpc: downloading sanpshot %s file", snapname)
 
 	w, peek, err := s.snap.Writer(ctx, snapname)
 	if err != nil {
@@ -144,11 +144,11 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft/grpc: handle join request: %v", err)
+			log.Warnf("raft.grpc: handle join request: %v", err)
 		}
 	}()
 
-	log.Debugf("raft/grpc: new member asks to join the cluster on address %s", m.Address)
+	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
 	id, membs, err := s.ctrl.Join(stream.Context(), m)
 	if err != nil {
