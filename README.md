@@ -1,6 +1,7 @@
 # raftkit
 
 ### TODO 
+- [ ] rename member since to ActiveSince 
 - [ ] cluster add creat snap method 
 - [ ] dont expose any event for now 
 - [ ] cancel all proposal when leader lost 
