@@ -23,7 +23,6 @@ func newDecoder(w io.Writer) *decoder {
 
 type encoder struct {
 	scanner *bufio.Scanner
-	err     error
 	index   uint64
 }
 
