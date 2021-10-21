@@ -152,9 +152,12 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 	}
 
 	copts := func(c context.Context) []grpc.CallOption { return nil }
-	cfg := new(testConfig)
 
 	ctx := context.TODO()
+	ctrl := gomock.NewController(tb)
+	cfg := mocks.NewMockDialerConfig(ctrl)
+	cfg.EXPECT().Snapshotter().Return(nil)
+
 	c, err := Dialer(dopts, copts)(ctx, cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
@@ -205,22 +208,6 @@ func (t *testSnapshoter) ReadFromPath(string) (*storage.SnapshotFile, error) {
 func (t *testSnapshoter) Assert(tb testing.TB) {
 	assert.Equal(tb, t.expname, t.gotname)
 	assert.Equal(tb, t.data, t.buf.Bytes())
-}
-
-type testConfig struct {
-	dialopts []grpc.DialOption
-}
-
-func (t testConfig) CallOption() []grpc.CallOption {
-	return []grpc.CallOption{}
-}
-
-func (t testConfig) DialOption() []grpc.DialOption {
-	return t.dialopts
-}
-
-func (t testConfig) Snapshotter() storage.Snapshotter {
-	return nil
 }
 
 type writeCloser struct {
