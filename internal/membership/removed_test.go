@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -17,12 +17,12 @@ func TestRemoved(t *testing.T) {
 		addr: addr,
 	}
 
-	assert.Equal(t, id, r.ID())
-	assert.Equal(t, addr, r.Address())
-	assert.False(t, r.IsActive())
-	assert.Equal(t, time.Time{}, r.Since())
-	assert.Equal(t, raftpb.RemovedMember, r.Type())
-	assert.Equal(t, r.Send(etcdraftpb.Message{}), ErrRemovedMember)
-	assert.Equal(t, r.Update(""), ErrRemovedMember)
-	assert.Equal(t, addr, r.Address())
+	require.Equal(t, id, r.ID())
+	require.Equal(t, addr, r.Address())
+	require.False(t, r.IsActive())
+	require.Equal(t, time.Time{}, r.Since())
+	require.Equal(t, raftpb.RemovedMember, r.Type())
+	require.Equal(t, r.Send(etcdraftpb.Message{}), ErrRemovedMember)
+	require.Equal(t, r.Update(""), ErrRemovedMember)
+	require.Equal(t, addr, r.Address())
 }

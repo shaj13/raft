@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFactory(t *testing.T) {
@@ -22,22 +22,22 @@ func TestFactory(t *testing.T) {
 	)
 
 	mem, ok, err := f.From(m)
-	assert.NoError(t, err)
-	assert.True(t, ok)
-	assert.Equal(t, m.Address, mem.Address())
-	assert.Equal(t, m.ID, mem.ID())
-	assert.Equal(t, m.Type, mem.Type())
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, m.Address, mem.Address())
+	require.Equal(t, m.ID, mem.ID())
+	require.Equal(t, m.Type, mem.Type())
 
 	mem, ok, err = f.Cast(mem, raftpb.RemovedMember)
-	assert.NoError(t, err)
-	assert.True(t, ok)
-	assert.Equal(t, m.Address, mem.Address())
-	assert.Equal(t, m.ID, mem.ID())
-	assert.Equal(t, raftpb.RemovedMember, mem.Type())
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, m.Address, mem.Address())
+	require.Equal(t, m.ID, mem.ID())
+	require.Equal(t, raftpb.RemovedMember, mem.Type())
 
 	mm := f.To(mem)
 	m.Type = raftpb.RemovedMember
-	assert.Equal(t, m, mm)
+	require.Equal(t, m, mm)
 }
 
 func TestNewRemote(t *testing.T) {

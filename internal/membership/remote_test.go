@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -21,12 +21,12 @@ func TestRemote(t *testing.T) {
 		addr: addr,
 	}
 
-	assert.Equal(t, r.ID(), id)
-	assert.Equal(t, r.Address(), addr)
-	assert.False(t, r.IsActive())
-	assert.Equal(t, r.Since(), time.Time{})
-	assert.Equal(t, r.Type(), raftpb.RemoteMember)
-	assert.Nil(t, r.client())
+	require.Equal(t, r.ID(), id)
+	require.Equal(t, r.Address(), addr)
+	require.False(t, r.IsActive())
+	require.Equal(t, r.Since(), time.Time{})
+	require.Equal(t, r.Type(), raftpb.RemoteMember)
+	require.Nil(t, r.client())
 }
 
 func TestRemoteSetStatus(t *testing.T) {
@@ -61,7 +61,7 @@ func TestRemoteSetStatus(t *testing.T) {
 		r := new(remote)
 		r.active = tt.currentstate
 		r.setStatus(tt.in)
-		assert.Equal(t, tt.in, r.IsActive())
+		require.Equal(t, tt.in, r.IsActive())
 	}
 }
 
@@ -81,19 +81,19 @@ func TestRemoteUpdate(t *testing.T) {
 
 	// Round #1 it does not update addr if are the same
 	got := r.Update(addr)
-	assert.NoError(t, got)
-	assert.Equal(t, addr, r.addr)
+	require.NoError(t, got)
+	require.Equal(t, addr, r.addr)
 
 	// Round #2 it return error whn dial return error
 	got = r.Update(uaddr)
-	assert.Equal(t, err, got)
-	assert.Equal(t, addr, r.addr)
+	require.Equal(t, err, got)
+	require.Equal(t, addr, r.addr)
 
 	// Round #3 it update addr and close old tr
 	r.dial = mockDial(m, nil)
 	got = r.Update(uaddr)
-	assert.NoError(t, got)
-	assert.Equal(t, uaddr, r.addr)
+	require.NoError(t, got)
+	require.Equal(t, uaddr, r.addr)
 	m.AssertCalled(t, "Close")
 }
 
@@ -168,12 +168,12 @@ func TestRemoteSend(t *testing.T) {
 	cancel()
 	r.ctx = ctx
 	err := r.Send(etcdraftpb.Message{})
-	assert.Contains(t, err.Error(), "canceled")
+	require.Contains(t, err.Error(), "canceled")
 
 	// Round #2 it return error when chan is full
 	r.ctx = context.Background()
 	err = r.Send(etcdraftpb.Message{})
-	assert.Contains(t, err.Error(), "buffer is full")
+	require.Contains(t, err.Error(), "buffer is full")
 }
 
 func TestRemoteDrain(t *testing.T) {
@@ -188,13 +188,13 @@ func TestRemoteDrain(t *testing.T) {
 	// Round #1 it return error when ctx done
 	_ = r.Send(etcdraftpb.Message{})
 	err := r.drain()
-	assert.Contains(t, err.Error(), "deadline exceeded")
+	require.Contains(t, err.Error(), "deadline exceeded")
 
 	// Round #2 it return nil error when all msgs flushed
 	_ = r.Send(etcdraftpb.Message{})
 	close(r.msgc)
 	err = r.drain()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mt.AssertCalled(t, "Message")
 }
 
@@ -227,7 +227,7 @@ func TestRemoteRun(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 
-	assert.False(t, r.active)
+	require.False(t, r.active)
 	mt.AssertCalled(t, "Message")
 	mr.AssertCalled(t, "ReportUnreachable", r.id)
 
@@ -236,5 +236,5 @@ func TestRemoteRun(t *testing.T) {
 	r.Close()
 
 	mt.AssertCalled(t, "Close")
-	assert.False(t, r.active)
+	require.False(t, r.active)
 }

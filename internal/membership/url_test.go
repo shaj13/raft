@@ -3,7 +3,7 @@ package membership
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestURL(t *testing.T) {
@@ -23,10 +23,10 @@ func TestURL(t *testing.T) {
 	for _, tt := range table {
 		id, addr, err := ParseURL(tt.raw)
 		if err != nil {
-			assert.Contains(t, err.Error(), tt.err)
+			require.Contains(t, err.Error(), tt.err)
 		} else {
-			assert.Equal(t, tt.id, id)
-			assert.Equal(t, tt.addr, addr)
+			require.Equal(t, tt.id, id)
+			require.Equal(t, tt.addr, addr)
 		}
 	}
 }

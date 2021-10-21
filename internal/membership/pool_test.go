@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPoolNextID(t *testing.T) {
@@ -31,13 +31,13 @@ func TestPoolUpdate(t *testing.T) {
 	m.Address = "5050"
 	p.Update(*m)
 	mem, _ := p.Get(m.ID)
-	assert.Equal(t, m.Address, mem.Address())
+	require.Equal(t, m.Address, mem.Address())
 }
 
 func TestPoolRemoveErr(t *testing.T) {
 	p := New(context.Background(), testConfig)
 	err := p.Remove(raftpb.Member{})
-	assert.Contains(t, err.Error(), "not found")
+	require.Contains(t, err.Error(), "not found")
 }
 
 func TestPoolRestore(t *testing.T) {
@@ -67,7 +67,7 @@ func TestPoolSnapshot(t *testing.T) {
 	p := New(context.Background(), testConfig)
 	p.Add(raftpb.Member{ID: p.NextID(), Type: raftpb.LocalMember})
 	membs := p.Snapshot()
-	assert.Equal(t, len(p.Members()), len(membs))
+	require.Equal(t, len(p.Members()), len(membs))
 }
 
 func TestPoolRemove(t *testing.T) {
@@ -85,8 +85,8 @@ func TestPoolRemove(t *testing.T) {
 		m.Type = raftpb.RemovedMember
 		err := p.Remove(*m)
 		mem, _ := p.Get(m.ID)
-		assert.NoError(t, err)
-		assert.Equal(t, raftpb.RemovedMember, mem.Type())
+		require.NoError(t, err)
+		require.Equal(t, raftpb.RemovedMember, mem.Type())
 	}
 
 }
