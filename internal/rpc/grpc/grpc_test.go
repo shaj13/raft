@@ -9,17 +9,17 @@ import (
 	"net"
 	"testing"
 
+	"github.com/golang/mock/gomock"
+	"github.com/shaj13/raftkit/internal/mocks"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestMessage(t *testing.T) {
-	method := "Push"
 	ln, c, srv := testClientServer(t)
 	defer ln.Close()
 	defer c.Close()
@@ -40,11 +40,11 @@ func TestMessage(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := &mockController{mock.Mock{}}
-			ctrl.On(method).Return(tt.err)
-			srv.ctrl = ctrl
+			ctrl := gomock.NewController(t)
+			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
+			srv.ctrl = rpcCtrl
 			err := c.Message(context.Background(), etcdraftpb.Message{})
-			ctrl.AssertCalled(t, method)
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
 			}
@@ -53,7 +53,6 @@ func TestMessage(t *testing.T) {
 }
 
 func TestJoin(t *testing.T) {
-	method := "Join"
 	ln, c, srv := testClientServer(t)
 	defer ln.Close()
 	defer c.Close()
@@ -72,19 +71,17 @@ func TestJoin(t *testing.T) {
 		},
 		{
 			name: "it return error when server return error",
-			id:   0,
-			// membs: []raftpb.Member{},
-			err: fmt.Errorf("TestJoin Error"),
+			err:  fmt.Errorf("TestJoin Error"),
 		},
 	}
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := &mockController{mock.Mock{}}
-			ctrl.On(method).Return(tt.id, tt.membs, tt.err)
-			srv.ctrl = ctrl
+			ctrl := gomock.NewController(t)
+			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.id, tt.membs, tt.err)
+			srv.ctrl = rpcCtrl
 			id, pool, err := c.Join(context.Background(), raftpb.Member{})
-			ctrl.AssertCalled(t, method)
 			assert.Equal(t, tt.id, id)
 			assert.Equal(t, tt.membs, pool)
 			if tt.err != nil {
@@ -95,7 +92,6 @@ func TestJoin(t *testing.T) {
 }
 
 func TestSnapshot(t *testing.T) {
-	method := "Push"
 	ln, c, srv := testClientServer(t)
 	defer ln.Close()
 	defer c.Close()
@@ -116,14 +112,14 @@ func TestSnapshot(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := &mockController{mock.Mock{}}
-			ctrl.On(method).Return(tt.err)
+			ctrl := gomock.NewController(t)
+			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 			snap := newTestSnapshoter("snap data")
-			srv.ctrl = ctrl
+			srv.ctrl = rpcCtrl
 			srv.snap = snap
 			c.shotter = snap
 			err := c.snapshot(context.Background(), etcdraftpb.Message{})
-			ctrl.AssertCalled(t, method)
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
 			} else {
@@ -173,20 +169,6 @@ func newTestSnapshoter(str string) *testSnapshoter {
 		buf:     new(bytes.Buffer),
 		expname: "file.snap",
 	}
-}
-
-type mockController struct {
-	mock.Mock
-}
-
-func (m *mockController) Push(context.Context, etcdraftpb.Message) error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (m *mockController) Join(context.Context, *raftpb.Member) (uint64, []raftpb.Member, error) {
-	args := m.Called()
-	return args.Get(0).(uint64), args.Get(1).([]raftpb.Member), args.Error(2)
 }
 
 type testSnapshoter struct {
