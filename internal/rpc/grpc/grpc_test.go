@@ -7,13 +7,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/mocks"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -112,18 +113,40 @@ func TestSnapshot(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			snapData := "some snap data"
+			expName := "file.snap"
+			gotName := ""
 			ctrl := gomock.NewController(t)
+
 			rpcCtrl := mocks.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
-			snap := newTestSnapshoter("snap data")
+
+			shotter := mocks.NewMockSnapshotter(ctrl)
+			shotter.
+				EXPECT().
+				Reader(gomock.Any(), gomock.Any()).
+				Return(expName, ioutil.NopCloser(strings.NewReader(snapData)), nil)
+			shotter.
+				EXPECT().
+				Writer(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(_ context.Context, name string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
+					gotName = name
+					peek := func() (etcdraftpb.Snapshot, error) {
+						return etcdraftpb.Snapshot{}, nil
+					}
+					return writeCloser{buf}, peek, nil
+				})
+
 			srv.ctrl = rpcCtrl
-			srv.snap = snap
-			c.shotter = snap
+			srv.snap = shotter
+			c.shotter = shotter
 			err := c.snapshot(context.Background(), etcdraftpb.Message{})
 			if tt.err != nil {
 				assert.Contains(t, err.Error(), tt.err.Error())
 			} else {
-				snap.Assert(t)
+				require.Equal(t, expName, gotName)
+				require.Equal(t, snapData, buf.String())
 			}
 		})
 	}
@@ -164,50 +187,6 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
 	}
 
 	return ln, c.(*client), srv
-}
-
-func newTestSnapshoter(str string) *testSnapshoter {
-	return &testSnapshoter{
-		data:    []byte(str),
-		buf:     new(bytes.Buffer),
-		expname: "file.snap",
-	}
-}
-
-type testSnapshoter struct {
-	data    []byte
-	buf     *bytes.Buffer
-	expname string
-	gotname string
-}
-
-func (t *testSnapshoter) Reader(context.Context, etcdraftpb.Snapshot) (string, io.ReadCloser, error) {
-	return t.expname, ioutil.NopCloser(bytes.NewBuffer(t.data)), nil
-}
-
-func (t *testSnapshoter) Writer(_ context.Context, n string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
-	t.gotname = n
-	peek := func() (etcdraftpb.Snapshot, error) {
-		return etcdraftpb.Snapshot{}, nil
-	}
-	return writeCloser{t.buf}, peek, nil
-}
-
-func (t *testSnapshoter) Write(sf *storage.SnapshotFile) error {
-	return nil
-}
-
-func (t *testSnapshoter) Read(snap etcdraftpb.Snapshot) (*storage.SnapshotFile, error) {
-	return nil, nil
-}
-
-func (t *testSnapshoter) ReadFromPath(string) (*storage.SnapshotFile, error) {
-	return nil, nil
-}
-
-func (t *testSnapshoter) Assert(tb testing.TB) {
-	assert.Equal(tb, t.expname, t.gotname)
-	assert.Equal(tb, t.data, t.buf.Bytes())
 }
 
 type writeCloser struct {
