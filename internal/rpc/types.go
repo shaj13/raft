@@ -4,16 +4,22 @@ import (
 	"context"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/storage"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 //go:generate mockgen -package mocks  -source internal/rpc/types.go -destination internal/mocks/rpc.go
 
 // ServerConfig define common configuration used by the NewServer function.
-type ServerConfig interface{}
+type ServerConfig interface {
+	DialerConfig
+	Controller() Controller
+}
 
-// Dialer define common configuration used by the Dial function.
-type DialerConfig interface{}
+// DialerConfig define common configuration used by the dial function.
+type DialerConfig interface {
+	Snapshotter() storage.Snapshotter
+}
 
 // Server represents an RPC Server.
 type Server interface{}

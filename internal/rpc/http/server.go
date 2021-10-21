@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,13 +15,11 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// var errSnapHeader = errors.New("raft/rpc/http: snapshot header missing")
-
 func NewServerFunc(basePath string) rpc.NewServer {
 	return func(c context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 		s := &server{
-			ctrl: cfg.(ServerConfig).Controller(),
-			snap: cfg.(ServerConfig).Snapshotter(),
+			ctrl: cfg.Controller(),
+			snap: cfg.Snapshotter(),
 		}
 
 		mux := http.NewServeMux()
@@ -63,6 +62,9 @@ func (s *server) message(w http.ResponseWriter, r *http.Request) (int, error) {
 
 func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	vals := r.Header.Values(snapshotHeader)
+	if len(vals) < 3 {
+		return http.StatusBadRequest, errors.New("raft/rpc/http: snapshot header missing")
+	}
 
 	snapname := vals[0]
 

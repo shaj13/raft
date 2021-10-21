@@ -10,6 +10,8 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	raftpb "github.com/shaj13/raftkit/internal/raftpb"
+	rpc "github.com/shaj13/raftkit/internal/rpc"
+	storage "github.com/shaj13/raftkit/internal/storage"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -36,6 +38,34 @@ func (m *MockServerConfig) EXPECT() *MockServerConfigMockRecorder {
 	return m.recorder
 }
 
+// Controller mocks base method.
+func (m *MockServerConfig) Controller() rpc.Controller {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Controller")
+	ret0, _ := ret[0].(rpc.Controller)
+	return ret0
+}
+
+// Controller indicates an expected call of Controller.
+func (mr *MockServerConfigMockRecorder) Controller() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockServerConfig)(nil).Controller))
+}
+
+// Snapshotter mocks base method.
+func (m *MockServerConfig) Snapshotter() storage.Snapshotter {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Snapshotter")
+	ret0, _ := ret[0].(storage.Snapshotter)
+	return ret0
+}
+
+// Snapshotter indicates an expected call of Snapshotter.
+func (mr *MockServerConfigMockRecorder) Snapshotter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockServerConfig)(nil).Snapshotter))
+}
+
 // MockDialerConfig is a mock of DialerConfig interface.
 type MockDialerConfig struct {
 	ctrl     *gomock.Controller
@@ -57,6 +87,20 @@ func NewMockDialerConfig(ctrl *gomock.Controller) *MockDialerConfig {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDialerConfig) EXPECT() *MockDialerConfigMockRecorder {
 	return m.recorder
+}
+
+// Snapshotter mocks base method.
+func (m *MockDialerConfig) Snapshotter() storage.Snapshotter {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Snapshotter")
+	ret0, _ := ret[0].(storage.Snapshotter)
+	return ret0
+}
+
+// Snapshotter indicates an expected call of Snapshotter.
+func (mr *MockDialerConfigMockRecorder) Snapshotter() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockDialerConfig)(nil).Snapshotter))
 }
 
 // MockServer is a mock of Server interface.

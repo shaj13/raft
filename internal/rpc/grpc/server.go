@@ -20,19 +20,13 @@ var errSnapHeader = errors.New(
 	"raft/net/grpc: snapshot header missing from grpc metadata",
 )
 
-// ServerConfig define common configuration used by the NewServer function.
-type ServerConfig interface {
-	DialConfig
-	Controller() rpc.Controller
-}
-
 // NewServer return an GRPC Server.
 //
 // NewServer compatible with rpc.New.
 func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 	return &server{
-		ctrl: cfg.(ServerConfig).Controller(),
-		snap: cfg.(ServerConfig).Snapshotter(),
+		ctrl: cfg.Controller(),
+		snap: cfg.Snapshotter(),
 	}, nil
 }
 

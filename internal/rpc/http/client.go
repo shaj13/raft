@@ -17,6 +17,14 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+const (
+	snapshotHeader = "X-Raft-Snapshot"
+	memberIDHeader = "X-Raft-Member-ID"
+	messageURI     = "/message"
+	snapshotURI    = "/snapshot"
+	joinURI        = "/join"
+)
+
 var bufferPool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
@@ -28,7 +36,7 @@ func Dialer(tr func(context.Context) http.RoundTripper, basePath string) rpc.Dia
 			return &client{
 				transport: tr,
 				url:       join(addr, basePath),
-				shotter:   dc.(DialConfig).Snapshotter(),
+				shotter:   dc.Snapshotter(),
 			}, nil
 		}
 	}

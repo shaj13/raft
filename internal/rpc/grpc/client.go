@@ -29,11 +29,6 @@ const (
 	memberIDHeader = "X-Raft-Member-ID"
 )
 
-// DialConfig define common configuration used by the dial function.
-type DialConfig interface {
-	Snapshotter() storage.Snapshotter
-}
-
 // Dialer return's grpc dialer.
 func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) rpc.Dialer {
 	return func(c context.Context, dc rpc.DialerConfig) rpc.Dial {
@@ -46,7 +41,7 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 			return &client{
 				conn:    conn,
 				copts:   copts,
-				shotter: dc.(DialConfig).Snapshotter(),
+				shotter: dc.Snapshotter(),
 			}, nil
 		}
 	}
