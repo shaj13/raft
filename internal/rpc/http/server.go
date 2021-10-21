@@ -21,12 +21,7 @@ func NewServerFunc(basePath string) rpc.NewServer {
 			ctrl: cfg.Controller(),
 			snap: cfg.Snapshotter(),
 		}
-
-		mux := http.NewServeMux()
-		mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message))
-		mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot))
-		mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join))
-		return mux, nil
+		return mux(s, basePath), nil
 	}
 }
 
@@ -163,4 +158,12 @@ func httpHandler(h handler) http.HandlerFunc {
 
 		w.WriteHeader(code)
 	})
+}
+
+func mux(s *server, basePath string) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message))
+	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot))
+	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join))
+	return mux
 }
