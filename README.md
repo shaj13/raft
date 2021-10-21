@@ -2,17 +2,11 @@
 
 ### TODO 
 - [ ] cluster add creat snap method 
-- [ ] remove peek from snapshotter 
-- [ ] snapshot send file then re send msg
-- [ ] is there any way to make restore operator ? 
-- [ ] expose last seen and whenn member joined method on memebrs. 
+- [ ] dont expose any event for now 
+- [ ] cancel all proposal when leader lost 
+- [ ] move grpc test to gomoc 
 - [ ] fix all daemonn todo 
-- [ ] Create Purge method under pool 
-- [ ] support http rpc 
-- [ ] support storage encryaption 
-- [ ] spike: how to restore data from snapshot ? 
+- [ ] test http rpc 
 - [ ] check the conf change v2 in etcd 
-- [ ] spike: do we need to store metadata in ctx ? 
-- [ ] operator should use ost as arg not from daemon ? 
 
 
