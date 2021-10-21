@@ -70,7 +70,7 @@ func (d *decoder) Decode(c *raftpb.Chunk) error {
 
 	if d.index != c.Index {
 		return fmt.Errorf(
-			"raft/net/grpc: index mismatch, chunk with index %d is different from the expected index %d",
+			"raft/grpc: index mismatch, chunk with index %d is different from the expected index %d",
 			c.Index,
 			d.index,
 		)

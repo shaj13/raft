@@ -3,6 +3,7 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -69,13 +70,9 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	fail := func(err error) (uint64, []raftpb.Member, error) {
-		return 0, nil, err
-	}
-
 	stream, err := raftpb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 	if err != nil {
-		return fail(err)
+		return 0, nil, err
 	}
 
 	membs := []raftpb.Member{}
@@ -87,7 +84,7 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 		}
 
 		if err != nil {
-			return fail(err)
+			return 0, nil, err
 		}
 
 		membs = append(membs, *m)
@@ -95,21 +92,17 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 
 	md, err := stream.Header()
 	if err != nil {
-		return fail(err)
+		return 0, nil, err
 	}
 
 	vals := md.Get(memberIDHeader)
 	if len(vals) != 1 {
-		return fail(
-			fmt.Errorf("raft/net/grpc: member id missing from grpc metadata"),
-		)
+		return 0, nil, errors.New("raft/grpc: member id missing from metadata")
 	}
 
 	id, err := strconv.ParseUint(vals[0], 0, 64)
 	if err != nil {
-		return fail(
-			fmt.Errorf("raft/net/grpc: unable to parse member id from grpc metadata, Err %s", err),
-		)
+		return 0, nil, fmt.Errorf("raft/grpc: parse member id: %v", err)
 	}
 
 	return id, membs, nil

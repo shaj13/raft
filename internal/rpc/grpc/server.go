@@ -16,9 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-var errSnapHeader = errors.New(
-	"raft/net/grpc: snapshot header missing from grpc metadata",
-)
+var errSnapHeader = errors.New("raft/grpc: snapshot header missing from grpc metadata")
 
 // NewServer return an GRPC Server.
 //
@@ -43,10 +41,7 @@ func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 	defer func() {
 		bufferPool.Put(buf)
 		if err != nil {
-			log.Warnf(
-				"raft/net/grpc: Failed to handle incoming raft message, Err: %s",
-				err,
-			)
+			log.Warnf("raft/grpc: handle incoming message: %v", err)
 		}
 	}()
 
@@ -80,10 +75,7 @@ func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf(
-				"raft/net/grpc: Failed to download the snapshot, Err: %s",
-				err,
-			)
+			log.Warnf("raft/grpc: downloading snapshot: %v", err)
 		}
 	}()
 
@@ -110,10 +102,7 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 		return err
 	}
 
-	log.Debugf(
-		"raft/net/grpc: Start downloading the sanpshot %s file",
-		snapname,
-	)
+	log.Debugf("raft/grpc: downloading sanpshot %s file", snapname)
 
 	w, peek, err := s.snap.Writer(ctx, snapname)
 	if err != nil {
@@ -155,12 +144,11 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft/net/grpc: Failed to handle join request, Err: %s", err)
-			return
+			log.Warnf("raft/grpc: handle join request: %v", err)
 		}
 	}()
 
-	log.Debugf("raft/net/grpc: A new member asks to join the cluster on address %s", m.Address)
+	log.Debugf("raft/grpc: new member asks to join the cluster on address %s", m.Address)
 
 	id, membs, err := s.ctrl.Join(stream.Context(), m)
 	if err != nil {
