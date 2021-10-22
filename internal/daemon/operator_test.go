@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/mocks"
+	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -175,7 +176,7 @@ func TestForceJoin(t *testing.T) {
 	}
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
-	client := mocks.NewMockClient(ctrl)
+	client := rpcmock.NewMockClient(ctrl)
 	pool := mocks.NewMockPool(ctrl)
 	dial := func(context.Context, string) (rpc.Client, error) {
 		return client, nil
@@ -282,7 +283,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when ost.wasExited = false",
 			ost: operatorsState{
 				hasExistingState: false,
-				sf:         &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
 			},
 		},
 		{
@@ -310,7 +311,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when and not call publish snap",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf:         &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
 			},
 			called: false,
 		},

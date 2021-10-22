@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/mocks"
+	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -40,7 +41,7 @@ func TestMessage(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl := rpcmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 			srv.ctrl = rpcCtrl
 			err := c.Message(context.Background(), etcdraftpb.Message{})
@@ -77,7 +78,7 @@ func TestJoin(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl := rpcmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.id, tt.membs, tt.err)
 			srv.ctrl = rpcCtrl
 			id, pool, err := c.Join(context.Background(), raftpb.Member{})
@@ -117,7 +118,7 @@ func TestSnapshot(t *testing.T) {
 			gotName := ""
 			ctrl := gomock.NewController(t)
 
-			rpcCtrl := mocks.NewMockController(ctrl)
+			rpcCtrl := rpcmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 
 			shotter := mocks.NewMockSnapshotter(ctrl)
@@ -156,7 +157,7 @@ func testClientServer(tb testing.TB) (*httptest.Server, *client, *server) {
 
 	ctx := context.TODO()
 	ctrl := gomock.NewController(tb)
-	cfg := mocks.NewMockDialerConfig(ctrl)
+	cfg := rpcmock.NewMockDialerConfig(ctrl)
 	cfg.EXPECT().Snapshotter().Return(nil)
 
 	tr := func(context.Context) http.RoundTripper {
