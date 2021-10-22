@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
@@ -29,10 +29,10 @@ func TestDiskWalInteraction(t *testing.T) {
 	disk.wal = w
 
 	err := disk.SaveSnapshot(*sf.Snap)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = disk.SaveEntries(hs, []raftpb.Entry{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// clsoe disk
 	disk.Close()
@@ -42,9 +42,9 @@ func TestDiskWalInteraction(t *testing.T) {
 	w, _ = wal.OpenForRead(nil, dir, walpb.Snapshot{})
 	_, gotHs, _, _ := w.ReadAll()
 
-	assert.Equal(t, sf.Snap.Metadata.Index, snaps[1].Index)
-	assert.Equal(t, sf.Snap.Metadata.Term, snaps[1].Term)
-	assert.Equal(t, gotHs, hs)
+	require.Equal(t, sf.Snap.Metadata.Index, snaps[1].Index)
+	require.Equal(t, sf.Snap.Metadata.Term, snaps[1].Term)
+	require.Equal(t, gotHs, hs)
 
 }
 
@@ -56,18 +56,18 @@ func TestDiskBootMkdir(t *testing.T) {
 	d.waldir = ""
 
 	_, _, _, _, err := d.Boot(nil)
-	assert.Contains(t, err.Error(), "create snapshot dir")
+	require.Contains(t, err.Error(), "create snapshot dir")
 
 	d.snapdir = os.TempDir()
 	_, _, _, _, err = d.Boot(nil)
-	assert.Contains(t, err.Error(), "create WAL dir")
+	require.Contains(t, err.Error(), "create WAL dir")
 
 	// it now should create dir
 	d.snapdir = temp
 	d.waldir = temp
 	_, _, _, _, err = d.Boot(nil)
-	assert.NoError(t, err)
-	assert.True(t, fileutil.Exist(temp))
+	require.NoError(t, err)
+	require.True(t, fileutil.Exist(temp))
 }
 
 func TestDiskBoot(t *testing.T) {
@@ -81,10 +81,10 @@ func TestDiskBoot(t *testing.T) {
 		os.RemoveAll(temp)
 
 		_, _, _, _, err := d.Boot(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		_, _, _, _, err = d.Boot(nil)
-		assert.Contains(t, err.Error(), "file already locked")
+		require.Contains(t, err.Error(), "file already locked")
 	})
 
 	t.Run("it open the existing wal", func(t *testing.T) {
@@ -93,18 +93,18 @@ func TestDiskBoot(t *testing.T) {
 		meta := []byte("wal metadata")
 
 		_, _, _, _, err := d.Boot(meta)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		d.Close()
 
 		got, _, _, _, err := d.Boot(nil)
-		assert.NoError(t, err)
-		assert.Equal(t, meta, got)
+		require.NoError(t, err)
+		require.Equal(t, meta, got)
 	})
 }
 
 func TestDiskExist(t *testing.T) {
 	d := new(disk)
-	assert.False(t, d.Exist())
+	require.False(t, d.Exist())
 }
 
 func newTestDisk(dir string) *disk {

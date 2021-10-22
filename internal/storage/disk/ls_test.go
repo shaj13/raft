@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestList(t *testing.T) {
@@ -41,8 +41,8 @@ func TestList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			createTestFiles(tt.dir, tt.files, t)
 			got, err := list(tt.dir, tt.ext)
-			assert.Equal(t, tt.files, got)
-			assert.Equal(t, tt.expectedErr, err != nil)
+			require.Equal(t, tt.files, got)
+			require.Equal(t, tt.expectedErr, err != nil)
 		})
 	}
 }

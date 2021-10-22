@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -34,7 +34,7 @@ func TestSnapshoterReaderErr(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected non nil error")
 			}
-			assert.Contains(t, err.Error(), tt.contains)
+			require.Contains(t, err.Error(), tt.contains)
 		})
 	}
 }
@@ -42,11 +42,10 @@ func TestSnapshoterReaderErr(t *testing.T) {
 func TestSnapshoterReader(t *testing.T) {
 	s := &snapshotter{snapdir: "./testdata/"}
 	name, r, err := s.Reader(testSnap(1, 1))
-	assert.NoError(t, err)
-	assert.Equal(t, snapshotName(1, 1), name)
-	if assert.NotNil(t, r) {
-		r.Close()
-	}
+	require.NoError(t, err)
+	require.Equal(t, snapshotName(1, 1), name)
+	require.NotNil(t, r)
+	r.Close()
 }
 
 func TestSnapshoterWriter(t *testing.T) {
@@ -55,24 +54,21 @@ func TestSnapshoterWriter(t *testing.T) {
 
 	// Round #1 check file error
 	_, _, err := s.Writer(file)
-	assert.Contains(t, err.Error(), "no such file or directory")
+	require.Contains(t, err.Error(), "no such file or directory")
 
 	// Round #2 check write and peek
 	s.snapdir = "./testdata"
 	w, peek, err := s.Writer(file)
-
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	w.Write([]byte(""))
 	w.Close()
 
 	_, err = peek()
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	exist := fileutil.Exist(filepath.Join(s.snapdir, file))
-	assert.False(t, exist, "expect peek to remove file if there an error")
+	require.False(t, exist, "expect peek to remove file if there an error")
 }
 
 func testSnap(index, term uint64) raftpb.Snapshot {

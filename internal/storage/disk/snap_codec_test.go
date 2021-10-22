@@ -10,7 +10,7 @@ import (
 
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
 )
@@ -22,16 +22,16 @@ func TestSnapshotCodec(t *testing.T) {
 
 	expected, expectedData := snapshotTestFile()
 	err := encodeSnapshot(path, &expected)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	got, err := decodeSnapshot(path)
-	assert.NoError(t, err)
-	assert.Equal(t, expected.Snap, got.Snap)
-	assert.Equal(t, expected.Pool, got.Pool)
+	require.NoError(t, err)
+	require.Equal(t, expected.Snap, got.Snap)
+	require.Equal(t, expected.Pool, got.Pool)
 
 	gotData, err := ioutil.ReadAll(got.Data)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedData, string(gotData))
+	require.NoError(t, err)
+	require.Equal(t, expectedData, string(gotData))
 }
 
 func TestPeekSnapshot(t *testing.T) {
@@ -39,13 +39,13 @@ func TestPeekSnapshot(t *testing.T) {
 
 	// Round #1 it return error when file invalid
 	snap, err := peekSnapshot("")
-	assert.Error(t, err)
-	assert.Nil(t, snap)
+	require.Error(t, err)
+	require.Nil(t, snap)
 
 	// Round #2 it return snap object
 	snap, err = peekSnapshot("./testdata/valid.snap")
-	assert.NoError(t, err)
-	assert.Equal(t, expected.Snap, snap)
+	require.NoError(t, err)
+	require.Equal(t, expected.Snap, snap)
 }
 
 func TestDecodeSnapErr(t *testing.T) {
@@ -84,7 +84,7 @@ func TestDecodeSnapErr(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := decodeSnapshot(tt.file)
-			assert.Contains(t, err.Error(), tt.contains)
+			require.Contains(t, err.Error(), tt.contains)
 		})
 	}
 }
@@ -92,19 +92,19 @@ func TestDecodeSnapErr(t *testing.T) {
 func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	// Round #1 it return error when snapshots dir does not exist
 	sf, err := decodeNewestAvailableSnapshot("", []walpb.Snapshot{})
-	assert.Nil(t, sf)
-	assert.Contains(t, err.Error(), "no such file or directory")
+	require.Nil(t, sf)
+	require.Contains(t, err.Error(), "no such file or directory")
 
 	// Round #2 it return error when no snapshots
 	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{})
-	assert.Nil(t, sf)
-	assert.Equal(t, ErrNoSnapshot, err)
+	require.Nil(t, sf)
+	require.Equal(t, ErrNoSnapshot, err)
 
 	// Round #3 it return latest snapshots
 	expected, _ := snapshotTestFile()
 	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{{Index: 3, Term: 3}})
-	assert.NoError(t, err)
-	assert.Equal(t, expected.Snap, sf.Snap)
+	require.NoError(t, err)
+	require.Equal(t, expected.Snap, sf.Snap)
 }
 
 func TestSnapshotFileReader(t *testing.T) {
@@ -117,13 +117,13 @@ func TestSnapshotFileReader(t *testing.T) {
 	r.Reset(f)
 
 	err = r.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = r.Read([]byte{})
-	assert.Equal(t, ErrClosedSnapshot, err)
+	require.Equal(t, ErrClosedSnapshot, err)
 
 	err = r.Close()
-	assert.Equal(t, ErrClosedSnapshot, err)
+	require.Equal(t, ErrClosedSnapshot, err)
 }
 
 func TestSnapshotFileWriter(t *testing.T) {
@@ -140,19 +140,19 @@ func TestSnapshotFileWriter(t *testing.T) {
 	w.Reset(f, nil)
 
 	_, err = w.Write(data)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = w.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = w.Write(data)
-	assert.Equal(t, ErrClosedSnapshot, err)
+	require.Equal(t, ErrClosedSnapshot, err)
 
 	err = w.Close()
-	assert.Equal(t, ErrClosedSnapshot, err)
+	require.Equal(t, ErrClosedSnapshot, err)
 
 	got, _ := ioutil.ReadFile(path)
-	assert.Equal(t, data, got)
+	require.Equal(t, data, got)
 }
 
 func snapshotTestFile() (storage.SnapshotFile, string) {

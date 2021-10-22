@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGCStart(t *testing.T) {
@@ -30,8 +30,8 @@ func TestGCStart(t *testing.T) {
 
 	snaps, _ := list(dir, snapExt)
 	wals, _ := list(dir, walExt)
-	assert.Equal(t, 1, len(snaps))
-	assert.Equal(t, 1, len(wals))
-	assert.Equal(t, snaps[0], fmt.Sprintf(format, 4, 4)+snapExt)
-	assert.Equal(t, wals[0], fmt.Sprintf(format, 4, 4)+walExt)
+	require.Equal(t, 1, len(snaps))
+	require.Equal(t, 1, len(wals))
+	require.Equal(t, snaps[0], fmt.Sprintf(format, 4, 4)+snapExt)
+	require.Equal(t, wals[0], fmt.Sprintf(format, 4, 4)+walExt)
 }
