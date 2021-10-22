@@ -3,14 +3,15 @@ package membership
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPoolNextID(t *testing.T) {
-	p := New(context.Background(), testConfig).(*pool)
+	p := New(context.TODO(), testConfig(t)).(*pool)
 	rec := make(map[uint64]struct{})
 
 	for i := 0; i < 10; i++ {
@@ -26,7 +27,7 @@ func TestPoolNextID(t *testing.T) {
 
 func TestPoolUpdate(t *testing.T) {
 	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
-	p := New(context.Background(), testConfig)
+	p := New(context.TODO(), testConfig(t))
 	p.Add(*m)
 	m.Address = "5050"
 	p.Update(*m)
@@ -35,13 +36,13 @@ func TestPoolUpdate(t *testing.T) {
 }
 
 func TestPoolRemoveErr(t *testing.T) {
-	p := New(context.Background(), testConfig)
+	p := New(context.TODO(), testConfig(t))
 	err := p.Remove(raftpb.Member{})
 	require.Contains(t, err.Error(), "not found")
 }
 
 func TestPoolRestore(t *testing.T) {
-	p := New(context.Background(), testConfig)
+	p := New(context.TODO(), testConfig(t))
 	ids := make(map[uint64]struct{})
 	pool := &raftpb.Pool{
 		Members: []raftpb.Member{},
@@ -64,7 +65,7 @@ func TestPoolRestore(t *testing.T) {
 }
 
 func TestPoolSnapshot(t *testing.T) {
-	p := New(context.Background(), testConfig)
+	p := New(context.TODO(), testConfig(t))
 	p.Add(raftpb.Member{ID: p.NextID(), Type: raftpb.LocalMember})
 	membs := p.Snapshot()
 	require.Equal(t, len(p.Members()), len(membs))
@@ -72,11 +73,13 @@ func TestPoolSnapshot(t *testing.T) {
 
 func TestPoolRemove(t *testing.T) {
 	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	r := NewMockReporter(ctrl)
+	r.EXPECT().ReportShutdown(gomock.Eq(m.ID)).Return()
+	cfg.EXPECT().Reporter().Return(r)
 
-	r := &mockReporter{mock.Mock{}}
-	r.On("ReportShutdown", m.ID).Return()
-
-	p := New(context.Background(), mockConfig{r: r})
+	p := New(context.TODO(), cfg)
 	p.Add(*m)
 
 	// run twice to check removing
@@ -88,5 +91,13 @@ func TestPoolRemove(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, raftpb.RemovedMember, mem.Type())
 	}
+}
 
+func testConfig(t *testing.T) *MockConfig {
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	cfg.EXPECT().Reporter().Return(nil).AnyTimes()
+	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1)).AnyTimes()
+	cfg.EXPECT().StreamTimeout().Return(time.Duration(-1)).AnyTimes()
+	return cfg
 }

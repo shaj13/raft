@@ -11,6 +11,7 @@ import (
 )
 
 //go:generate mockgen -package membershipmock  -source internal/membership/types.go -destination internal/mocks/membership/membership.go
+//go:generate mockgen -package membership  -source internal/membership/types.go -destination internal/membership/types_test.go
 
 type constructor func(
 	ctx context.Context,

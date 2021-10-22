@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -69,13 +70,14 @@ func TestRemoteUpdate(t *testing.T) {
 	err := fmt.Errorf("TestRemoteUpdate dial error")
 	addr := ":5050"
 	uaddr := ":5051"
+	ctrl := gomock.NewController(t)
+	client := rpcmock.NewMockClient(ctrl)
 
-	m := &mockRPC{mock.Mock{}}
-	m.On("Close").Return(nil)
+	client.EXPECT().Close().Return(nil)
 
 	r := new(remote)
 	r.addr = addr
-	r.rc = m
+	r.rc = client
 	r.ctx = context.TODO()
 	r.dial = mockDial(nil, err)
 
@@ -90,21 +92,22 @@ func TestRemoteUpdate(t *testing.T) {
 	require.Equal(t, addr, r.addr)
 
 	// Round #3 it update addr and close old tr
-	r.dial = mockDial(m, nil)
+	r.dial = mockDial(client, nil)
 	got = r.Update(uaddr)
 	require.NoError(t, got)
 	require.Equal(t, uaddr, r.addr)
-	m.AssertCalled(t, "Close")
 }
 
 func TestRemoteStream(t *testing.T) {
-	m := &mockRPC{mock.Mock{}}
-	m.On("Message").Return(nil)
+	ctrl := gomock.NewController(t)
+	client := rpcmock.NewMockClient(ctrl)
+	client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
+
 	r := new(remote)
-	r.rc = m
-	r.cfg = testConfig
-	_ = r.stream(context.Background(), etcdraftpb.Message{})
-	m.AssertCalled(t, "Message")
+	r.rc = client
+	r.cfg = testConfig(t)
+	err := r.stream(context.TODO(), etcdraftpb.Message{})
+	require.NoError(t, err)
 }
 
 func TestRemoteReport(t *testing.T) {
@@ -114,54 +117,64 @@ func TestRemoteReport(t *testing.T) {
 	table := []struct {
 		name     string
 		msg      etcdraftpb.Message
+		expect   func(*MockReporter)
 		err      error
 		called   string
 		callargs []interface{}
 	}{
 		{
-			name:     "it call ReportSnapshot with SnapshotFinish status",
-			msg:      etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
-			called:   "ReportSnapshot",
-			callargs: []interface{}{id, raft.SnapshotFinish},
+			name: "it call ReportSnapshot with SnapshotFinish status",
+			msg:  etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
+			expect: func(mr *MockReporter) {
+				mr.
+					EXPECT().
+					ReportSnapshot(gomock.Eq(id), gomock.Eq(raft.SnapshotFinish))
+			},
 		},
 		{
-			name:     "it call ReportSnapshot with SnapshotFailure status",
-			msg:      etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
-			err:      err,
-			called:   "ReportSnapshot",
-			callargs: []interface{}{id, raft.SnapshotFailure},
+			name: "it call ReportSnapshot with SnapshotFailure status",
+			msg:  etcdraftpb.Message{Type: etcdraftpb.MsgSnap},
+			err:  err,
+			expect: func(mr *MockReporter) {
+				mr.
+					EXPECT().
+					ReportSnapshot(gomock.Eq(id), gomock.Eq(raft.SnapshotFailure))
+			},
 		},
 		{
-			name:     "it call ReportUnreachables",
-			msg:      etcdraftpb.Message{},
-			err:      err,
-			called:   "ReportUnreachable",
-			callargs: []interface{}{id},
+			name: "it call ReportUnreachables",
+			msg:  etcdraftpb.Message{},
+			err:  err,
+			expect: func(mr *MockReporter) {
+				mr.
+					EXPECT().
+					ReportUnreachable(gomock.Eq(id))
+			},
 		},
 	}
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &mockReporter{mock.Mock{}}
-			m.On(tt.called, tt.callargs...).Return()
+			ctrl := gomock.NewController(t)
+			rep := NewMockReporter(ctrl)
+			tt.expect(rep)
 
 			r := new(remote)
-			r.r = m
+			r.r = rep
 			r.id = id
-
 			r.report(tt.msg, tt.err)
-			m.AssertCalled(t, tt.called, tt.callargs...)
 		})
 	}
 }
 
 func TestRemoteSend(t *testing.T) {
-	m := &mockReporter{mock.Mock{}}
-	m.On("ReportUnreachable", uint64(0)).Return()
+	ctrl := gomock.NewController(t)
+	rep := NewMockReporter(ctrl)
+	rep.EXPECT().ReportUnreachable(gomock.Any()).MaxTimes(2)
 
 	r := new(remote)
 	r.msgc = make(chan etcdraftpb.Message)
-	r.r = m
+	r.r = rep
 
 	// Round #1 it return error when ctx canceled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -177,37 +190,63 @@ func TestRemoteSend(t *testing.T) {
 }
 
 func TestRemoteDrain(t *testing.T) {
-	mt := &mockRPC{mock.Mock{}}
-	mt.On("Message").Return(nil)
-	r := new(remote)
-	r.msgc = make(chan etcdraftpb.Message, 1)
-	r.rc = mt
-	r.cfg = testConfig
-	r.ctx = context.Background()
+	table := []struct {
+		name    string
+		timeout time.Duration
+		err     string
+	}{
+		{
+			name:    "it return error when ctx done",
+			timeout: -1,
+			err:     "deadline exceeded",
+		},
+		{
+			name:    "it return nil when all msgs flushed",
+			timeout: time.Second * 3,
+			err:     "deadline exceeded",
+		},
+	}
 
-	// Round #1 it return error when ctx done
-	_ = r.Send(etcdraftpb.Message{})
-	err := r.drain()
-	require.Contains(t, err.Error(), "deadline exceeded")
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			client := rpcmock.NewMockClient(ctrl)
+			client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
 
-	// Round #2 it return nil error when all msgs flushed
-	_ = r.Send(etcdraftpb.Message{})
-	close(r.msgc)
-	err = r.drain()
-	require.NoError(t, err)
-	mt.AssertCalled(t, "Message")
+			cfg := testConfig(t)
+			cfg.EXPECT().DrainTimeout().Return(tt.timeout)
+
+			r := new(remote)
+			r.msgc = make(chan etcdraftpb.Message, 1)
+			r.rc = client
+			r.cfg = cfg
+			r.ctx = context.TODO()
+
+			_ = r.Send(etcdraftpb.Message{})
+			err := r.drain()
+			if tt.err != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestRemoteRun(t *testing.T) {
-	mr := &mockReporter{mock.Mock{}}
-	mt := &mockRPC{mock.Mock{}}
-	mt.On("Message").Return(fmt.Errorf("TestRemoteRun Message error"))
-	mt.On("Close").Return(nil)
-	mr.On("ReportUnreachable", uint64(0)).Return()
+	ctrl := gomock.NewController(t)
+	rep := NewMockReporter(ctrl)
+	client := rpcmock.NewMockClient(ctrl)
+
+	rep.EXPECT().ReportUnreachable(gomock.Any())
+	client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(fmt.Errorf("TestRemoteRun Message error"))
+	client.EXPECT().Close().Return(nil)
+
 	r := new(remote)
-	r.r = mr
-	r.cfg = testConfig
-	r.rc = mt
+	r.r = rep
+	r.cfg = testConfig(t)
+	r.rc = client
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
 	r.done = make(chan struct{})
@@ -228,13 +267,9 @@ func TestRemoteRun(t *testing.T) {
 	}
 
 	require.False(t, r.active)
-	mt.AssertCalled(t, "Message")
-	mr.AssertCalled(t, "ReportUnreachable", r.id)
 
 	// reset active to ensure close set remote as inactive
 	r.active = true
 	r.Close()
-
-	mt.AssertCalled(t, "Close")
 	require.False(t, r.active)
 }
