@@ -45,7 +45,6 @@ func (gc *gc) Start() {
 			}
 		}
 	}()
-	return
 }
 
 func (gc *gc) purge() error {
