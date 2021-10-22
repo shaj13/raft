@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/shaj13/raftkit/internal/mocks"
+	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 
@@ -179,7 +179,7 @@ func TestForceJoin(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
 	client := rpcmock.NewMockClient(ctrl)
-	pool := mocks.NewMockPool(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
 	dial := func(context.Context, string) (rpc.Client, error) {
 		return client, nil
 	}
