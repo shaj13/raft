@@ -8,6 +8,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/mocks"
 	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
+	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
+
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -227,7 +229,7 @@ func TestSetup(t *testing.T) {
 	hs := etcdraftpb.HardState{Term: 2}
 	sf := &storage.SnapshotFile{}
 	ctrl := gomock.NewController(t)
-	stg := mocks.NewMockStorage(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
 	cfg := NewMockConfig(ctrl)
 	ost := new(operatorsState)
 	ost.daemon = new(daemon)
@@ -383,8 +385,8 @@ func TestForceNewCluster(t *testing.T) {
 	}
 	ost.daemon = new(daemon)
 	ctrl := gomock.NewController(t)
-	shotter := mocks.NewMockSnapshotter(ctrl)
-	stg := mocks.NewMockStorage(ctrl)
+	shotter := storagemock.NewMockSnapshotter(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
 
 	stg.
 		EXPECT().
@@ -436,8 +438,8 @@ func TestRestore(t *testing.T) {
 		Commit: 1,
 	}
 	ctrl := gomock.NewController(t)
-	stg := mocks.NewMockStorage(ctrl)
-	shotter := mocks.NewMockSnapshotter(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
+	shotter := storagemock.NewMockSnapshotter(ctrl)
 	opr := restore{}
 	ost := new(operatorsState)
 	ost.local = &raftpb.Member{ID: 1}

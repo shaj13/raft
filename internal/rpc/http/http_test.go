@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/shaj13/raftkit/internal/mocks"
 	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
+	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -121,7 +121,7 @@ func TestSnapshot(t *testing.T) {
 			rpcCtrl := rpcmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 
-			shotter := mocks.NewMockSnapshotter(ctrl)
+			shotter := storagemock.NewMockSnapshotter(ctrl)
 			shotter.
 				EXPECT().
 				Reader(gomock.Any()).
