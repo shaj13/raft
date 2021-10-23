@@ -1,11 +1,9 @@
 package daemon
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"sync"
 	"time"
 
@@ -58,6 +56,7 @@ func New(ctx context.Context, cfg Config) Daemon {
 type daemon struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
+	fsm          FSM
 	local        *raftpb.Member
 	cfg          Config
 	node         raft.Node
@@ -243,14 +242,12 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		snapIndex,
 	)
 
-	// TODO: get  snapshot from user
-	// data, err := rc.getSnapshot()
-	// if err != nil {
-	// 	log.Panic(err)
-	// }
+	r, err := d.fsm.Snapshot()
+	if err != nil {
+		return etcdraftpb.Snapshot{}, err
+	}
 
-	// TODO: organize me
-	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil) // TODO: pass data
+	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
 	if err != nil {
 		return snap, err
 	}
@@ -260,7 +257,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		Pool: &raftpb.Pool{
 			Members: d.pool.Snapshot(),
 		},
-		Data: ioutil.NopCloser(bytes.NewBufferString("sample dta")),
+		Data: r,
 	}
 
 	if err := d.storage.Snapshotter().Write(&sf); err != nil {
@@ -385,7 +382,9 @@ func (d *daemon) publishSnapshotFile(sf *storage.SnapshotFile) error {
 
 	d.pool.Restore(*sf.Pool)
 
-	// TODO: trigger original user to load snapshot
+	if err := d.fsm.Restore(sf.Data); err != nil {
+		return err
+	}
 
 	d.confState(&snap.Metadata.ConfState)
 	d.snapIndex.Set(snap.Metadata.Index)
@@ -424,7 +423,7 @@ func (d *daemon) publishReplicate(ent etcdraftpb.Entry) {
 
 	log.Debugf("raft.daemon: publishing replicate data, change id => %d", r.CID)
 
-	// TODO: publish it to end user
+	d.fsm.Apply(r.Data)
 }
 
 func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
@@ -449,7 +448,6 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	log.Debugf("raft.daemon: publishing conf change, change id => %d", cc.ID)
 
 	if len(cc.Context) == 0 {
-		// TODO: add debug msg
 		return
 	}
 
@@ -463,7 +461,6 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		mem.Type = raftpb.RemoteMember
 	}
 
-	// TODO: need to check that removed added etc is not the current node
 	switch cc.Type {
 	case etcdraftpb.ConfChangeAddNode:
 		err = d.pool.Add(*mem)
