@@ -417,6 +417,10 @@ func (c *config) Reporter() membership.Reporter {
 	return c.daemon
 }
 
+func (c *config) FSM() daemon.FSM {
+	return nil
+}
+
 func newConfig(opts ...Option) *config {
 	c := &config{
 		rcfg: &raft.Config{

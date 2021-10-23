@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/membership"
@@ -21,6 +22,7 @@ type Operator interface {
 	after(ost *operatorsState) error
 }
 
+// Config define common configuration used by the daemon.
 type Config interface {
 	RaftConfig() *raft.Config
 	SnapInterval() uint64
@@ -28,6 +30,21 @@ type Config interface {
 	Storage() storage.Storage
 	Dial() rpc.Dial
 	TickInterval() time.Duration
+	FSM() FSM
+}
+
+// FSM (finite-state machine) define an interface that can be implemented by
+// clients to make use of the raft replicated log.
+type FSM interface {
+	// Apply committed raft log entry.
+	Apply([]byte)
+
+	// Snapshot is used to write the current state to a snapshot file,
+	// on stable storage and compacting the raft logs.
+	Snapshot() (io.ReadCloser, error)
+
+	// Restore is used to restore state machine from a snapshot.
+	Restore(io.ReadCloser) error
 }
 
 type operatorsState struct {

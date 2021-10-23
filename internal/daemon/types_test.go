@@ -5,6 +5,7 @@
 package daemon
 
 import (
+	io "io"
 	reflect "reflect"
 	time "time"
 
@@ -12,7 +13,7 @@ import (
 	membership "github.com/shaj13/raftkit/internal/membership"
 	rpc "github.com/shaj13/raftkit/internal/rpc"
 	storage "github.com/shaj13/raftkit/internal/storage"
-	raft "go.etcd.io/etcd/raft/v3"
+	v3 "go.etcd.io/etcd/raft/v3"
 )
 
 // MockOperator is a mock of Operator interface.
@@ -117,6 +118,20 @@ func (mr *MockConfigMockRecorder) Dial() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockConfig)(nil).Dial))
 }
 
+// FSM mocks base method.
+func (m *MockConfig) FSM() FSM {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FSM")
+	ret0, _ := ret[0].(FSM)
+	return ret0
+}
+
+// FSM indicates an expected call of FSM.
+func (mr *MockConfigMockRecorder) FSM() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FSM", reflect.TypeOf((*MockConfig)(nil).FSM))
+}
+
 // Pool mocks base method.
 func (m *MockConfig) Pool() membership.Pool {
 	m.ctrl.T.Helper()
@@ -132,10 +147,10 @@ func (mr *MockConfigMockRecorder) Pool() *gomock.Call {
 }
 
 // RaftConfig mocks base method.
-func (m *MockConfig) RaftConfig() *raft.Config {
+func (m *MockConfig) RaftConfig() *v3.Config {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RaftConfig")
-	ret0, _ := ret[0].(*raft.Config)
+	ret0, _ := ret[0].(*v3.Config)
 	return ret0
 }
 
@@ -185,4 +200,68 @@ func (m *MockConfig) TickInterval() time.Duration {
 func (mr *MockConfigMockRecorder) TickInterval() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TickInterval", reflect.TypeOf((*MockConfig)(nil).TickInterval))
+}
+
+// MockFSM is a mock of FSM interface.
+type MockFSM struct {
+	ctrl     *gomock.Controller
+	recorder *MockFSMMockRecorder
+}
+
+// MockFSMMockRecorder is the mock recorder for MockFSM.
+type MockFSMMockRecorder struct {
+	mock *MockFSM
+}
+
+// NewMockFSM creates a new mock instance.
+func NewMockFSM(ctrl *gomock.Controller) *MockFSM {
+	mock := &MockFSM{ctrl: ctrl}
+	mock.recorder = &MockFSMMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockFSM) EXPECT() *MockFSMMockRecorder {
+	return m.recorder
+}
+
+// Apply mocks base method.
+func (m *MockFSM) Apply(arg0 []byte) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Apply", arg0)
+}
+
+// Apply indicates an expected call of Apply.
+func (mr *MockFSMMockRecorder) Apply(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Apply", reflect.TypeOf((*MockFSM)(nil).Apply), arg0)
+}
+
+// Restore mocks base method.
+func (m *MockFSM) Restore(arg0 io.ReadCloser) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Restore", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Restore indicates an expected call of Restore.
+func (mr *MockFSMMockRecorder) Restore(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockFSM)(nil).Restore), arg0)
+}
+
+// Snapshot mocks base method.
+func (m *MockFSM) Snapshot() (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Snapshot")
+	ret0, _ := ret[0].(io.ReadCloser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Snapshot indicates an expected call of Snapshot.
+func (mr *MockFSMMockRecorder) Snapshot() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockFSM)(nil).Snapshot))
 }
