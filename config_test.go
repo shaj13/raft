@@ -3,6 +3,7 @@ package raft
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -19,8 +20,8 @@ func TestConfig(t *testing.T) {
 	}{
 		{
 			defaults: context.Background(),
-			expected: nil,
-			opt:      WithContext(nil),
+			expected: context.TODO(),
+			opt:      WithContext(context.TODO()),
 			value:    func(c *config) interface{} { return c.ctx },
 		},
 		{
@@ -48,7 +49,7 @@ func TestConfig(t *testing.T) {
 			value:    func(c *config) interface{} { return c.DrainTimeout() },
 		},
 		{
-			defaults: "/tmp",
+			defaults: os.TempDir(),
 			expected: "/var/lib",
 			opt:      WithStateDIR("/var/lib"),
 			value:    func(c *config) interface{} { return c.StateDir() },

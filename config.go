@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
@@ -94,7 +95,7 @@ func WithDrainTimeOut(d time.Duration) Option {
 
 // WithStateDIR is the directory to store durable state (WAL logs and Snapshots).
 //
-// Default Value: /tmp.
+// Default Value: os.TempDir().
 func WithStateDIR(dir string) Option {
 	return optionFunc(func(c *config) {
 		c.statedir = dir
@@ -450,7 +451,7 @@ func newConfig(opts ...Option) *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1000,
-		statedir:         "/tmp",
+		statedir:         os.TempDir(),
 	}
 
 	for _, opt := range opts {
