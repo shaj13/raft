@@ -6,15 +6,16 @@ import (
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
+	intrpc "github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage/disk"
+	"github.com/shaj13/raftkit/rpc"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func New(opts ...Option) (Cluster, interface{}) {
+func New(proto rpc.Proto, opts ...Option) (Cluster, interface{}) {
 	cfg := newConfig(opts...)
 	ctx := cfg.ctx
-	newServer, dialer := rpc.HTTP.Get()
+	newServer, dialer := intrpc.Proto(proto).Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = dialer(ctx, cfg)
