@@ -24,20 +24,6 @@ var (
 	ErrStopped = errors.New("raft: daemon not ready yet or has been stopped")
 )
 
-const (
-	msg Event = iota + 1
-	propose
-	snapshot
-)
-
-// TODO: add event comment
-type Event uint64
-
-// ID returns event id.
-func (e Event) ID() uint64 {
-	return uint64(e)
-}
-
 type Daemon interface {
 	MsgBus() *msgbus.MsgBus
 	Push(m etcdraftpb.Message) error
@@ -87,6 +73,9 @@ type daemon struct {
 	started      *atomic.Bool
 	snapIndex    *atomic.Uint64
 	appliedIndex *atomic.Uint64
+	proposec     chan etcdraftpb.Message
+	msgc         chan etcdraftpb.Message
+	snapshotc    chan struct{}
 }
 
 // MsgBus returns daemon msgbus.
@@ -126,13 +115,13 @@ func (d *daemon) Push(m etcdraftpb.Message) error {
 		return ErrStopped
 	}
 
-	// event id based on msg type.
-	event := msg
+	// chan based on msg type.
+	c := d.msgc
 	if m.Type == etcdraftpb.MsgProp {
-		event = propose
+		c = d.proposec
 	}
 
-	d.msgbus.Broadcast(event.ID(), m)
+	c <- m
 	return nil
 }
 
@@ -186,7 +175,7 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 	select {
 	case v := <-sub.Chan():
 		if v != nil {
-			return err.(error)
+			return v.(error)
 		}
 		return nil
 	case <-ctx.Done():
@@ -303,15 +292,14 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 
 	// set local member.
 	d.local = ost.local
-	// subscribe to propose message.
-	prop := d.msgbus.SubscribeBuffered(propose.ID(), 4096)
-	// subscribe to recived received.
-	recv := d.msgbus.SubscribeBuffered(msg.ID(), 4096)
-
+	d.proposec = make(chan etcdraftpb.Message, 4096)
+	d.msgc = make(chan etcdraftpb.Message, 4096)
+	d.snapshotc = make(chan struct{}, 10)
 	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
+
 	d.started.Set()
-	go d.process(prop)
-	go d.process(recv)
+	go d.process(d.proposec)
+	go d.process(d.msgc)
 	go d.snapshots()
 	return d.eventLoop()
 }
@@ -342,9 +330,14 @@ func (d *daemon) eventLoop() error {
 			}
 
 			d.send(rd.Messages)
+
+			if rd.SoftState != nil && rd.SoftState.Lead == raft.None {
+				d.msgbus.BroadcastToAll(errors.New("raft: no elected cluster leader"))
+			}
+
 			d.publishCommitted(rd.CommittedEntries)
 
-			d.msgbus.Broadcast(snapshot.ID(), nil) // TODO: add snapid event
+			d.snapshotc <- struct{}{}
 
 			d.node.Advance()
 		case <-d.ctx.Done():
@@ -475,17 +468,16 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 }
 
 // process the incoming messages from the given chan.
-func (d *daemon) process(sub *msgbus.Subscription) {
+func (d *daemon) process(c chan etcdraftpb.Message) {
 	d.wg.Add(1)
 	defer d.wg.Done()
-	defer sub.Unsubscribe()
 
 	for {
 		select {
-		case v := <-sub.Chan():
-			if err := d.node.Step(d.ctx, v.(etcdraftpb.Message)); err != nil {
+		case m := <-c:
+			if err := d.node.Step(d.ctx, m); err != nil {
 				log.Warnf(
-					"raft.daemon: process raft message failed, Err: %s",
+					"raft.daemon: process raft message failed: %v",
 					err,
 				)
 			}
@@ -522,12 +514,9 @@ func (d *daemon) snapshots() {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	sub := d.msgbus.SubscribeBuffered(snapshot.ID(), 10)
-	defer sub.Unsubscribe()
-
 	for {
 		select {
-		case <-sub.Chan():
+		case <-d.snapshotc:
 			if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
 				continue
 			}

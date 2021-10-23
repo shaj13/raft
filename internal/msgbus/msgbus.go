@@ -33,7 +33,7 @@ func (m *MsgBus) Subscribe(id uint64) *Subscription {
 
 // SubscribeBuffered creates an async buffered subscription for event.
 func (m *MsgBus) SubscribeBuffered(id uint64, n int) *Subscription {
-	return m.subscribe(id, 2, false)
+	return m.subscribe(id, n, false)
 }
 
 // Subscribe creates an async one time subscription for event.
@@ -41,11 +41,38 @@ func (m *MsgBus) SubscribeOnce(id uint64) *Subscription {
 	return m.subscribe(id, 1, true)
 }
 
+// BroadcastToAll sends v to all events subscribers.
+func (m *MsgBus) BroadcastToAll(v interface{}) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id := range m.events {
+		m.broadcast(id, v)
+	}
+}
+
 // Broadcast sends event to subscribers.
 func (m *MsgBus) Broadcast(id uint64, v interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.broadcast(id, v)
+}
 
+// Close msgbus and remove all subscription.
+func (m *MsgBus) Clsoe() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for id, subs := range m.events {
+		for _, s := range subs {
+			s.close()
+		}
+		delete(m.events, id)
+	}
+
+	return nil
+}
+
+func (m *MsgBus) broadcast(id uint64, v interface{}) {
 	subs, ok := m.events[id]
 	if !ok {
 		return
@@ -64,21 +91,6 @@ func (m *MsgBus) Broadcast(id uint64, v interface{}) {
 			s.publish(v)
 		}
 	}(sv, v)
-}
-
-// Close msgbus and remove all subscription.
-func (m *MsgBus) Clsoe() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for id, subs := range m.events {
-		for _, s := range subs {
-			s.close()
-		}
-		delete(m.events, id)
-	}
-
-	return nil
 }
 
 func (m *MsgBus) subscribe(id uint64, n int, once bool) *Subscription {
