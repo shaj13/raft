@@ -36,6 +36,7 @@ var order = map[string]int{
 	new(initCluster).String():     4,
 	new(restart).String():         4,
 	new(fallback).String():        4,
+	new(removedMembers).String():  5,
 }
 
 // Members return's operator that add the given members to the raft node.
@@ -520,6 +521,32 @@ func (m members) before(ost *operatorsState) (err error) {
 
 func (m members) String() string {
 	return "Members"
+}
+
+type removedMembers struct{}
+
+func (rm removedMembers) before(ost *operatorsState) (err error) { return }
+func (rm removedMembers) after(ost *operatorsState) (err error) {
+	// removed members must be added back to the pool right away,
+	// to avoid to connect to them, and getting stuck on add conf change.
+	for _, ent := range ost.ents {
+		if ent.Index <= ost.hst.Commit && ent.Type == etcdraftpb.EntryConfChange {
+			cc := new(etcdraftpb.ConfChange)
+			pbutil.MaybeUnmarshal(cc, ent.Data)
+			if cc.Type == etcdraftpb.ConfChangeRemoveNode {
+				mem := new(raftpb.Member)
+				pbutil.MustMarshal(mem)
+				if err := ost.daemon.pool.Add(*mem); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return
+}
+
+func (rm removedMembers) String() string {
+	return "RemovedMembers"
 }
 
 func invoke(d *daemon, oprs ...Operator) (*operatorsState, error) {

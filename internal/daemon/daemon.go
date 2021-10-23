@@ -289,7 +289,10 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 // TODO: more comment
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
-	oprs = append(oprs, setup{addr: addr}, stateSetup{publishSnapshotFile: d.publishSnapshotFile})
+	sp := setup{addr: addr}
+	ssp := stateSetup{publishSnapshotFile: d.publishSnapshotFile}
+	rm := removedMembers{}
+	oprs = append(oprs, sp, ssp, rm)
 	ost, err := invoke(d, oprs...)
 	if err != nil {
 		return err
@@ -470,18 +473,14 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	case etcdraftpb.ConfChangeUpdateNode:
 		err = d.pool.Update(*mem)
 	case etcdraftpb.ConfChangeRemoveNode:
-		if d.node.Status().Lead == d.local.ID {
-			go func(mem raftpb.Member) {
-				// wait for two ticks then go and remove the member from the pool.
-				// to make sure the commit ack sent before closing connection.
-				<-time.After(d.cfg.TickInterval() * 2)
-				if err := d.pool.Remove(mem); err != nil {
-					log.Error("raft.daemon: removing member %x: %v", mem.ID, err)
-				}
-			}(*mem)
-		} else {
-			err = d.pool.Remove(*mem)
-		}
+		go func(mem raftpb.Member) {
+			// wait for two ticks then go and remove the member from the pool.
+			// to make sure the commit ack sent before closing connection.
+			<-time.After(d.cfg.TickInterval() * 2)
+			if err := d.pool.Remove(mem); err != nil {
+				log.Error("raft.daemon: removing member %x: %v", mem.ID, err)
+			}
+		}(*mem)
 	}
 
 	d.confState(d.node.ApplyConfChange(cc))
