@@ -105,8 +105,11 @@ func (d *daemon) ReportShutdown(id uint64) {
 		return
 	}
 
-	// TODO: push to msgbus when events are defined.
-	// d.msgbus.Broadcast()
+	log.Info("raft.daemon: this member removed from the cluster! shutting down.")
+
+	if err := d.Close(); err != nil {
+		log.Panic(err)
+	}
 }
 
 // Push m to the daemon queue.
@@ -138,8 +141,8 @@ func (d *daemon) Status() (raft.Status, error) {
 func (d *daemon) Close() error {
 	d.cancel()
 	d.started.UnSet()
-	d.wg.Done()
-	d.propwg.Done()
+	d.wg.Wait()
+	d.propwg.Wait()
 	d.node.Stop()
 	d.MsgBus().Clsoe()
 	return nil
@@ -467,7 +470,18 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	case etcdraftpb.ConfChangeUpdateNode:
 		err = d.pool.Update(*mem)
 	case etcdraftpb.ConfChangeRemoveNode:
-		err = d.pool.Remove(*mem)
+		if d.node.Status().Lead == d.local.ID {
+			go func(mem raftpb.Member) {
+				// wait for two ticks then go and remove the member from the pool.
+				// to make sure the commit ack sent before closing connection.
+				<-time.After(d.cfg.TickInterval() * 2)
+				if err := d.pool.Remove(mem); err != nil {
+					log.Error("raft.daemon: removing member %x: %v", mem.ID, err)
+				}
+			}(*mem)
+		} else {
+			err = d.pool.Remove(*mem)
+		}
 	}
 
 	d.confState(d.node.ApplyConfChange(cc))
