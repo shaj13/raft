@@ -11,9 +11,10 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func New(ctx context.Context, opts ...Option) (Cluster, interface{}) {
+func New(opts ...Option) (Cluster, interface{}) {
 	cfg := newConfig(opts...)
-	newServer, dialer := rpc.GRPC.Get()
+	ctx := cfg.ctx
+	newServer, dialer := rpc.HTTP.Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = dialer(ctx, cfg)

@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
@@ -228,6 +229,18 @@ func WithDisableProposalForwarding() Option {
 	})
 }
 
+// WithContext set raft node parent ctx, The provided ctx must be non-nil.
+//
+// The context controls the entire lifetime of the raft node:
+// obtaining a connection, sending the msgs, reading the response, and process msgs.
+//
+// Default Value: context.Background().
+func WithContext(ctx context.Context) Option {
+	return optionFunc(func(c *config) {
+		c.ctx = ctx
+	})
+}
+
 // WithJoin send rpc request to join an existing cluster.
 func WithJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
@@ -351,6 +364,7 @@ func (c *startConfig) apply(opts ...StartOption) {
 }
 
 type config struct {
+	ctx              context.Context
 	rcfg             *raft.Config
 	tickInterval     time.Duration
 	streamTimeOut    time.Duration
@@ -430,6 +444,7 @@ func newConfig(opts ...Option) *config {
 			MaxInflightMsgs:           256,
 			MaxUncommittedEntriesSize: 1 << 30,
 		},
+		ctx:              context.Background(),
 		tickInterval:     time.Millisecond * 100,
 		streamTimeOut:    time.Second * 10,
 		drainTimeOut:     time.Second * 10,

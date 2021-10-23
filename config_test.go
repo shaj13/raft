@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -16,6 +17,12 @@ func TestConfig(t *testing.T) {
 		opt      Option
 		value    func(c *config) interface{}
 	}{
+		{
+			defaults: context.Background(),
+			expected: nil,
+			opt:      WithContext(nil),
+			value:    func(c *config) interface{} { return c.ctx },
+		},
 		{
 			defaults: log.GetLogger(),
 			expected: nil,
