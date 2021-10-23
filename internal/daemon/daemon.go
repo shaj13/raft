@@ -69,13 +69,14 @@ type daemon struct {
 	msgbus       *msgbus.MsgBus
 	idgen        *idutil.Generator
 	pool         membership.Pool
-	cState       etcdraftpb.ConfState
 	started      *atomic.Bool
 	snapIndex    *atomic.Uint64
 	appliedIndex *atomic.Uint64
 	proposec     chan etcdraftpb.Message
 	msgc         chan etcdraftpb.Message
 	snapshotc    chan struct{}
+	csMu         sync.Mutex // guard ConfState.
+	cState       *etcdraftpb.ConfState
 }
 
 // MsgBus returns daemon msgbus.
@@ -229,7 +230,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 	if appliedIndex == snapIndex {
 		// up to date just return the latest snap to load it from disk.
-		return d.cache.CreateSnapshot(appliedIndex, &d.cState, nil)
+		return d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
 	}
 
 	log.Infof(
@@ -245,7 +246,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	// }
 
 	// TODO: organize me
-	snap, err := d.cache.CreateSnapshot(appliedIndex, &d.cState, nil) // TODO: pass data
+	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil) // TODO: pass data
 	if err != nil {
 		return snap, err
 	}
@@ -382,7 +383,7 @@ func (d *daemon) publishSnapshotFile(sf *storage.SnapshotFile) error {
 
 	// TODO: trigger original user to load snapshot
 
-	d.cState = snap.Metadata.ConfState
+	d.confState(&snap.Metadata.ConfState)
 	d.snapIndex.Set(snap.Metadata.Index)
 	d.appliedIndex.Set(snap.Metadata.Index)
 	return nil
@@ -464,7 +465,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		err = d.pool.Remove(*mem)
 	}
 
-	d.cState = *d.node.ApplyConfChange(cc)
+	d.confState(d.node.ApplyConfChange(cc))
 }
 
 // process the incoming messages from the given chan.
@@ -533,4 +534,15 @@ func (d *daemon) snapshots() {
 		}
 
 	}
+}
+
+func (d *daemon) confState(cs *etcdraftpb.ConfState) *etcdraftpb.ConfState {
+	d.csMu.Lock()
+	defer d.csMu.Unlock()
+
+	if cs != nil {
+		d.cState = cs
+	}
+
+	return d.cState
 }
