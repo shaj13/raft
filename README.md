@@ -1,10 +1,8 @@
 # raftkit
 
 ### TODO 
-- [ ] add raw to all members 
-- [ ] change api to accept raw 
-- [ ] remove member url  
 - [ ] renmae cluster to node
+- [ ] Add extentions to member protobuf
 - [ ] fix all logs that have raft.rpc 
 - [ ] close gc when closing disk 
 - [ ] add tcp rpc 
