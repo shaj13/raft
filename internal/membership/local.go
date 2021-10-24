@@ -18,11 +18,11 @@ type local struct {
 }
 
 func (l *local) ID() uint64 {
-	return l.raw.ID
+	return l.Raw().ID
 }
 
 func (l *local) Address() string {
-	return l.raw.Address
+	return l.Raw().Address
 }
 
 func (l *local) ActiveSince() time.Time {
