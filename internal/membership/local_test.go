@@ -27,4 +27,5 @@ func TestLocal(t *testing.T) {
 	require.NoError(t, l.Update(""))
 	require.Empty(t, l.Address())
 	require.Panics(t, func() { l.Send(etcdraftpb.Message{}) })
+	require.NotNil(t, l.Raw())
 }

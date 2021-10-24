@@ -53,3 +53,9 @@ func (l *local) Send(etcdraftpb.Message) error {
 	log.Panic("raft.membership: attempted to send msg to local member; should never happen")
 	return nil
 }
+
+func (l *local) Raw() raftpb.Member {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return *l.raw // return shallow copy.
+}
