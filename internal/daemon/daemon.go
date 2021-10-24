@@ -25,8 +25,8 @@ var (
 )
 
 type Daemon interface {
-	MsgBus() *msgbus.MsgBus
 	Push(m etcdraftpb.Message) error
+	TransferLeadership(context.Context, uint64) error
 	Status() (raft.Status, error)
 	Close() error
 	ProposeReplicate(ctx context.Context, data []byte) error
@@ -80,11 +80,6 @@ type daemon struct {
 	csMu            sync.Mutex // guard ConfState.
 	cState          *etcdraftpb.ConfState
 	disableProposal bool
-}
-
-// MsgBus returns daemon msgbus.
-func (d *daemon) MsgBus() *msgbus.MsgBus {
-	return d.msgbus
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
@@ -148,7 +143,37 @@ func (d *daemon) Close() error {
 	d.wg.Wait()
 	d.propwg.Wait()
 	d.node.Stop()
-	d.MsgBus().Clsoe()
+	d.msgbus.Clsoe()
+	return nil
+}
+
+// TransferLeadership attempts to transfer leadership to the given transferee.
+func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) error {
+	if d.started.False() {
+		return ErrStopped
+	}
+
+	if d.node.Status().Lead == raft.None {
+		return ErrNoLeader
+	}
+
+	log.Infof("raft.daemon: start transfer leadership %x -> %x", d.node.Status().Lead, transferee)
+
+	d.node.TransferLeadership(ctx, d.node.Status().Lead, transferee)
+	ticker := time.NewTicker(d.cfg.TickInterval() / 10)
+	defer ticker.Stop()
+	for {
+		leader := d.node.Status().Lead
+		if leader != raft.None && leader == transferee {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+
 	return nil
 }
 
@@ -307,7 +332,6 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	return snap, err
 }
 
-// TODO: more comment
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
 	sp := setup{addr: addr}

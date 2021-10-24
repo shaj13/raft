@@ -15,7 +15,9 @@ import (
 type Cluster interface {
 	Start(opts ...StartOption) error
 	Leave(ctx context.Context) error
+	StepDown(ctx context.Context) error
 	UpdateMember(ctx context.Context, id uint64, addr string) error
+	TransferLeadership(ctx context.Context, id uint64) error
 	RemoveMember(ctx context.Context, id uint64) error
 	AddMember(ctx context.Context, addr string) (Member, error)
 	GetMemebr(id uint64) (Member, bool)
@@ -35,11 +37,39 @@ type cluster struct {
 	daemon daemon.Daemon
 }
 
-// TODO: rename this to method to somthing meaningful.
-func (c *cluster) StateSubscribe()  {}
-func (c *cluster) MemberSubscribe() {}
+func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
+	err := c.precondition(
+		joined(),
+		notMember(id),
+		available(),
+	)
 
-func (c *cluster) StepDown() {}
+	if err != nil {
+		return err
+	}
+
+	return c.daemon.TransferLeadership(ctx, id)
+}
+
+func (c *cluster) StepDown(ctx context.Context) error {
+	err := c.precondition(
+		joined(),
+		notLeader(),
+		available(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	m, err := c.LongestActive()
+	if err != nil {
+		return err
+	}
+
+	return c.daemon.TransferLeadership(ctx, m.ID())
+}
+
 func (c *cluster) Start(opts ...StartOption) error {
 	cfg := new(startConfig)
 	cfg.apply(opts...)
@@ -164,9 +194,10 @@ func (c *cluster) LongestActive() (Member, error) {
 
 	for _, m := range c.Members() {
 		since := m.Since()
-		if since.IsZero() {
+		if since.IsZero() || m.Type() == raftpb.LocalMember {
 			continue
 		}
+
 		if longest == nil {
 			longest = m
 			continue
@@ -178,7 +209,7 @@ func (c *cluster) LongestActive() (Member, error) {
 	}
 
 	if longest == nil {
-		return nil, errors.New("raft: failed to find longest active peer")
+		return nil, errors.New("raft: failed to find longest active member")
 	}
 
 	return longest, nil
@@ -264,6 +295,15 @@ func addressInUse(addr string) func(c *cluster) error {
 	return func(c *cluster) error {
 		if id := c.AddressInUse(addr); id > 0 {
 			return fmt.Errorf("raft: address used by member %x", id)
+		}
+		return nil
+	}
+}
+
+func notLeader() func(c *cluster) error {
+	return func(c *cluster) error {
+		if c.Whoami() != c.Leader() {
+			return daemon.ErrNotLeader
 		}
 		return nil
 	}
