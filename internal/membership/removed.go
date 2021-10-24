@@ -12,16 +12,15 @@ var ErrRemovedMember = errors.New("raft/membership: member was removed")
 
 // removed represents the remote removed cluster member.
 type removed struct {
-	id   uint64
-	addr string
+	raw raftpb.Member
 }
 
 func (r removed) ID() uint64 {
-	return r.id
+	return r.raw.ID
 }
 
 func (r removed) Address() string {
-	return r.addr
+	return r.raw.Address
 }
 
 func (r removed) Send(etcdraftpb.Message) error {
@@ -34,6 +33,10 @@ func (r removed) Type() raftpb.MemberType {
 
 func (r removed) Update(string) error {
 	return ErrRemovedMember
+}
+
+func (r removed) Raw() raftpb.Member {
+	return r.raw
 }
 
 func (r removed) Close() (err error)         { return }

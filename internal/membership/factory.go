@@ -67,8 +67,7 @@ func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
 
 func newRemoved(_ context.Context, _ Config, m raftpb.Member) (Member, error) {
 	return removed{
-		id:   m.ID,
-		addr: m.Address,
+		raw: m,
 	}, nil
 }
 

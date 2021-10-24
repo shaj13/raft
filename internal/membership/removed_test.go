@@ -13,8 +13,10 @@ func TestRemoved(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
 	r := removed{
-		id:   id,
-		addr: addr,
+		raw: raftpb.Member{
+			ID:      id,
+			Address: addr,
+		},
 	}
 
 	require.Equal(t, id, r.ID())
@@ -25,4 +27,5 @@ func TestRemoved(t *testing.T) {
 	require.Equal(t, r.Send(etcdraftpb.Message{}), ErrRemovedMember)
 	require.Equal(t, r.Update(""), ErrRemovedMember)
 	require.Equal(t, addr, r.Address())
+	require.Equal(t, addr, r.Raw().Address)
 }
