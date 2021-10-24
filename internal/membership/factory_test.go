@@ -13,9 +13,7 @@ import (
 )
 
 func TestFactory(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	cfg := NewMockConfig(ctrl)
-	cfg.EXPECT().Reporter().Return(nil)
+	cfg := testConfig(t)
 
 	m := raftpb.Member{
 		Address: ":5052",
@@ -54,7 +52,7 @@ func TestNewRemote(t *testing.T) {
 	cfg.EXPECT().Reporter().Return(nil)
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1))
 
-	m, err := newRemote(context.Background(), cfg, 0, "")
+	m, err := newRemote(context.Background(), cfg, raftpb.Member{})
 	require.NoError(t, err)
 	require.NotNil(t, m)
 

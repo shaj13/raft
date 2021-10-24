@@ -16,8 +16,7 @@ import (
 type constructor func(
 	ctx context.Context,
 	cfg Config,
-	id uint64,
-	addr string,
+	m raftpb.Member,
 ) (Member, error)
 
 type Member interface {

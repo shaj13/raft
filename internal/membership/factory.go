@@ -15,7 +15,7 @@ type factory struct {
 }
 
 func (f *factory) From(m raftpb.Member) (Member, bool, error) {
-	return f.create(m.ID, m.Address, m.Type)
+	return f.create(m)
 }
 
 func (f *factory) To(m Member) raftpb.Member {
@@ -27,16 +27,21 @@ func (f *factory) To(m Member) raftpb.Member {
 }
 
 func (f *factory) Cast(m Member, t raftpb.MemberType) (Member, bool, error) {
-	return f.create(m.ID(), m.Address(), t)
+	temp := raftpb.Member{ // TODO: remove me when we have support raw.
+		ID:      m.ID(),
+		Address: m.Address(),
+		Type:    t,
+	}
+	return f.create(temp)
 }
 
-func (f *factory) create(id uint64, addr string, t raftpb.MemberType) (Member, bool, error) {
-	c, ok := f.constructors[t]
+func (f *factory) create(m raftpb.Member) (Member, bool, error) {
+	c, ok := f.constructors[m.Type]
 	if !ok {
 		return nil, false, nil
 	}
 
-	mem, err := c(f.ctx, f.cfg, id, addr)
+	mem, err := c(f.ctx, f.cfg, m)
 	return mem, true, err
 }
 
@@ -52,24 +57,24 @@ func newFactory(ctx context.Context, cfg Config) *factory {
 	return f
 }
 
-func newLocal(_ context.Context, cfg Config, id uint64, addr string) (Member, error) {
+func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
 	return &local{
-		id:     id,
+		id:     m.ID,
 		r:      cfg.Reporter(),
-		addr:   addr,
+		addr:   m.Address,
 		active: time.Now(),
 	}, nil
 }
 
-func newRemoved(_ context.Context, _ Config, id uint64, addr string) (Member, error) {
+func newRemoved(_ context.Context, _ Config, m raftpb.Member) (Member, error) {
 	return removed{
-		id:   id,
-		addr: addr,
+		id:   m.ID,
+		addr: m.Address,
 	}, nil
 }
 
-func newRemote(ctx context.Context, cfg Config, id uint64, addr string) (Member, error) {
-	rpc, err := cfg.Dial()(ctx, addr)
+func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error) {
+	rpc, err := cfg.Dial()(ctx, m.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +82,8 @@ func newRemote(ctx context.Context, cfg Config, id uint64, addr string) (Member,
 	mem := new(remote)
 	mem.ctx, mem.cancel = context.WithCancel(ctx)
 	mem.rc = rpc
-	mem.id = id
-	mem.addr = addr
+	mem.id = m.ID
+	mem.addr = m.Address
 	mem.cfg = cfg
 	mem.r = cfg.Reporter()
 	mem.dial = cfg.Dial()
