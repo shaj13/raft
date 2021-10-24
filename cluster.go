@@ -18,11 +18,11 @@ type Cluster interface {
 	Start(opts ...StartOption) error
 	Leave(ctx context.Context) error
 	StepDown(ctx context.Context) error
-	UpdateMember(ctx context.Context, id uint64, addr string) error
+	UpdateMember(ctx context.Context, raw *RawMember) error
 	CreateSnapshot() (io.ReadCloser, error)
 	TransferLeadership(ctx context.Context, id uint64) error
 	RemoveMember(ctx context.Context, id uint64) error
-	AddMember(ctx context.Context, addr string) (Member, error)
+	AddMember(ctx context.Context, raw *RawMember) error
 	GetMemebr(id uint64) (Member, bool)
 	Members() []Member
 	RemovedMembers() []Member
@@ -105,24 +105,19 @@ func (c *cluster) Leave(ctx context.Context) error {
 	)
 }
 
-func (c *cluster) UpdateMember(ctx context.Context, id uint64, addr string) error {
+func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 	err := c.precondition(
 		joined(),
 		available(),
-		notMember(id),
-		addressInUse(addr),
+		notMember(raw.ID),
+		addressInUse(raw.Address),
 	)
 
 	if err != nil {
 		return err
 	}
 
-	m := &raftpb.Member{
-		ID:   id,
-		Type: raftpb.RemovedMember,
-	}
-
-	return c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeUpdateNode)
+	return c.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
 }
 
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
@@ -146,30 +141,23 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 	return c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeRemoveNode)
 }
 
-func (c *cluster) AddMember(ctx context.Context, addr string) (Member, error) {
+func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	err := c.precondition(
 		joined(),
+		addressInUse(raw.Address),
+		idInUse(raw.ID),
 		available(),
-		addressInUse(addr),
 	)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	m := &raftpb.Member{
-		ID:      c.pool.NextID(),
-		Address: addr,
-		Type:    raftpb.RemoteMember,
+	if raw.ID == None {
+		raw.ID = c.pool.NextID()
 	}
 
-	err = c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
-	if err != nil {
-		return nil, err
-	}
-
-	memb, _ := c.pool.Get(m.ID)
-	return memb, nil
+	return c.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeAddNode)
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {
@@ -336,6 +324,15 @@ func rmLeader(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
 		if id == c.Leader() {
 			return fmt.Errorf("raft: member %x is the leader and cannot be removed, transfer leadership first", id)
+		}
+		return nil
+	}
+}
+
+func idInUse(id uint64) func(c *cluster) error {
+	return func(c *cluster) error {
+		if _, ok := c.GetMemebr(id); ok {
+			return fmt.Errorf("raft: id used by member %x", id)
 		}
 		return nil
 	}

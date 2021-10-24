@@ -8,17 +8,36 @@ import (
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/raft/v3"
 )
+
+// None is a placeholder node ID used to identify non-existence.
+const None = raft.None
+
+const (
+	// LocalMember represents the current raft node.
+	LocalMember MemberType = raftpb.LocalMember
+	// RemoteMember represents an remote raft node.
+	RemoteMember MemberType = raftpb.RemoteMember
+	// RemovedMember represents an removed raft node.
+	RemovedMember MemberType = raftpb.RemovedMember
+)
+
+// MemberType used to distinguish members (local, remote, etc).
+type MemberType = raftpb.MemberType
+
+// RawMember represents a raft cluster member and holds its metadata.
+type RawMember = raftpb.Member
 
 // URL return's string represents a member URL.
 // The general form represented is:
 //
 //	{id}={addr}
 //
-var MemberURL = membership.URL
+var MemberURL = membership.URL // TODO: remove me
 
 // Logger represents an active logging object that generates lines of
 // output to an io.Writer.

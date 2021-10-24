@@ -43,22 +43,19 @@ type controller struct {
 }
 
 func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raftpb.Member, error) {
-	var (
-		memb Member
-		err  error
-	)
+	var err error
 
 	if mm, _ := c.cluster.GetMemebr(m.ID); mm == nil {
-		memb, err = c.cluster.AddMember(context.Background(), m.Address)
+		err = c.cluster.AddMember(ctx, m)
 	} else {
-		err = c.cluster.UpdateMember(context.Background(), m.ID, m.Address)
-		memb, _ = c.cluster.GetMemebr(m.ID)
+		err = c.cluster.UpdateMember(ctx, m)
 	}
 
 	if err != nil {
 		return 0, []raftpb.Member{}, err
 	}
 
+	memb, _ := c.cluster.GetMemebr(m.ID)
 	pool := c.pool.Snapshot()
 
 	for i, m := range pool {
