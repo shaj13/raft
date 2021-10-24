@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -9,7 +8,8 @@ import (
 	"time"
 
 	raft "github.com/shaj13/raftkit"
-	rafthttp "github.com/shaj13/raftkit/rpc/http"
+	"github.com/shaj13/raftkit/transport"
+	rafthttp "github.com/shaj13/raftkit/transport/http"
 	// "google.golang.org/grpc"
 )
 
@@ -42,8 +42,8 @@ func main() {
 			raft.WithRestart(),
 		)
 	}
-	ctx := context.Background()
-	cluster, srv := raft.New(ctx, raft.WithStateDIR(dir))
+
+	cluster, srv := raft.New(transport.HTTP, raft.WithStateDIR(dir))
 	go startRaftServer(srv)
 	if err := cluster.Start(opt, raft.WithAddress(addr)); err != nil {
 		panic(err)
