@@ -109,6 +109,7 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		available(),
 		notMember(id),
 		memberRemoved(id),
+		rmLeader(id),
 	)
 
 	if err != nil {
@@ -304,6 +305,15 @@ func notLeader() func(c *cluster) error {
 	return func(c *cluster) error {
 		if c.Whoami() != c.Leader() {
 			return daemon.ErrNotLeader
+		}
+		return nil
+	}
+}
+
+func rmLeader(id uint64) func(c *cluster) error {
+	return func(c *cluster) error {
+		if id == c.Leader() {
+			return fmt.Errorf("raft: member %x is the leader and cannot be removed, transfer leadership first", id)
 		}
 		return nil
 	}
