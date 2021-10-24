@@ -59,10 +59,9 @@ func newFactory(ctx context.Context, cfg Config) *factory {
 
 func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
 	return &local{
-		id:     m.ID,
 		r:      cfg.Reporter(),
-		addr:   m.Address,
 		active: time.Now(),
+		raw:    &m,
 	}, nil
 }
 

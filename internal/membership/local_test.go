@@ -13,8 +13,10 @@ func TestLocal(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
 	l := local{
-		id:   id,
-		addr: addr,
+		raw: &raftpb.Member{
+			ID:      id,
+			Address: addr,
+		},
 	}
 
 	require.Equal(t, l.ID(), id)

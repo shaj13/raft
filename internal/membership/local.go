@@ -12,18 +12,17 @@ import (
 // local represents the current cluster member.
 type local struct {
 	r      Reporter
-	id     uint64
 	active time.Time
-	mu     sync.Mutex // protects addr
-	addr   string
+	mu     sync.Mutex // protects raw
+	raw    *raftpb.Member
 }
 
 func (l *local) ID() uint64 {
-	return l.id
+	return l.raw.ID
 }
 
 func (l *local) Address() string {
-	return l.addr
+	return l.raw.Address
 }
 
 func (l *local) ActiveSince() time.Time {
@@ -40,7 +39,7 @@ func (l *local) Type() raftpb.MemberType {
 
 func (l *local) Update(add string) (err error) {
 	l.mu.Lock()
-	l.addr = add
+	l.raw.Address = add
 	l.mu.Unlock()
 	return
 }
