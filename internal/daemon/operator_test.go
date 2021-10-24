@@ -69,20 +69,27 @@ func TestInvoke(t *testing.T) {
 func TestMembers(t *testing.T) {
 	ost := new(operatorsState)
 
-	// it should return's err on invalid url.
-	err := Members("").before(ost)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "url")
+	// it should not set local or membs.
+	err := Members().before(ost)
+	require.NoError(t, err)
+	require.Nil(t, ost.local)
+	require.Equal(t, 0, len(ost.membs))
 
-	// it should parse members.
-	err = Members("1=:8080", "2=:9090").before(ost)
+	// it should not set local or membs.
+	err = Members(raftpb.Member{ID: 1}).before(ost)
+	require.NoError(t, err)
+	require.NotNil(t, ost.local)
+	require.Equal(t, uint64(1), ost.local.ID)
+	require.Equal(t, raftpb.LocalMember, ost.local.Type)
+	require.Equal(t, 0, len(ost.membs))
+
+	// it should set local and membs.
+	err = Members(raftpb.Member{ID: 1}, raftpb.Member{ID: 2}).before(ost)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), ost.local.ID)
-	require.Equal(t, ":8080", ost.local.Address)
 	require.Equal(t, raftpb.LocalMember, ost.local.Type)
 	require.Equal(t, 1, len(ost.membs))
 	require.Equal(t, uint64(2), ost.membs[0].ID)
-	require.Equal(t, ":9090", ost.membs[0].Address)
 	require.Equal(t, raftpb.RemoteMember, ost.membs[0].Type)
 
 	err = Members().after(ost)
@@ -118,7 +125,7 @@ func TestInitCluster(t *testing.T) {
 		return nil
 	}
 
-	_ = Members("1=:8080", "2=:9090").before(ost)
+	_ = Members(raftpb.Member{ID: 1}, raftpb.Member{ID: 2}).before(ost)
 	err = InitCluster().after(ost)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(peers))

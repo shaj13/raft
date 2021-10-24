@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -40,8 +39,8 @@ var order = map[string]int{
 }
 
 // Members return's operator that add the given members to the raft node.
-func Members(urls ...string) Operator {
-	return members{urls: urls}
+func Members(membs ...raftpb.Member) Operator {
+	return members{membs: membs}
 }
 
 // Join return's operator that send rpc request to join an existing cluster.
@@ -487,7 +486,7 @@ func (r restore) String() string {
 }
 
 type members struct {
-	urls []string
+	membs []raftpb.Member
 }
 
 func (m members) after(ost *operatorsState) (err error) { return }
@@ -495,27 +494,11 @@ func (m members) after(ost *operatorsState) (err error) { return }
 func (m members) noFallback() {}
 
 func (m members) before(ost *operatorsState) (err error) {
-	for i, raw := range m.urls {
-		id, addr, err := membership.ParseURL(raw)
-		if err != nil {
-			return err
-		}
-
-		mem := raftpb.Member{
-			ID:      id,
-			Address: addr,
-			Type:    raftpb.RemoteMember,
-		}
-
-		if i == 0 {
-			mem.Type = raftpb.LocalMember
-			ost.local = &mem
-			continue
-		}
-
-		ost.membs = append(ost.membs, mem)
+	if len(m.membs) >= 1 {
+		ost.local = &m.membs[0]
+		ost.local.Type = raftpb.LocalMember // for safety.
+		ost.membs = append(ost.membs, m.membs[1:]...)
 	}
-
 	return
 }
 

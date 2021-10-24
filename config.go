@@ -32,13 +32,6 @@ type MemberType = raftpb.MemberType
 // RawMember represents a raft cluster member and holds its metadata.
 type RawMember = raftpb.Member
 
-// URL return's string represents a member URL.
-// The general form represented is:
-//
-//	{id}={addr}
-//
-var MemberURL = membership.URL // TODO: remove me
-
 // Logger represents an active logging object that generates lines of
 // output to an io.Writer.
 type Logger = log.Logger
@@ -314,30 +307,27 @@ func WithRestart() StartOption {
 }
 
 // WithMembers add the given members to the raft node.
-// use raft.MemberURL as input:
-//
-//  WithMembers(raft.MemberURL(<id>,"<addr>"), ....)
 //
 // WithMembers safe to be used with initiate cluster kind options,
 // ("WithForceNewCluster", "WithRestore", "WithInitCluster")
 // Otherwise, it may conflicts with other options like WithJoin.
 //
-// As long as only one url given, WithMembers will only set the current node id and address,
+// As long as only one url member, WithMembers will only set the current node,
 // then it will be safe to be composed with other options even "WithJoin".
 //
 // WithMembers and WithInitCluster must be applied to all cluster nodes when they are composed,
 // Otherwise, the quorum will be lost and the cluster become unavailable.
 //
 //  Node A:
-//  n.Start(WithInitCluster(), WithMembers(<node A url>, <node B url>))
+//  n.Start(WithInitCluster(), WithMembers(<node A>, <node B>))
 //
 //  Node B:
-//  n.Start(WithInitCluster(), WithMembers(<node B url>, <node A url>))
+//  n.Start(WithInitCluster(), WithMembers(<node B>, <node A>))
 //
-// Note: first URL will be assigned to the current node.
-func WithMembers(urls ...string) StartOption {
+// Note: first member will be assigned to the current node.
+func WithMembers(membs ...RawMember) StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.Members(urls...)
+		opr := daemon.Members(membs...)
 		c.appendOperator(opr)
 	})
 }
