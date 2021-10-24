@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
+	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
+	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +46,7 @@ func TestFactory(t *testing.T) {
 
 func TestNewRemote(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	client := rpcmock.NewMockClient(ctrl)
+	client := transportmock.NewMockClient(ctrl)
 	cfg := NewMockConfig(ctrl)
 	client.EXPECT().Close().Return(nil)
 	dial := mockDial(client, nil)
@@ -62,8 +62,8 @@ func TestNewRemote(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func mockDial(c rpc.Client, err error) rpc.Dial {
-	return func(ctx context.Context, addr string) (rpc.Client, error) {
+func mockDial(c transport.Client, err error) transport.Dial {
+	return func(ctx context.Context, addr string) (transport.Client, error) {
 		return c, err
 	}
 }

@@ -1,4 +1,4 @@
-package rpc
+package transport
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-//go:generate mockgen -package rpcmock  -source internal/rpc/types.go -destination internal/mocks/rpc/rpc.go
+//go:generate mockgen -package transportmock  -source internal/transport/types.go -destination internal/mocks/transport/transport.go
 
 // ServerConfig define common configuration used by the NewServer function.
 type ServerConfig interface {

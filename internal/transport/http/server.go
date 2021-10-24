@@ -10,14 +10,14 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 // NewServerFunc retur'ns func that create an http server.
-func NewServerFunc(basePath string) rpc.NewServer {
-	return func(c context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
+func NewServerFunc(basePath string) transport.NewServer {
+	return func(c context.Context, cfg transport.ServerConfig) (transport.Server, error) {
 		s := &server{
 			ctrl: cfg.Controller(),
 			snap: cfg.Snapshotter(),
@@ -27,7 +27,7 @@ func NewServerFunc(basePath string) rpc.NewServer {
 }
 
 type server struct {
-	ctrl rpc.Controller
+	ctrl transport.Controller
 	snap storage.Snapshotter
 }
 

@@ -10,14 +10,14 @@ import (
 	"sync"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
-var _ rpc.Client = &client{}
+var _ transport.Client = &client{}
 
 var bufferPool = sync.Pool{
 	New: func() interface{} {
@@ -31,9 +31,9 @@ const (
 )
 
 // Dialer return's grpc dialer.
-func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) rpc.Dialer {
-	return func(c context.Context, dc rpc.DialerConfig) rpc.Dial {
-		return func(ctx context.Context, addr string) (rpc.Client, error) {
+func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) transport.Dialer {
+	return func(c context.Context, dc transport.DialerConfig) transport.Dial {
+		return func(ctx context.Context, addr string) (transport.Client, error) {
 			conn, err := grpc.DialContext(ctx, addr, dopts(ctx)...)
 			if err != nil {
 				return nil, err
@@ -48,7 +48,7 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 	}
 }
 
-// Client implements rpc.Client.
+// Client implements transport.Client.
 type client struct {
 	conn    *grpc.ClientConn
 	copts   func(context.Context) []grpc.CallOption

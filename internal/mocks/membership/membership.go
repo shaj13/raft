@@ -11,7 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	membership "github.com/shaj13/raftkit/internal/membership"
 	raftpb "github.com/shaj13/raftkit/internal/raftpb"
-	rpc "github.com/shaj13/raftkit/internal/rpc"
+	transport "github.com/shaj13/raftkit/internal/transport"
 	raft "go.etcd.io/etcd/raft/v3"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -234,10 +234,10 @@ func (m *MockConfig) EXPECT() *MockConfigMockRecorder {
 }
 
 // Dial mocks base method.
-func (m *MockConfig) Dial() rpc.Dial {
+func (m *MockConfig) Dial() transport.Dial {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Dial")
-	ret0, _ := ret[0].(rpc.Dial)
+	ret0, _ := ret[0].(transport.Dial)
 	return ret0
 }
 

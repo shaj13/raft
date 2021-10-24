@@ -1,4 +1,4 @@
-package http
+package grpc
 
 import (
 	"bytes"
@@ -6,22 +6,23 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
+	"net"
 	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
+	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestMessage(t *testing.T) {
-	ts, c, srv := testClientServer(t)
-	defer ts.Close()
+	ln, c, srv := testClientServer(t)
+	defer ln.Close()
 	defer c.Close()
 
 	table := []struct {
@@ -41,7 +42,7 @@ func TestMessage(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			rpcCtrl := rpcmock.NewMockController(ctrl)
+			rpcCtrl := transportmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 			srv.ctrl = rpcCtrl
 			err := c.Message(context.Background(), etcdraftpb.Message{})
@@ -53,8 +54,8 @@ func TestMessage(t *testing.T) {
 }
 
 func TestJoin(t *testing.T) {
-	ts, c, srv := testClientServer(t)
-	defer ts.Close()
+	ln, c, srv := testClientServer(t)
+	defer ln.Close()
 	defer c.Close()
 
 	table := []struct {
@@ -78,7 +79,7 @@ func TestJoin(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			rpcCtrl := rpcmock.NewMockController(ctrl)
+			rpcCtrl := transportmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.id, tt.membs, tt.err)
 			srv.ctrl = rpcCtrl
 			id, pool, err := c.Join(context.Background(), raftpb.Member{})
@@ -92,8 +93,8 @@ func TestJoin(t *testing.T) {
 }
 
 func TestSnapshot(t *testing.T) {
-	ts, c, srv := testClientServer(t)
-	defer ts.Close()
+	ln, c, srv := testClientServer(t)
+	defer ln.Close()
 	defer c.Close()
 
 	table := []struct {
@@ -118,7 +119,7 @@ func TestSnapshot(t *testing.T) {
 			gotName := ""
 			ctrl := gomock.NewController(t)
 
-			rpcCtrl := rpcmock.NewMockController(ctrl)
+			rpcCtrl := transportmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
 
 			shotter := storagemock.NewMockSnapshotter(ctrl)
@@ -151,25 +152,41 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
-func testClientServer(tb testing.TB) (*httptest.Server, *client, *server) {
+func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
+	ln := bufconn.Listen(1024)
 	srv := new(server)
-	ts := httptest.NewServer(mux(srv, ""))
+
+	server := grpc.NewServer()
+	raftpb.RegisterRaftServer(server, srv)
+
+	go func() {
+		server.Serve(ln)
+	}()
+
+	dial := func(context.Context, string) (net.Conn, error) {
+		return ln.Dial()
+	}
+
+	dopts := func(context.Context) []grpc.DialOption {
+		return []grpc.DialOption{
+			grpc.WithInsecure(),
+			grpc.WithContextDialer(dial),
+		}
+	}
+
+	copts := func(c context.Context) []grpc.CallOption { return nil }
 
 	ctx := context.TODO()
 	ctrl := gomock.NewController(tb)
-	cfg := rpcmock.NewMockDialerConfig(ctrl)
+	cfg := transportmock.NewMockDialerConfig(ctrl)
 	cfg.EXPECT().Snapshotter().Return(nil)
 
-	tr := func(context.Context) http.RoundTripper {
-		return testRoundTripper{ts.Client()}
-	}
-
-	c, err := Dialer(tr, "")(ctx, cfg)(ctx, ts.URL)
+	c, err := Dialer(dopts, copts)(ctx, cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}
 
-	return ts, c.(*client), srv
+	return ln, c.(*client), srv
 }
 
 type writeCloser struct {
@@ -178,12 +195,4 @@ type writeCloser struct {
 
 func (writeCloser) Close() error {
 	return nil
-}
-
-type testRoundTripper struct {
-	c *http.Client
-}
-
-func (trt testRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	return trt.c.Do(r)
 }

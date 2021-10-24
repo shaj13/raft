@@ -9,8 +9,8 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,7 +21,7 @@ var errSnapHeader = errors.New("raft/grpc: snapshot header missing from grpc met
 // NewServer return an GRPC Server.
 //
 // NewServer compatible with rpc.New.
-func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
+func NewServer(ctx context.Context, cfg transport.ServerConfig) (transport.Server, error) {
 	return &server{
 		ctrl: cfg.Controller(),
 		snap: cfg.Snapshotter(),
@@ -29,7 +29,7 @@ func NewServer(ctx context.Context, cfg rpc.ServerConfig) (rpc.Server, error) {
 }
 
 type server struct {
-	ctrl rpc.Controller
+	ctrl transport.Controller
 	snap storage.Snapshotter
 }
 

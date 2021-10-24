@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/shaj13/raftkit/internal/log"
-	intrpc "github.com/shaj13/raftkit/internal/rpc"
-	rafthttp "github.com/shaj13/raftkit/internal/rpc/http"
-	"github.com/shaj13/raftkit/rpc"
+	itransport "github.com/shaj13/raftkit/internal/transport"
+	rafthttp "github.com/shaj13/raftkit/internal/transport/http"
+	"github.com/shaj13/raftkit/transport"
 )
 
 func init() {
@@ -72,11 +72,11 @@ func Register(opts ...Option) {
 	dialer := rafthttp.Dialer(c.tr, c.basePath)
 	ns := rafthttp.NewServerFunc(c.basePath)
 
-	intrpc.HTTP.Register(ns, dialer)
+	itransport.HTTP.Register(ns, dialer)
 }
 
 // Handler return's http.Handler for rpc server.
-func Handler(v rpc.Server) http.Handler {
+func Handler(v transport.Server) http.Handler {
 	if h, ok := v.(http.Handler); ok {
 		return h
 	}

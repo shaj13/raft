@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -30,9 +30,9 @@ var bufferPool = sync.Pool{
 }
 
 // Dialer return's grpc dialer.
-func Dialer(tr func(context.Context) http.RoundTripper, basePath string) rpc.Dialer {
-	return func(_ context.Context, dc rpc.DialerConfig) rpc.Dial {
-		return func(ctx context.Context, addr string) (rpc.Client, error) {
+func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transport.Dialer {
+	return func(_ context.Context, dc transport.DialerConfig) transport.Dial {
+		return func(ctx context.Context, addr string) (transport.Client, error) {
 			return &client{
 				transport: tr,
 				url:       join(addr, basePath),

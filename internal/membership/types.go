@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
+	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -41,7 +41,7 @@ type Config interface {
 	StreamTimeout() time.Duration
 	DrainTimeout() time.Duration
 	Reporter() Reporter
-	Dial() rpc.Dial
+	Dial() transport.Dial
 }
 
 type Pool interface {

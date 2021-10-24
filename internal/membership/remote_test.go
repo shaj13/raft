@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
+	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
@@ -71,7 +71,7 @@ func TestRemoteUpdate(t *testing.T) {
 	addr := ":5050"
 	uaddr := ":5051"
 	ctrl := gomock.NewController(t)
-	client := rpcmock.NewMockClient(ctrl)
+	client := transportmock.NewMockClient(ctrl)
 
 	client.EXPECT().Close().Return(nil)
 
@@ -100,7 +100,7 @@ func TestRemoteUpdate(t *testing.T) {
 
 func TestRemoteStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	client := rpcmock.NewMockClient(ctrl)
+	client := transportmock.NewMockClient(ctrl)
 	client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
 
 	r := new(remote)
@@ -210,7 +210,7 @@ func TestRemoteDrain(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			client := rpcmock.NewMockClient(ctrl)
+			client := transportmock.NewMockClient(ctrl)
 			client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
 
 			cfg := testConfig(t)
@@ -237,7 +237,7 @@ func TestRemoteDrain(t *testing.T) {
 func TestRemoteRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rep := NewMockReporter(ctrl)
-	client := rpcmock.NewMockClient(ctrl)
+	client := transportmock.NewMockClient(ctrl)
 
 	rep.EXPECT().ReportUnreachable(gomock.Any())
 	client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(fmt.Errorf("TestRemoteRun Message error"))

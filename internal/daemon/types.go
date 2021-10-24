@@ -7,8 +7,8 @@ import (
 
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -28,7 +28,7 @@ type Config interface {
 	SnapInterval() uint64
 	Pool() membership.Pool
 	Storage() storage.Storage
-	Dial() rpc.Dial
+	Dial() transport.Dial
 	TickInterval() time.Duration
 	FSM() FSM
 }

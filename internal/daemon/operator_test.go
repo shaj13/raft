@@ -7,12 +7,12 @@ import (
 
 	"github.com/golang/mock/gomock"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
-	rpcmock "github.com/shaj13/raftkit/internal/mocks/rpc"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
+	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/rpc"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
@@ -178,9 +178,9 @@ func TestForceJoin(t *testing.T) {
 	}
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
-	client := rpcmock.NewMockClient(ctrl)
+	client := transportmock.NewMockClient(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
-	dial := func(context.Context, string) (rpc.Client, error) {
+	dial := func(context.Context, string) (transport.Client, error) {
 		return client, nil
 	}
 	ost := new(operatorsState)
