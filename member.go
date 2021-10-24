@@ -12,7 +12,7 @@ type Member interface {
 	Address() string
 	ActiveSince() time.Time
 	IsActive() bool
-	Update(string) error
+	Update(raftpb.Member) error
 	Send(etcdraftpb.Message) error
 	Type() raftpb.MemberType
 	Close() error
