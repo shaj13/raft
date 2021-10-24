@@ -10,7 +10,7 @@ import (
 type Member interface {
 	ID() uint64
 	Address() string
-	Since() time.Time
+	ActiveSince() time.Time
 	IsActive() bool
 	Update(string) error
 	Send(etcdraftpb.Message) error

@@ -216,7 +216,7 @@ func (c *cluster) LongestActive() (Member, error) {
 	)
 
 	for _, m := range c.Members() {
-		since := m.Since()
+		since := m.ActiveSince()
 		if since.IsZero() || m.Type() == raftpb.LocalMember {
 			continue
 		}

@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -25,7 +26,7 @@ func (l *local) Address() string {
 	return l.addr
 }
 
-func (l *local) Since() time.Time {
+func (l *local) ActiveSince() time.Time {
 	return l.active
 }
 
@@ -49,4 +50,7 @@ func (l *local) Close() error {
 	return nil
 }
 
-func (l *local) Send(etcdraftpb.Message) (err error) { return }
+func (l *local) Send(etcdraftpb.Message) error {
+	log.Panic("raft.membership: attempted to send msg to local member; should never happen")
+	return nil
+}

@@ -20,9 +20,9 @@ func TestLocal(t *testing.T) {
 	require.Equal(t, l.ID(), id)
 	require.Equal(t, l.Address(), addr)
 	require.False(t, l.IsActive())
-	require.Equal(t, l.Since(), time.Time{})
+	require.Equal(t, l.ActiveSince(), time.Time{})
 	require.Equal(t, l.Type(), raftpb.LocalMember)
-	require.NoError(t, l.Send(etcdraftpb.Message{}))
 	require.NoError(t, l.Update(""))
 	require.Empty(t, l.Address())
+	require.Panics(t, func() { l.Send(etcdraftpb.Message{}) })
 }

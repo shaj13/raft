@@ -25,7 +25,7 @@ func TestRemote(t *testing.T) {
 	require.Equal(t, r.ID(), id)
 	require.Equal(t, r.Address(), addr)
 	require.False(t, r.IsActive())
-	require.Equal(t, r.Since(), time.Time{})
+	require.Equal(t, r.ActiveSince(), time.Time{})
 	require.Equal(t, r.Type(), raftpb.RemoteMember)
 	require.Nil(t, r.client())
 }

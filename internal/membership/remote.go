@@ -84,7 +84,7 @@ func (r *remote) Address() string {
 	return r.addr
 }
 
-func (r *remote) Since() time.Time {
+func (r *remote) ActiveSince() time.Time {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.activeSince
