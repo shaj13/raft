@@ -18,8 +18,10 @@ func TestRemote(t *testing.T) {
 	id := uint64(1)
 	addr := ":50051"
 	r := remote{
-		id:   id,
-		addr: addr,
+		raw: &raftpb.Member{
+			ID:      id,
+			Address: addr,
+		},
 	}
 
 	require.Equal(t, r.ID(), id)
@@ -76,7 +78,7 @@ func TestRemoteUpdate(t *testing.T) {
 	client.EXPECT().Close().Return(nil)
 
 	r := new(remote)
-	r.addr = addr
+	r.raw = &raftpb.Member{Address: addr}
 	r.rc = client
 	r.ctx = context.TODO()
 	r.dial = mockDial(nil, err)
@@ -84,18 +86,18 @@ func TestRemoteUpdate(t *testing.T) {
 	// Round #1 it does not update addr if are the same
 	got := r.Update(addr)
 	require.NoError(t, got)
-	require.Equal(t, addr, r.addr)
+	require.Equal(t, addr, r.Address())
 
 	// Round #2 it return error whn dial return error
 	got = r.Update(uaddr)
 	require.Equal(t, err, got)
-	require.Equal(t, addr, r.addr)
+	require.Equal(t, addr, r.Address())
 
 	// Round #3 it update addr and close old tr
 	r.dial = mockDial(client, nil)
 	got = r.Update(uaddr)
 	require.NoError(t, got)
-	require.Equal(t, uaddr, r.addr)
+	require.Equal(t, uaddr, r.Address())
 }
 
 func TestRemoteStream(t *testing.T) {
@@ -161,7 +163,7 @@ func TestRemoteReport(t *testing.T) {
 
 			r := new(remote)
 			r.r = rep
-			r.id = id
+			r.raw = &raftpb.Member{ID: id}
 			r.report(tt.msg, tt.err)
 		})
 	}
@@ -175,6 +177,7 @@ func TestRemoteSend(t *testing.T) {
 	r := new(remote)
 	r.msgc = make(chan etcdraftpb.Message)
 	r.r = rep
+	r.raw = new(raftpb.Member)
 
 	// Round #1 it return error when ctx canceled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -245,6 +248,7 @@ func TestRemoteRun(t *testing.T) {
 
 	r := new(remote)
 	r.r = rep
+	r.raw = new(raftpb.Member)
 	r.cfg = testConfig(t)
 	r.rc = client
 	r.ctx, r.cancel = context.WithCancel(context.Background())

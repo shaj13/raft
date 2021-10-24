@@ -17,21 +17,26 @@ import (
 type remote struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
-	id          uint64
 	r           Reporter
 	cfg         Config
 	dial        transport.Dial
 	msgc        chan etcdraftpb.Message
 	done        chan struct{}
 	mu          sync.Mutex // protects followings
-	rc          transport.Client
 	active      bool
-	addr        string
+	rc          transport.Client
+	raw         *raftpb.Member
 	activeSince time.Time
 }
 
+func (r *remote) Raw() raftpb.Member {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return *r.raw // return shallow copy.
+}
+
 func (r *remote) Type() raftpb.MemberType {
-	return raftpb.RemoteMember
+	return r.Raw().Type
 }
 
 func (r *remote) Send(msg etcdraftpb.Message) (err error) {
@@ -50,7 +55,7 @@ func (r *remote) Send(msg etcdraftpb.Message) (err error) {
 	case <-r.ctx.Done():
 		return r.ctx.Err()
 	default:
-		return fmt.Errorf("cluster member %x, buffer is full (overloaded network)", r.id)
+		return fmt.Errorf("cluster member %x, buffer is full (overloaded network)", r.ID())
 	}
 
 	return
@@ -60,7 +65,7 @@ func (r *remote) Update(addr string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.addr == addr || r.ctx.Err() != nil {
+	if r.raw.Address == addr || r.ctx.Err() != nil {
 		return r.ctx.Err()
 	}
 
@@ -74,14 +79,12 @@ func (r *remote) Update(addr string) error {
 	}
 
 	r.rc = rc
-	r.addr = addr
+	r.raw.Address = addr
 	return nil
 }
 
 func (r *remote) Address() string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.addr
+	return r.Raw().Address
 }
 
 func (r *remote) ActiveSince() time.Time {
@@ -97,7 +100,7 @@ func (r *remote) IsActive() bool {
 }
 
 func (r *remote) ID() uint64 {
-	return r.id
+	return r.Raw().ID
 }
 
 func (r *remote) Close() error {
@@ -174,7 +177,7 @@ func (r *remote) run() {
 	defer func() {
 		log.Debugf(
 			"raft/membership: Member %x context done, ctx.Err: %s",
-			r.id,
+			r.ID(),
 			r.ctx.Err(),
 		)
 
@@ -185,7 +188,7 @@ func (r *remote) run() {
 		if err := r.drain(); err != nil {
 			log.Warnf(
 				"raft/membership: draining the member %x message queue failed, Err: %s",
-				r.id,
+				r.ID(),
 				err,
 			)
 		}
@@ -200,7 +203,7 @@ func (r *remote) run() {
 			if err != nil {
 				log.Errorf(
 					"raft/membership: streaming the message to member %x failed, Err: %s",
-					r.id,
+					r.ID(),
 					err,
 				)
 			}

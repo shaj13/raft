@@ -80,8 +80,7 @@ func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error)
 	mem := new(remote)
 	mem.ctx, mem.cancel = context.WithCancel(ctx)
 	mem.rc = rpc
-	mem.id = m.ID
-	mem.addr = m.Address
+	mem.raw = &m
 	mem.cfg = cfg
 	mem.r = cfg.Reporter()
 	mem.dial = cfg.Dial()
