@@ -61,15 +61,16 @@ func (r *remote) Send(msg etcdraftpb.Message) (err error) {
 	return
 }
 
-func (r *remote) Update(addr string) error {
+func (r *remote) Update(m raftpb.Member) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.raw.Address == addr || r.ctx.Err() != nil {
+	if r.raw.Address == m.Address || r.ctx.Err() != nil {
+		r.raw = &m
 		return r.ctx.Err()
 	}
 
-	rc, err := r.dial(r.ctx, addr)
+	rc, err := r.dial(r.ctx, m.Address)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (r *remote) Update(addr string) error {
 	}
 
 	r.rc = rc
-	r.raw.Address = addr
+	r.raw = &m
 	return nil
 }
 

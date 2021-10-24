@@ -24,7 +24,7 @@ func TestLocal(t *testing.T) {
 	require.False(t, l.IsActive())
 	require.Equal(t, l.ActiveSince(), time.Time{})
 	require.Equal(t, l.Type(), raftpb.LocalMember)
-	require.NoError(t, l.Update(""))
+	require.NoError(t, l.Update(raftpb.Member{}))
 	require.Empty(t, l.Address())
 	require.Panics(t, func() { l.Send(etcdraftpb.Message{}) })
 	require.NotNil(t, l.Raw())

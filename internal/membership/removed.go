@@ -31,7 +31,7 @@ func (r removed) Type() raftpb.MemberType {
 	return raftpb.RemovedMember
 }
 
-func (r removed) Update(string) error {
+func (r removed) Update(raftpb.Member) error {
 	return ErrRemovedMember
 }
 

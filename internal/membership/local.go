@@ -37,10 +37,10 @@ func (l *local) Type() raftpb.MemberType {
 	return raftpb.LocalMember
 }
 
-func (l *local) Update(add string) (err error) {
+func (l *local) Update(m raftpb.Member) (err error) {
 	l.mu.Lock()
-	l.raw.Address = add
-	l.mu.Unlock()
+	defer l.mu.Unlock()
+	l.raw = &m
 	return
 }
 

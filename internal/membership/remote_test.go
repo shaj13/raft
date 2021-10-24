@@ -83,19 +83,19 @@ func TestRemoteUpdate(t *testing.T) {
 	r.ctx = context.TODO()
 	r.dial = mockDial(nil, err)
 
-	// Round #1 it does not update addr if are the same
-	got := r.Update(addr)
+	// Round #1 it update raw and does not close rc.
+	got := r.Update(raftpb.Member{Address: addr})
 	require.NoError(t, got)
 	require.Equal(t, addr, r.Address())
 
 	// Round #2 it return error whn dial return error
-	got = r.Update(uaddr)
+	got = r.Update(raftpb.Member{Address: uaddr})
 	require.Equal(t, err, got)
 	require.Equal(t, addr, r.Address())
 
 	// Round #3 it update addr and close old tr
 	r.dial = mockDial(client, nil)
-	got = r.Update(uaddr)
+	got = r.Update(raftpb.Member{Address: uaddr})
 	require.NoError(t, got)
 	require.Equal(t, uaddr, r.Address())
 }

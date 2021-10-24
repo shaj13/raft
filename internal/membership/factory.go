@@ -27,12 +27,9 @@ func (f *factory) To(m Member) raftpb.Member {
 }
 
 func (f *factory) Cast(m Member, t raftpb.MemberType) (Member, bool, error) {
-	temp := raftpb.Member{ // TODO: remove me when we have support raw.
-		ID:      m.ID(),
-		Address: m.Address(),
-		Type:    t,
-	}
-	return f.create(temp)
+	raw := m.Raw()
+	(&raw).Type = t
+	return f.create(raw)
 }
 
 func (f *factory) create(m raftpb.Member) (Member, bool, error) {

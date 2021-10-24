@@ -90,7 +90,7 @@ func (p *pool) Update(m raftpb.Member) error {
 		return p.Add(m)
 	}
 
-	return mem.Update(m.Address)
+	return mem.Update(m)
 }
 
 func (p *pool) Remove(m raftpb.Member) error {
