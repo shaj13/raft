@@ -25,6 +25,7 @@ func New(proto transport.Proto, opts ...Option) (Cluster, interface{}) {
 	cluster := new(cluster)
 	cluster.pool = cfg.pool
 	cluster.daemon = cfg.daemon
+	cluster.storage = cfg.storage
 
 	cfg.controller.(*controller).cluster = cluster
 	cfg.controller.(*controller).daemon = cfg.daemon

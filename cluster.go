@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/storage"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -17,6 +19,7 @@ type Cluster interface {
 	Leave(ctx context.Context) error
 	StepDown(ctx context.Context) error
 	UpdateMember(ctx context.Context, id uint64, addr string) error
+	CreateSnapshot() (io.ReadCloser, error)
 	TransferLeadership(ctx context.Context, id uint64) error
 	RemoveMember(ctx context.Context, id uint64) error
 	AddMember(ctx context.Context, addr string) (Member, error)
@@ -33,8 +36,27 @@ type Cluster interface {
 }
 
 type cluster struct {
-	pool   membership.Pool
-	daemon daemon.Daemon
+	pool    membership.Pool
+	storage storage.Storage
+	daemon  daemon.Daemon
+}
+
+func (c *cluster) CreateSnapshot() (io.ReadCloser, error) {
+	err := c.precondition(
+		joined(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	snap, err := c.daemon.CreateSnapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	_, r, err := c.storage.Snapshotter().Reader(snap)
+	return r, err
 }
 
 func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
