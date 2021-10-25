@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package api;
+package raftpb;
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
@@ -23,8 +23,11 @@ message Member {
 	uint64 id = 1 [(gogoproto.customname) = "ID" ];
 	// Address specifies the address of the cluster member.
 	string addr = 2 [(gogoproto.customname) = "Address" ];
-
+	// Type used to distinguish members (local, remote, etc).
 	MemberType type = 3;
+	// Context is treated as an opaque payload and can be used to
+	// attach an extra info/data on member. 
+	bytes  context  = 4;
 }
 
 message Replicate {
@@ -58,4 +61,10 @@ message Chunk {
 message SnapshotHeader {
 	// CRC specifies the snapshot crc sum.
 	bytes  CRC  = 1;
+}
+
+message ConfChange {
+	// ID specifies the change id. 
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	repeated Member members = 2 [(gogoproto.nullable) = false];
 }
