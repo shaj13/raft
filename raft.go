@@ -80,6 +80,6 @@ func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
 	return c.daemon.Push(m)
 }
 
-func (c *controller) PromoteMember(ctx context.Context, id uint64) error {
-	return c.cluster.promoteMember(ctx, id, true)
+func (c *controller) PromoteMember(ctx context.Context, m raftpb.Member) error {
+	return c.cluster.promoteMember(ctx, m.ID, true)
 }

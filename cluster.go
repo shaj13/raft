@@ -321,14 +321,14 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 		}
 
 		nrpc, ok := rpc.(interface {
-			PromoteMember(ctx context.Context, id uint64) error
+			PromoteMember(ctx context.Context, m raftpb.Member) error
 		})
 
 		if !ok {
 			return fmt.Errorf("raft: TODO not all rpc client implemeints PromoteMember")
 		}
 
-		return nrpc.PromoteMember(ctx, id)
+		return nrpc.PromoteMember(ctx, mem.Raw())
 	}
 
 	leader := rs.Progress[rs.ID].Match

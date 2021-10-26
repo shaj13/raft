@@ -176,7 +176,7 @@ func TestPromoteMember(t *testing.T) {
 			rpcCtrl := transportmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().PromoteMember(gomock.Any(), gomock.Any()).Return(tt.err)
 			srv.ctrl = rpcCtrl
-			err := c.PromoteMember(context.Background(), 1)
+			err := c.PromoteMember(context.Background(), raftpb.Member{})
 			if tt.err != nil {
 				require.Contains(t, err.Error(), tt.err.Error())
 			}

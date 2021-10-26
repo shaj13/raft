@@ -80,13 +80,8 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 	return id, pool.Members, nil
 }
 
-func (c *client) PromoteMember(ctx context.Context, id uint64) error {
-	u := join(join(c.url, promoteURI), strconv.FormatUint(id, 10))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, nil)
-	if err != nil {
-		return err
-	}
-	_, err = c.roundTrip(ctx, req, nil)
+func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
+	_, err := c.requestProto(ctx, promoteURI, &m, nil)
 	return err
 }
 

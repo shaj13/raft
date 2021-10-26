@@ -48,5 +48,5 @@ type Client interface {
 type Controller interface {
 	Push(context.Context, etcdraftpb.Message) error
 	Join(context.Context, *raftpb.Member) (uint64, []raftpb.Member, error)
-	PromoteMember(ctx context.Context, id uint64) error
+	PromoteMember(ctx context.Context, m raftpb.Member) error
 }
