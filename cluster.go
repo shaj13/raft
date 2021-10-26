@@ -110,7 +110,7 @@ func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 		joined(),
 		available(),
 		notMember(raw.ID),
-		addressInUse(raw.Address),
+		addressInUse(raw.ID, raw.Address),
 	)
 
 	if err != nil {
@@ -144,7 +144,7 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	err := c.precondition(
 		joined(),
-		addressInUse(raw.Address),
+		addressInUse(raw.ID, raw.Address),
 		idInUse(raw.ID),
 		available(),
 	)
@@ -302,9 +302,9 @@ func memberRemoved(id uint64) func(c *cluster) error {
 	}
 }
 
-func addressInUse(addr string) func(c *cluster) error {
+func addressInUse(mid uint64, addr string) func(c *cluster) error {
 	return func(c *cluster) error {
-		if id := c.AddressInUse(addr); id > 0 {
+		if id := c.AddressInUse(addr); id != mid {
 			return fmt.Errorf("raft: address used by member %x", id)
 		}
 		return nil
