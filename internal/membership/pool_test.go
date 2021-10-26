@@ -7,8 +7,28 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPoolNewMember(t *testing.T) {
+	m := raftpb.Member{
+		Address: ":5052",
+		ID:      123,
+		Type:    raftpb.LocalMember,
+	}
+
+	p := &pool{
+		ctx: context.TODO(),
+		cfg: testConfig(t),
+	}
+
+	mem, err := p.newMember(m)
+	require.NoError(t, err)
+	require.Equal(t, m.Address, mem.Address())
+	require.Equal(t, m.ID, mem.ID())
+	require.Equal(t, m.Type, mem.Type())
+}
 
 func TestPoolNextID(t *testing.T) {
 	p := New(context.TODO(), testConfig(t)).(*pool)
@@ -100,4 +120,10 @@ func testConfig(t *testing.T) *MockConfig {
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1)).AnyTimes()
 	cfg.EXPECT().StreamTimeout().Return(time.Duration(-1)).AnyTimes()
 	return cfg
+}
+
+func mockDial(c transport.Client, err error) transport.Dial {
+	return func(ctx context.Context, addr string) (transport.Client, error) {
+		return c, err
+	}
 }

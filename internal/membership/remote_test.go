@@ -14,6 +14,24 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+func TestNewRemote(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := transportmock.NewMockClient(ctrl)
+	cfg := NewMockConfig(ctrl)
+	client.EXPECT().Close().Return(nil)
+	dial := mockDial(client, nil)
+	cfg.EXPECT().Dial().Return(dial).MaxTimes(2)
+	cfg.EXPECT().Reporter().Return(nil)
+	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1))
+
+	m, err := newRemote(context.Background(), cfg, raftpb.Member{})
+	require.NoError(t, err)
+	require.NotNil(t, m)
+
+	err = m.Close()
+	require.NoError(t, err)
+}
+
 func TestRemote(t *testing.T) {
 	id := uint64(1)
 	addr := ":50051"

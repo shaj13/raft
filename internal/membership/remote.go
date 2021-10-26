@@ -13,6 +13,29 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error) {
+	rpc, err := cfg.Dial()(ctx, m.Address)
+	if err != nil {
+		return nil, err
+	}
+
+	mem := new(remote)
+	mem.ctx, mem.cancel = context.WithCancel(ctx)
+	mem.rc = rpc
+	mem.raw = &m
+	mem.cfg = cfg
+	mem.r = cfg.Reporter()
+	mem.dial = cfg.Dial()
+	mem.msgc = make(chan etcdraftpb.Message, 4096)
+	mem.done = make(chan struct{})
+	// assuming member is active.
+	mem.active = true
+	mem.activeSince = time.Now()
+	go mem.run()
+
+	return mem, nil
+}
+
 // remote represents the remote cluster member.
 type remote struct {
 	ctx         context.Context

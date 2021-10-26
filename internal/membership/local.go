@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -8,6 +9,14 @@ import (
 	"github.com/shaj13/raftkit/internal/raftpb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
+
+func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
+	return &local{
+		r:      cfg.Reporter(),
+		active: time.Now(),
+		raw:    &m,
+	}, nil
+}
 
 // local represents the current cluster member.
 type local struct {

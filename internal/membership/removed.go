@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -9,6 +10,12 @@ import (
 )
 
 var ErrRemovedMember = errors.New("raft/membership: member was removed")
+
+func newRemoved(_ context.Context, _ Config, m raftpb.Member) (Member, error) {
+	return removed{
+		raw: m,
+	}, nil
+}
 
 // removed represents the remote removed cluster member.
 type removed struct {

@@ -17,15 +17,17 @@ func init() {
 
 func New(ctx context.Context, cfg Config) Pool {
 	return &pool{
-		factory: newFactory(ctx, cfg),
-		membs:   make(map[uint64]Member),
+		ctx:   ctx,
+		cfg:   cfg,
+		membs: make(map[uint64]Member),
 	}
 }
 
 type pool struct {
-	factory *factory
-	mu      sync.Mutex // protects membs
-	membs   map[uint64]Member
+	ctx   context.Context
+	cfg   Config
+	mu    sync.Mutex // protects membs
+	membs map[uint64]Member
 }
 
 func (p *pool) NextID() uint64 {
@@ -65,7 +67,7 @@ func (p *pool) Add(m raftpb.Member) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	mem, err := p.factory.Create(m)
+	mem, err := p.newMember(m)
 	if err != nil {
 		return err
 	}
@@ -100,7 +102,7 @@ func (p *pool) Remove(m raftpb.Member) error {
 		log.Warnf("closing member %x conn failed, Err: %v", m.ID, err)
 	}
 
-	mem, err := p.factory.Create(m)
+	mem, err := p.newMember(m)
 	if err != nil {
 		return err
 	}
@@ -124,5 +126,18 @@ func (p *pool) Restore(pool raftpb.Pool) {
 		if err := p.Add(m); err != nil {
 			log.Errorf("raft/membership: Failed to add member %x, Err: %s", m.ID, err)
 		}
+	}
+}
+
+func (p *pool) newMember(m raftpb.Member) (Member, error) {
+	switch m.Type {
+	case raftpb.LocalMember:
+		return newLocal(p.ctx, p.cfg, m)
+	case raftpb.RemoteMember:
+		return newRemote(p.ctx, p.cfg, m)
+	case raftpb.RemovedMember:
+		return newRemoved(p.ctx, p.cfg, m)
+	default:
+		return nil, fmt.Errorf("raft/membership: unknown member type %s", m.Type)
 	}
 }
