@@ -23,6 +23,7 @@ type Cluster interface {
 	TransferLeadership(ctx context.Context, id uint64) error
 	RemoveMember(ctx context.Context, id uint64) error
 	AddMember(ctx context.Context, raw *RawMember) error
+	PromoteMember(ctx context.Context, id uint64) error
 	GetMemebr(id uint64) (Member, bool)
 	Members() []Member
 	RemovedMembers() []Member
@@ -165,6 +166,45 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	}
 
 	return c.daemon.ProposeConfChange(ctx, raw, cct)
+}
+
+func (c *cluster) PromoteMember(ctx context.Context, id uint64) error {
+	err := c.precondition(
+		joined(),
+		notMember(id),
+		available(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	mem, _ := c.GetMemebr(id)
+	if !(mem.Type() == LocalLearnerMember || mem.Type() == LearnerMember) {
+		return fmt.Errorf("raft: memebr %x  is not a learner", id)
+	}
+
+	rs, err := c.daemon.Status()
+	if err != nil {
+		return err
+	}
+
+	// TODO: instead of return error just send an rpc to the leader.
+	if rs.Progress == nil {
+		return daemon.ErrNotLeader
+	}
+
+	leader := rs.Progress[rs.ID].Match
+	learner := rs.Progress[id].Match
+	// the learner's Match not caught up with leader yet
+	if float64(learner) < float64(leader)*0.9 {
+		return fmt.Errorf("raft: promotion failed, memebr %x not synced with the leader", id)
+	}
+
+	raw := mem.Raw()
+	(&raw).Type = RemoteMember
+
+	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {
