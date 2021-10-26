@@ -11,6 +11,7 @@ import (
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -37,6 +38,7 @@ type Cluster interface {
 }
 
 type cluster struct {
+	dial    transport.Dial
 	pool    membership.Pool
 	storage storage.Storage
 	daemon  daemon.Daemon
@@ -169,42 +171,7 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 }
 
 func (c *cluster) PromoteMember(ctx context.Context, id uint64) error {
-	err := c.precondition(
-		joined(),
-		notMember(id),
-		available(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	mem, _ := c.GetMemebr(id)
-	if !(mem.Type() == LocalLearnerMember || mem.Type() == LearnerMember) {
-		return fmt.Errorf("raft: memebr %x  is not a learner", id)
-	}
-
-	rs, err := c.daemon.Status()
-	if err != nil {
-		return err
-	}
-
-	// TODO: instead of return error just send an rpc to the leader.
-	if rs.Progress == nil {
-		return daemon.ErrNotLeader
-	}
-
-	leader := rs.Progress[rs.ID].Match
-	learner := rs.Progress[id].Match
-	// the learner's Match not caught up with leader yet
-	if float64(learner) < float64(leader)*0.9 {
-		return fmt.Errorf("raft: promotion failed, memebr %x not synced with the leader", id)
-	}
-
-	raw := mem.Raw()
-	(&raw).Type = RemoteMember
-
-	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
+	return c.promoteMember(ctx, id, false)
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {
@@ -311,6 +278,70 @@ func (c *cluster) precondition(fns ...func(c *cluster) error) error {
 		}
 	}
 	return nil
+}
+
+func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) error {
+	err := c.precondition(
+		joined(),
+		notMember(id),
+		available(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: move to precond
+	mem, _ := c.GetMemebr(id)
+	if !(mem.Type() == LocalLearnerMember || mem.Type() == LearnerMember) {
+		return fmt.Errorf("raft: memebr %x  is not a learner", id)
+	}
+
+	rs, err := c.daemon.Status()
+	if err != nil {
+		return err
+	}
+
+	// if there is no progress and RPC have been forwarded to this node,
+	// which means the leader lost during forwarding.
+	if rs.Progress == nil && forwarded {
+		return daemon.ErrNoLeader
+	}
+
+	if rs.Progress == nil {
+		lmem, ok := c.GetMemebr(rs.Lead)
+		// leader lost, because rs.Lead = None.
+		if !ok {
+			return daemon.ErrNoLeader
+		}
+
+		rpc, err := c.dial(ctx, lmem.Address())
+		if err != nil {
+			return err
+		}
+
+		nrpc, ok := rpc.(interface {
+			PromoteMember(ctx context.Context, id uint64) error
+		})
+
+		if !ok {
+			return fmt.Errorf("raft: TODO not all rpc client implemeints PromoteMember")
+		}
+
+		return nrpc.PromoteMember(ctx, id)
+	}
+
+	leader := rs.Progress[rs.ID].Match
+	learner := rs.Progress[id].Match
+	// the learner's Match not caught up with the leader yet.
+	if float64(learner) < float64(leader)*0.9 {
+		return fmt.Errorf("raft: promotion failed, memebr %x not synced with the leader yet", id)
+	}
+
+	raw := mem.Raw()
+	(&raw).Type = RemoteMember
+
+	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
 }
 
 func joined() func(c *cluster) error {

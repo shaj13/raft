@@ -43,7 +43,7 @@ func (l *local) IsActive() bool {
 }
 
 func (l *local) Type() raftpb.MemberType {
-	return raftpb.LocalMember
+	return l.Raw().Type
 }
 
 func (l *local) Update(m raftpb.Member) (err error) {

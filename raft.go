@@ -26,6 +26,7 @@ func New(proto transport.Proto, opts ...Option) (Cluster, interface{}) {
 	cluster.pool = cfg.pool
 	cluster.daemon = cfg.daemon
 	cluster.storage = cfg.storage
+	cluster.dial = cfg.dial
 
 	cfg.controller.(*controller).cluster = cluster
 	cfg.controller.(*controller).daemon = cfg.daemon
@@ -80,5 +81,5 @@ func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
 }
 
 func (c *controller) PromoteMember(ctx context.Context, id uint64) error {
-	return nil
+	return c.cluster.promoteMember(ctx, id, true)
 }
