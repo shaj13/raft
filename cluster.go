@@ -304,7 +304,8 @@ func memberRemoved(id uint64) func(c *cluster) error {
 
 func addressInUse(mid uint64, addr string) func(c *cluster) error {
 	return func(c *cluster) error {
-		if id := c.AddressInUse(addr); id != mid {
+		id := c.AddressInUse(addr)
+		if id != 0 && id != mid {
 			return fmt.Errorf("raft: address used by member %x", id)
 		}
 		return nil
