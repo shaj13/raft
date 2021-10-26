@@ -43,6 +43,8 @@ enum MemberType {
 	remote = 0 [(gogoproto.enumvalue_customname) = "RemoteMember"];
 	removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
 	local = 2 [(gogoproto.enumvalue_customname) = "LocalMember"];
+	localLearner = 3 [(gogoproto.enumvalue_customname) = "LocalLearnerMember"];
+	learner = 4 [(gogoproto.enumvalue_customname) = "LearnerMember"];
 }
 
 
@@ -59,12 +61,13 @@ message Chunk {
 }
 
 message SnapshotHeader {
+	// Version represents the snapshot file version.
+	enum Version {
+		// V0 is the initial version of the snapshot file.
+		V0 = 0;
+	}
 	// CRC specifies the snapshot crc sum.
 	bytes  CRC  = 1;
-}
-
-message ConfChange {
-	// ID specifies the change id. 
-	uint64 id = 1 [(gogoproto.customname) = "ID" ];
-	repeated Member members = 2 [(gogoproto.nullable) = false];
+	// Version specifies the snapshot file version.
+	Version version = 2;
 }
