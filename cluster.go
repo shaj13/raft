@@ -117,6 +117,9 @@ func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 		return err
 	}
 
+	mem, _ := c.GetMemebr(raw.ID)
+	raw.Type = mem.Type()
+
 	return c.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
 }
 
@@ -133,12 +136,11 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	m := &raftpb.Member{
-		ID:   id,
-		Type: raftpb.RemovedMember,
-	}
+	mem, _ := c.GetMemebr(id)
+	raw := mem.Raw()
+	raw.Type = raftpb.RemovedMember
 
-	return c.daemon.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeRemoveNode)
+	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
 }
 
 func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
