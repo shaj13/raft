@@ -66,12 +66,12 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
 	pool := new(raftpb.Pool)
-	h, err := c.requestProto(ctx, joinURI, &m, pool)
+	resp, err := c.requestProto(ctx, joinURI, &m, pool)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	id, err := strconv.ParseUint(h.Get(memberIDHeader), 0, 64)
+	id, err := strconv.ParseUint(resp.Header.Get(memberIDHeader), 0, 64)
 	if err != nil {
 		return 0, nil, fmt.Errorf("raft/http: parse member id: %v", err)
 	}
@@ -92,16 +92,21 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 
 	defer r.Close()
 
-	h := make(http.Header, 1)
-	h.Add(snapshotHeader, name)
-	h.Add(snapshotHeader, strconv.FormatUint(m.To, 10))
-	h.Add(snapshotHeader, strconv.FormatUint(m.From, 10))
+	u := join(c.url, snapshotURI)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, r)
+	if err != nil {
+		return err
+	}
 
-	_, err = c.request(ctx, snapshotURI, h, r, nil)
+	req.Header.Add(snapshotHeader, name)
+	req.Header.Add(snapshotHeader, strconv.FormatUint(m.To, 10))
+	req.Header.Add(snapshotHeader, strconv.FormatUint(m.From, 10))
+
+	_, err = c.roundTrip(ctx, req, nil)
 	return
 }
 
-func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshaler, out pbutil.Unmarshaler) (http.Header, error) {
+func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshaler, out pbutil.Unmarshaler) (*http.Response, error) {
 	data, err := in.Marshal()
 	if err != nil {
 		return nil, err
@@ -112,20 +117,16 @@ func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshal
 	b.Write(data)
 	defer bufferPool.Put(b)
 
-	return c.request(ctx, uri, nil, b, out)
-}
-
-func (c *client) request(ctx context.Context, uri string, h http.Header, body io.Reader, out pbutil.Unmarshaler) (http.Header, error) {
 	u := join(c.url, uri)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, b)
 	if err != nil {
 		return nil, err
 	}
 
-	if h != nil {
-		req.Header = h
-	}
+	return c.roundTrip(ctx, req, out)
+}
 
+func (c *client) roundTrip(ctx context.Context, req *http.Request, out pbutil.Unmarshaler) (*http.Response, error) {
 	tr := c.transport(ctx)
 	res, err := tr.RoundTrip(req)
 	if err != nil {
@@ -136,7 +137,7 @@ func (c *client) request(ctx context.Context, uri string, h http.Header, body io
 
 	// return if rpc does not return responce.
 	if res.StatusCode == http.StatusNoContent && out == nil {
-		return res.Header, nil
+		return res, nil
 	}
 
 	b := bufferPool.Get().(*bytes.Buffer)
@@ -157,7 +158,7 @@ func (c *client) request(ctx context.Context, uri string, h http.Header, body io
 		return nil, fmt.Errorf("raft/http: decoding response body: %v", err)
 	}
 
-	return res.Header, nil
+	return res, nil
 }
 
 func join(u, p string) string {
