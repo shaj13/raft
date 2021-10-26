@@ -23,6 +23,7 @@ const (
 	messageURI     = "/message"
 	snapshotURI    = "/snapshot"
 	joinURI        = "/join"
+	promoteURI     = "/promote"
 )
 
 var bufferPool = sync.Pool{
@@ -77,6 +78,16 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 	}
 
 	return id, pool.Members, nil
+}
+
+func (c *client) PromoteMember(ctx context.Context, id uint64) error {
+	u := join(join(c.url, promoteURI), strconv.FormatUint(id, 10))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, u, nil)
+	if err != nil {
+		return err
+	}
+	_, err = c.roundTrip(ctx, req, nil)
+	return err
 }
 
 func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) {

@@ -78,3 +78,7 @@ func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raft
 func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
 	return c.daemon.Push(m)
 }
+
+func (c *controller) PromoteMember(ctx context.Context, id uint64) error {
+	return nil
+}

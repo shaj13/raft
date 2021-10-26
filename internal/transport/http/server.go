@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -19,16 +20,18 @@ import (
 func NewServerFunc(basePath string) transport.NewServer {
 	return func(c context.Context, cfg transport.ServerConfig) (transport.Server, error) {
 		s := &server{
-			ctrl: cfg.Controller(),
-			snap: cfg.Snapshotter(),
+			basePath: basePath,
+			ctrl:     cfg.Controller(),
+			snap:     cfg.Snapshotter(),
 		}
 		return mux(s, basePath), nil
 	}
 }
 
 type server struct {
-	ctrl transport.Controller
-	snap storage.Snapshotter
+	basePath string
+	ctrl     transport.Controller
+	snap     storage.Snapshotter
 }
 
 func (s *server) message(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -133,11 +136,30 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusOK, nil
 }
 
+func (s *server) promoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
+	u := join(s.basePath, promoteURI) + "/"
+	parts := strings.SplitN(r.URL.Path[len(u):], "/", 1)
+	if len(parts) != 1 {
+		return http.StatusPreconditionFailed, errors.New("raft/http: member id missing")
+	}
+
+	id, err := strconv.ParseUint(parts[0], 0, 64)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	if err := s.ctrl.PromoteMember(r.Context(), id); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusNoContent, nil
+}
+
 type handler func(w http.ResponseWriter, r *http.Request) (int, error)
 
-func httpHandler(h handler) http.HandlerFunc {
+func httpHandler(h handler, method string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
+		if r.Method != method {
 			code := http.StatusMethodNotAllowed
 			http.Error(w, http.StatusText(code), code)
 			return
@@ -159,8 +181,9 @@ func httpHandler(h handler) http.HandlerFunc {
 
 func mux(s *server, basePath string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message))
-	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot))
-	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join))
+	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message, http.MethodPost))
+	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot, http.MethodPost))
+	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join, http.MethodPost))
+	mux.HandleFunc(join(basePath, promoteURI)+"/", httpHandler(s.promoteMember, http.MethodPut))
 	return mux
 }

@@ -151,6 +151,39 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
+func TestPromoteMember(t *testing.T) {
+	ts, c, srv := testClientServer(t)
+	defer ts.Close()
+	defer c.Close()
+
+	table := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "it return nil error when server process promote",
+			err:  nil,
+		},
+		{
+			name: "it return error when server return error",
+			err:  fmt.Errorf("TestPromoteMember Error"),
+		},
+	}
+
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			rpcCtrl := transportmock.NewMockController(ctrl)
+			rpcCtrl.EXPECT().PromoteMember(gomock.Any(), gomock.Any()).Return(tt.err)
+			srv.ctrl = rpcCtrl
+			err := c.PromoteMember(context.Background(), 1)
+			if tt.err != nil {
+				require.Contains(t, err.Error(), tt.err.Error())
+			}
+		})
+	}
+}
+
 func testClientServer(tb testing.TB) (*httptest.Server, *client, *server) {
 	srv := new(server)
 	ts := httptest.NewServer(mux(srv, ""))

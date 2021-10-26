@@ -232,6 +232,20 @@ func (mr *MockControllerMockRecorder) Join(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Join", reflect.TypeOf((*MockController)(nil).Join), arg0, arg1)
 }
 
+// PromoteMember mocks base method.
+func (m *MockController) PromoteMember(ctx context.Context, id uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PromoteMember", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PromoteMember indicates an expected call of PromoteMember.
+func (mr *MockControllerMockRecorder) PromoteMember(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromoteMember", reflect.TypeOf((*MockController)(nil).PromoteMember), ctx, id)
+}
+
 // Push mocks base method.
 func (m *MockController) Push(arg0 context.Context, arg1 raftpb0.Message) error {
 	m.ctrl.T.Helper()
