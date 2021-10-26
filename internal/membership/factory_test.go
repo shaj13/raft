@@ -23,23 +23,11 @@ func TestFactory(t *testing.T) {
 
 	f := newFactory(context.TODO(), cfg)
 
-	mem, ok, err := f.From(m)
+	mem, err := f.Create(m)
 	require.NoError(t, err)
-	require.True(t, ok)
 	require.Equal(t, m.Address, mem.Address())
 	require.Equal(t, m.ID, mem.ID())
 	require.Equal(t, m.Type, mem.Type())
-
-	mem, ok, err = f.Cast(mem, raftpb.RemovedMember)
-	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, m.Address, mem.Address())
-	require.Equal(t, m.ID, mem.ID())
-	require.Equal(t, raftpb.RemovedMember, mem.Type())
-
-	mm := f.To(mem)
-	m.Type = raftpb.RemovedMember
-	require.Equal(t, m, mm)
 }
 
 func TestNewRemote(t *testing.T) {

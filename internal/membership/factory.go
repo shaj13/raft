@@ -2,6 +2,7 @@ package membership
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -9,48 +10,27 @@ import (
 )
 
 type factory struct {
-	ctx          context.Context
-	cfg          Config
-	constructors map[raftpb.MemberType]constructor
+	ctx context.Context
+	cfg Config
 }
 
-func (f *factory) From(m raftpb.Member) (Member, bool, error) {
-	return f.create(m)
-}
-
-func (f *factory) To(m Member) raftpb.Member {
-	return raftpb.Member{
-		ID:      m.ID(),
-		Address: m.Address(),
-		Type:    m.Type(),
+func (f *factory) Create(m raftpb.Member) (Member, error) {
+	switch m.Type {
+	case raftpb.LocalMember:
+		return newLocal(f.ctx, f.cfg, m)
+	case raftpb.RemoteMember:
+		return newRemote(f.ctx, f.cfg, m)
+	case raftpb.RemovedMember:
+		return newRemoved(f.ctx, f.cfg, m)
+	default:
+		return nil, fmt.Errorf("raft/membership: unknown member type %s", m.Type)
 	}
-}
-
-func (f *factory) Cast(m Member, t raftpb.MemberType) (Member, bool, error) {
-	raw := m.Raw()
-	(&raw).Type = t
-	return f.create(raw)
-}
-
-func (f *factory) create(m raftpb.Member) (Member, bool, error) {
-	c, ok := f.constructors[m.Type]
-	if !ok {
-		return nil, false, nil
-	}
-
-	mem, err := c(f.ctx, f.cfg, m)
-	return mem, true, err
 }
 
 func newFactory(ctx context.Context, cfg Config) *factory {
 	f := new(factory)
 	f.ctx = ctx
 	f.cfg = cfg
-	f.constructors = map[raftpb.MemberType]constructor{
-		raftpb.RemoteMember:  newRemote,
-		raftpb.RemovedMember: newRemoved,
-		raftpb.LocalMember:   newLocal,
-	}
 	return f
 }
 

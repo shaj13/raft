@@ -57,12 +57,7 @@ func (p *pool) Get(id uint64) (Member, bool) {
 }
 
 func (p *pool) Add(m raftpb.Member) error {
-	mem, ok := p.Get(m.ID)
-	if ok && mem.Address() == m.Address {
-		// member already exist
-		return nil
-	}
-
+	_, ok := p.Get(m.ID)
 	if ok {
 		return p.Update(m)
 	}
@@ -70,8 +65,8 @@ func (p *pool) Add(m raftpb.Member) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	mem, ok, err := p.factory.From(m)
-	if !ok || err != nil {
+	mem, err := p.factory.Create(m)
+	if err != nil {
 		return err
 	}
 
@@ -81,11 +76,6 @@ func (p *pool) Add(m raftpb.Member) error {
 
 func (p *pool) Update(m raftpb.Member) error {
 	mem, ok := p.Get(m.ID)
-	if ok && mem.Address() == m.Address {
-		// member already exist
-		return nil
-	}
-
 	if !ok {
 		return p.Add(m)
 	}
@@ -110,8 +100,8 @@ func (p *pool) Remove(m raftpb.Member) error {
 		log.Warnf("closing member %x conn failed, Err: %v", m.ID, err)
 	}
 
-	mem, ok, err := p.factory.Cast(mem, m.Type)
-	if !ok || err != nil {
+	mem, err := p.factory.Create(m)
+	if err != nil {
 		return err
 	}
 
@@ -124,8 +114,7 @@ func (p *pool) Snapshot() []raftpb.Member {
 	defer p.mu.Unlock()
 	membs := []raftpb.Member{}
 	for _, mem := range p.membs {
-		m := p.factory.To(mem)
-		membs = append(membs, m)
+		membs = append(membs, mem.Raw())
 	}
 	return membs
 }

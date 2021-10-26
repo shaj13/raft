@@ -1,7 +1,6 @@
 package membership
 
 import (
-	"context"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -12,12 +11,6 @@ import (
 
 //go:generate mockgen -package membershipmock  -source internal/membership/types.go -destination internal/mocks/membership/membership.go
 //go:generate mockgen -package membership  -source internal/membership/types.go -destination internal/membership/types_test.go
-
-type constructor func(
-	ctx context.Context,
-	cfg Config,
-	m raftpb.Member,
-) (Member, error)
 
 type Member interface {
 	ID() uint64
