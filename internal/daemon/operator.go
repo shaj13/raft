@@ -496,7 +496,6 @@ func (m members) noFallback() {}
 func (m members) before(ost *operatorsState) (err error) {
 	if len(m.membs) >= 1 {
 		ost.local = &m.membs[0]
-		ost.local.Type = raftpb.LocalMember // for safety.
 		ost.membs = append(ost.membs, m.membs[1:]...)
 	}
 	return

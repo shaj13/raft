@@ -506,14 +506,20 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		return
 	}
 
-	// got remote member as a local, cast it back to remote.
-	// this can happen when leader replicate conf change from his perspective to follower.
+	// set the correct member type.
+	// this can happen when nodes sends conf change from it's perspective to other nodes.
 	if mem.ID != d.local.ID && mem.Type == raftpb.LocalMember {
 		mem.Type = raftpb.RemoteMember
+	} else if mem.ID != d.local.ID && mem.Type == raftpb.LocalLearnerMember {
+		mem.Type = raftpb.LearnerMember
+	} else if mem.ID == d.local.ID && mem.Type == raftpb.RemoteMember {
+		mem.Type = raftpb.LocalMember
+	} else if mem.ID == d.local.ID && mem.Type == raftpb.LearnerMember {
+		mem.Type = raftpb.LocalLearnerMember
 	}
 
 	switch cc.Type {
-	case etcdraftpb.ConfChangeAddNode:
+	case etcdraftpb.ConfChangeAddNode, etcdraftpb.ConfChangeAddLearnerNode:
 		err = d.pool.Add(*mem)
 	case etcdraftpb.ConfChangeUpdateNode:
 		err = d.pool.Update(*mem)

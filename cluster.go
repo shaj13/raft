@@ -159,7 +159,12 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 		raw.ID = c.pool.NextID()
 	}
 
-	return c.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeAddNode)
+	cct := etcdraftpb.ConfChangeAddNode
+	if raw.Type == raftpb.LearnerMember || raw.Type == raftpb.LocalLearnerMember {
+		cct = etcdraftpb.ConfChangeAddLearnerNode
+	}
+
+	return c.daemon.ProposeConfChange(ctx, raw, cct)
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {

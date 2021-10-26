@@ -20,10 +20,16 @@ const None = raft.None
 const (
 	// LocalMember represents the current raft node.
 	LocalMember MemberType = raftpb.LocalMember
+	// LocalLearnerMember represents the current learner raft node.
+	// LocalLearnerMember will receive log entries, but it won't participate in elections or log entry commitment.
+	LocalLearnerMember MemberType = raftpb.LocalLearnerMember
 	// RemoteMember represents an remote raft node.
 	RemoteMember MemberType = raftpb.RemoteMember
 	// RemovedMember represents an removed raft node.
 	RemovedMember MemberType = raftpb.RemovedMember
+	// LearnerMember represents an remote learner raft node
+	// LearnerMember will receive log entries, but it won't participate in elections or log entry commitment.
+	LearnerMember MemberType = raftpb.LearnerMember
 )
 
 // MemberType used to distinguish members (local, remote, etc).
