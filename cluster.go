@@ -31,8 +31,8 @@ type Cluster interface {
 	PromoteMember(ctx context.Context, id uint64) error
 	GetMemebr(id uint64) (Member, bool)
 	Members() []Member
+	// TODO: Remove this api
 	RemovedMembers() []Member
-	AddressInUse(addr string) uint64
 	LongestActive() (Member, error)
 	IsAvailable() bool
 	IsMemberRemoved(id uint64) bool
@@ -215,15 +215,6 @@ func (c *cluster) RemovedMembers() []Member {
 	return c.members(cond)
 }
 
-func (c *cluster) AddressInUse(addr string) uint64 {
-	for _, m := range c.Members() {
-		if m.Address() == addr {
-			return m.ID()
-		}
-	}
-	return 0
-}
-
 func (c *cluster) LongestActive() (Member, error) {
 	var (
 		longest     Member
@@ -390,9 +381,12 @@ func memberRemoved(id uint64) func(c *cluster) error {
 
 func addressInUse(mid uint64, addr string) func(c *cluster) error {
 	return func(c *cluster) error {
-		id := c.AddressInUse(addr)
-		if id != 0 && id != mid {
-			return fmt.Errorf("raft: address used by member %x", id)
+		membs := c.members(func(m Member) bool {
+			return m.Address() == addr && m.ID() != mid
+		})
+
+		if len(membs) > 0 {
+			return fmt.Errorf("raft: address used by member %x", membs[0].ID())
 		}
 		return nil
 	}
