@@ -35,7 +35,7 @@ type Cluster interface {
 	RemovedMembers() []Member
 	LongestActive() (Member, error)
 	IsAvailable() bool
-	IsMemberRemoved(id uint64) bool
+
 	IsMember(id uint64) bool
 	Whoami() uint64
 	Leader() uint64
@@ -255,11 +255,6 @@ func (c *cluster) IsAvailable() bool {
 	return n >= q
 }
 
-func (c *cluster) IsMemberRemoved(id uint64) bool {
-	m, _ := c.GetMemebr(id)
-	return m.Type() == raftpb.RemovedMember
-}
-
 func (c *cluster) IsMember(id uint64) bool {
 	_, ok := c.pool.Get(id)
 	return ok
@@ -372,7 +367,8 @@ func notMember(id uint64) func(c *cluster) error {
 
 func memberRemoved(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
-		if c.IsMemberRemoved(id) {
+		m, ok := c.GetMemebr(id)
+		if ok && m.Type() == RemovedMember {
 			return fmt.Errorf("raft: member %x already removed", id)
 		}
 		return nil
