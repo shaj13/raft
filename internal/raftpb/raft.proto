@@ -16,6 +16,7 @@ service Raft {
   rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
   rpc Snapshot (stream Chunk) returns (google.protobuf.Empty) {}
   rpc Join (Member) returns (stream Member) {}
+  rpc PromoteMember(Member) returns (google.protobuf.Empty) {}
 }
 
 message Member {
