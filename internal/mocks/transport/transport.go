@@ -193,6 +193,20 @@ func (mr *MockClientMockRecorder) Message(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Message", reflect.TypeOf((*MockClient)(nil).Message), arg0, arg1)
 }
 
+// PromoteMember mocks base method.
+func (m_2 *MockClient) PromoteMember(ctx context.Context, m raftpb.Member) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "PromoteMember", ctx, m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PromoteMember indicates an expected call of PromoteMember.
+func (mr *MockClientMockRecorder) PromoteMember(ctx, m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromoteMember", reflect.TypeOf((*MockClient)(nil).PromoteMember), ctx, m)
+}
+
 // MockController is a mock of Controller interface.
 type MockController struct {
 	ctrl     *gomock.Controller

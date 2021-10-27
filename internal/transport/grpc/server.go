@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -31,6 +32,11 @@ func NewServer(ctx context.Context, cfg transport.ServerConfig) (transport.Serve
 type server struct {
 	ctrl transport.Controller
 	snap storage.Snapshotter
+}
+
+func (s *server) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
+	err := s.ctrl.PromoteMember(ctx, *m)
+	return &emptypb.Empty{}, err
 }
 
 func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
@@ -138,7 +144,11 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	m.From = from
 	m.To = to
 
-	return s.ctrl.Push(ctx, *m)
+	if err := s.ctrl.Push(ctx, *m); err != nil {
+		return err
+	}
+
+	return stream.SendAndClose(&emptypb.Empty{})
 }
 
 func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {

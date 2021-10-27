@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
+	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
@@ -316,8 +317,8 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 		return err
 	}
 
-	// if there is no progress and RPC have been forwarded to this node,
-	// which means the leader lost during forwarding.
+	// leader may lost during forwarding,
+	// if there is no progress and promotion have been forwarded to this node.
 	if rs.Progress == nil && forwarded {
 		return daemon.ErrNoLeader
 	}
@@ -329,20 +330,13 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 			return daemon.ErrNoLeader
 		}
 
-		rpc, err := c.dial(ctx, lmem.Address())
+		client, err := c.dial(ctx, lmem.Address())
 		if err != nil {
 			return err
 		}
 
-		nrpc, ok := rpc.(interface {
-			PromoteMember(ctx context.Context, m raftpb.Member) error
-		})
-
-		if !ok {
-			return fmt.Errorf("raft: TODO not all rpc client implemeints PromoteMember")
-		}
-
-		return nrpc.PromoteMember(ctx, mem.Raw())
+		log.Debugf("raft.node: forwarding member %x promotion to %x", id, lmem.ID())
+		return client.PromoteMember(ctx, mem.Raw())
 	}
 
 	leader := rs.Progress[rs.ID].Match

@@ -55,6 +55,11 @@ type client struct {
 	shotter storage.Snapshotter
 }
 
+func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
+	_, err := raftpb.NewRaftClient(c.conn).PromoteMember(ctx, &m, c.copts(ctx)...)
+	return err
+}
+
 func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 	fn := c.message
 	if m.Type == etcdraftpb.MsgSnap {

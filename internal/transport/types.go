@@ -40,6 +40,7 @@ type NewServer func(context.Context, ServerConfig) (Server, error)
 type Client interface {
 	Message(context.Context, etcdraftpb.Message) error
 	Join(context.Context, raftpb.Member) (uint64, []raftpb.Member, error)
+	PromoteMember(ctx context.Context, m raftpb.Member) error
 	Close() error
 }
 
