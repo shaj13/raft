@@ -153,10 +153,6 @@ func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) erro
 		return ErrStopped
 	}
 
-	if d.node.Status().Lead == raft.None {
-		return ErrNoLeader
-	}
-
 	log.Infof("raft.daemon: start transfer leadership %x -> %x", d.node.Status().Lead, transferee)
 
 	d.node.TransferLeadership(ctx, d.node.Status().Lead, transferee)
@@ -181,10 +177,6 @@ func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) erro
 func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 	if d.started.False() {
 		return ErrStopped
-	}
-
-	if d.node.Status().Lead == raft.None {
-		return ErrNoLeader
 	}
 
 	if d.node.Status().Lead != d.local.ID && d.disableProposal {
@@ -229,10 +221,6 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
 	if d.started.False() {
 		return ErrStopped
-	}
-
-	if d.node.Status().Lead == raft.None {
-		return ErrNoLeader
 	}
 
 	if d.node.Status().Lead != d.local.ID && d.disableProposal {

@@ -66,6 +66,7 @@ func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
 	err := c.precondition(
 		joined(),
 		notMember(id),
+		noLeader(),
 		available(),
 	)
 
@@ -111,9 +112,10 @@ func (c *cluster) Leave(ctx context.Context) error {
 func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 	err := c.precondition(
 		joined(),
-		available(),
 		notMember(raw.ID),
 		addressInUse(raw.ID, raw.Address),
+		noLeader(),
+		available(),
 	)
 
 	if err != nil {
@@ -129,10 +131,11 @@ func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 	err := c.precondition(
 		joined(),
-		available(),
 		notMember(id),
 		memberRemoved(id),
 		rmLeader(id),
+		noLeader(),
+		available(),
 	)
 
 	if err != nil {
@@ -151,6 +154,7 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 		joined(),
 		addressInUse(raw.ID, raw.Address),
 		idInUse(raw.ID),
+		noLeader(),
 		available(),
 	)
 
@@ -284,6 +288,7 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 	err := c.precondition(
 		joined(),
 		notMember(id),
+		noLeader(),
 		available(),
 	)
 
@@ -412,6 +417,15 @@ func idInUse(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
 		if _, ok := c.GetMemebr(id); ok {
 			return fmt.Errorf("raft: id used by member %x", id)
+		}
+		return nil
+	}
+}
+
+func noLeader() func(c *cluster) error {
+	return func(c *cluster) error {
+		if c.Leader() == None {
+			return daemon.ErrNoLeader
 		}
 		return nil
 	}
