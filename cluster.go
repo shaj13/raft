@@ -35,8 +35,6 @@ type Cluster interface {
 	RemovedMembers() []Member
 	LongestActive() (Member, error)
 	IsAvailable() bool
-
-	IsMember(id uint64) bool
 	Whoami() uint64
 	Leader() uint64
 }
@@ -255,11 +253,6 @@ func (c *cluster) IsAvailable() bool {
 	return n >= q
 }
 
-func (c *cluster) IsMember(id uint64) bool {
-	_, ok := c.pool.Get(id)
-	return ok
-}
-
 func (c *cluster) Whoami() uint64 {
 	s, _ := c.daemon.Status()
 	return s.ID
@@ -358,7 +351,7 @@ func available() func(c *cluster) error {
 
 func notMember(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
-		if !c.IsMember(id) {
+		if _, ok := c.GetMemebr(id); !ok {
 			return fmt.Errorf("raft: unknown member %x", id)
 		}
 		return nil
