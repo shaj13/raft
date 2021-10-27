@@ -38,10 +38,11 @@ type Cluster interface {
 }
 
 type cluster struct {
-	dial    transport.Dial
-	pool    membership.Pool
-	storage storage.Storage
-	daemon  daemon.Daemon
+	dial              transport.Dial
+	pool              membership.Pool
+	storage           storage.Storage
+	daemon            daemon.Daemon
+	disableForwarding bool
 }
 
 func (c *cluster) CreateSnapshot() (io.ReadCloser, error) {
@@ -426,6 +427,15 @@ func noLeader() func(c *cluster) error {
 	return func(c *cluster) error {
 		if c.Leader() == None {
 			return daemon.ErrNoLeader
+		}
+		return nil
+	}
+}
+
+func disableForwarding() func(c *cluster) error {
+	return func(c *cluster) error {
+		if c.Leader() != c.Whoami() && c.disableForwarding {
+			return errors.New("raft: node is not the leader")
 		}
 		return nil
 	}
