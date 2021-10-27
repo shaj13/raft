@@ -19,9 +19,8 @@ import (
 )
 
 var (
-	ErrStopped   = errors.New("raft: daemon not ready yet or has been stopped")
-	ErrNotLeader = errors.New("raft: node is not the leader")
-	ErrNoLeader  = errors.New("raft: no elected cluster leader")
+	ErrStopped  = errors.New("raft: daemon not ready yet or has been stopped")
+	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
 type Daemon interface {
@@ -52,34 +51,32 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d.started = atomic.NewBool()
 	d.appliedIndex = atomic.NewUint64()
 	d.snapIndex = atomic.NewUint64()
-	d.disableProposal = cfg.RaftConfig().DisableProposalForwarding
 	return d
 }
 
 type daemon struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	fsm             FSM
-	local           *raftpb.Member
-	cfg             Config
-	node            raft.Node
-	ticker          *time.Ticker
-	wg              sync.WaitGroup
-	propwg          sync.WaitGroup
-	cache           *raft.MemoryStorage
-	storage         storage.Storage
-	msgbus          *msgbus.MsgBus
-	idgen           *idutil.Generator
-	pool            membership.Pool
-	started         *atomic.Bool
-	snapIndex       *atomic.Uint64
-	appliedIndex    *atomic.Uint64
-	proposec        chan etcdraftpb.Message
-	msgc            chan etcdraftpb.Message
-	snapshotc       chan struct{}
-	csMu            sync.Mutex // guard ConfState.
-	cState          *etcdraftpb.ConfState
-	disableProposal bool
+	ctx          context.Context
+	cancel       context.CancelFunc
+	fsm          FSM
+	local        *raftpb.Member
+	cfg          Config
+	node         raft.Node
+	ticker       *time.Ticker
+	wg           sync.WaitGroup
+	propwg       sync.WaitGroup
+	cache        *raft.MemoryStorage
+	storage      storage.Storage
+	msgbus       *msgbus.MsgBus
+	idgen        *idutil.Generator
+	pool         membership.Pool
+	started      *atomic.Bool
+	snapIndex    *atomic.Uint64
+	appliedIndex *atomic.Uint64
+	proposec     chan etcdraftpb.Message
+	msgc         chan etcdraftpb.Message
+	snapshotc    chan struct{}
+	csMu         sync.Mutex // guard ConfState.
+	cState       *etcdraftpb.ConfState
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
@@ -179,10 +176,6 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 		return ErrStopped
 	}
 
-	if d.node.Status().Lead != d.local.ID && d.disableProposal {
-		return ErrNotLeader
-	}
-
 	d.propwg.Add(1)
 	defer d.propwg.Done()
 
@@ -221,10 +214,6 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
 	if d.started.False() {
 		return ErrStopped
-	}
-
-	if d.node.Status().Lead != d.local.ID && d.disableProposal {
-		return ErrNotLeader
 	}
 
 	d.propwg.Add(1)

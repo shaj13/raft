@@ -27,6 +27,7 @@ func New(proto transport.Proto, opts ...Option) (Cluster, interface{}) {
 	cluster.daemon = cfg.daemon
 	cluster.storage = cfg.storage
 	cluster.dial = cfg.dial
+	cluster.disableForwarding = cfg.rcfg.DisableProposalForwarding
 
 	cfg.controller.(*controller).cluster = cluster
 	cfg.controller.(*controller).daemon = cfg.daemon

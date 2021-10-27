@@ -15,6 +15,9 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+// TODO: do we need to expose ?
+var errNotLeader = errors.New("raft: operation not permitted, node is not the leader")
+
 type Cluster interface {
 	Start(opts ...StartOption) error
 	Leave(ctx context.Context) error
@@ -68,6 +71,7 @@ func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
 		joined(),
 		notMember(id),
 		noLeader(),
+		disableForwarding(),
 		available(),
 	)
 
@@ -116,6 +120,7 @@ func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 		notMember(raw.ID),
 		addressInUse(raw.ID, raw.Address),
 		noLeader(),
+		disableForwarding(),
 		available(),
 	)
 
@@ -136,6 +141,7 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		memberRemoved(id),
 		rmLeader(id),
 		noLeader(),
+		disableForwarding(),
 		available(),
 	)
 
@@ -156,6 +162,7 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 		addressInUse(raw.ID, raw.Address),
 		idInUse(raw.ID),
 		noLeader(),
+		disableForwarding(),
 		available(),
 	)
 
@@ -290,6 +297,7 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 		joined(),
 		notMember(id),
 		noLeader(),
+		disableForwarding(),
 		available(),
 	)
 
@@ -399,7 +407,7 @@ func addressInUse(mid uint64, addr string) func(c *cluster) error {
 func notLeader() func(c *cluster) error {
 	return func(c *cluster) error {
 		if c.Whoami() != c.Leader() {
-			return daemon.ErrNotLeader
+			return errNotLeader
 		}
 		return nil
 	}
@@ -435,7 +443,7 @@ func noLeader() func(c *cluster) error {
 func disableForwarding() func(c *cluster) error {
 	return func(c *cluster) error {
 		if c.Leader() != c.Whoami() && c.disableForwarding {
-			return errors.New("raft: node is not the leader")
+			return errNotLeader
 		}
 		return nil
 	}
