@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/daemon"
@@ -33,7 +34,6 @@ type Cluster interface {
 	Members() []Member
 	// TODO: Remove this api
 	RemovedMembers() []Member
-	LongestActive() (Member, error)
 	IsAvailable() bool
 	Whoami() uint64
 	Leader() uint64
@@ -92,12 +92,27 @@ func (c *cluster) StepDown(ctx context.Context) error {
 		return err
 	}
 
-	m, err := c.LongestActive()
-	if err != nil {
-		return err
+	// we can do the following, because member's active since is given from the current node clock.
+	longest := time.Now().Add(math.MaxInt64)
+	cond := func(m Member) bool {
+		since := m.ActiveSince()
+		ok := m.IsActive() && m.Type() == RemoteMember && since.Before(longest)
+		if ok {
+			longest = since
+			return true
+		}
+
+		return false
 	}
 
-	return c.daemon.TransferLeadership(ctx, m.ID())
+	// get longest active member then transfer leadership to it.
+	// TODO: can we get it progress ?
+	membs := c.members(cond)
+	if len(membs) == 0 {
+		return errors.New("raft: failed to find longest active member")
+	}
+
+	return c.daemon.TransferLeadership(ctx, membs[0].ID())
 }
 
 func (c *cluster) Start(opts ...StartOption) error {
@@ -211,35 +226,6 @@ func (c *cluster) RemovedMembers() []Member {
 		return m.Type() == raftpb.RemovedMember
 	}
 	return c.members(cond)
-}
-
-func (c *cluster) LongestActive() (Member, error) {
-	var (
-		longest     Member
-		longestTime time.Time
-	)
-
-	for _, m := range c.Members() {
-		since := m.ActiveSince()
-		if since.IsZero() || m.Type() == raftpb.LocalMember {
-			continue
-		}
-
-		if longest == nil {
-			longest = m
-			continue
-		}
-		if since.Before(longestTime) {
-			longest = m
-			longestTime = since
-		}
-	}
-
-	if longest == nil {
-		return nil, errors.New("raft: failed to find longest active member")
-	}
-
-	return longest, nil
 }
 
 func (c *cluster) IsAvailable() bool {
