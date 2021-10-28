@@ -21,6 +21,7 @@ import (
 var errNotLeader = errors.New("raft: operation not permitted, node is not the leader")
 
 type Cluster interface {
+	LinearizableRead(ctx context.Context, retryAfter time.Duration) <-chan error
 	Start(opts ...StartOption) error
 	Leave(ctx context.Context) error
 	StepDown(ctx context.Context) error
@@ -45,6 +46,12 @@ type cluster struct {
 	storage           storage.Storage
 	daemon            daemon.Daemon
 	disableForwarding bool
+}
+
+func (c *cluster) LinearizableRead(ctx context.Context, retryAfter time.Duration) <-chan error {
+	ch := make(chan error)
+	go c.daemon.LinearizableRead(ctx, retryAfter, ch)
+	return ch
 }
 
 func (c *cluster) CreateSnapshot() (io.ReadCloser, error) {

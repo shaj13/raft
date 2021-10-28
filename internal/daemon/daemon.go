@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -24,6 +25,7 @@ var (
 )
 
 type Daemon interface {
+	LinearizableRead(ctx context.Context, retryAfter time.Duration, c chan error)
 	Push(m etcdraftpb.Message) error
 	TransferLeadership(context.Context, uint64) error
 	Status() (raft.Status, error)
@@ -77,6 +79,69 @@ type daemon struct {
 	snapshotc    chan struct{}
 	csMu         sync.Mutex // guard ConfState.
 	cState       *etcdraftpb.ConfState
+}
+
+func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration, c chan error) {
+	if d.started.False() {
+		c <- ErrStopped
+		return
+	}
+
+	// read raft leader index.
+	index, err := func() (uint64, error) {
+		buf := make([]byte, 8)
+		id := d.idgen.Next()
+		binary.BigEndian.PutUint64(buf, id)
+		sub := d.msgbus.SubscribeOnce(id)
+		t := time.NewTicker(retryAfter)
+
+		defer t.Stop()
+		defer sub.Unsubscribe()
+
+		for {
+			err := d.node.ReadIndex(ctx, buf)
+			if err != nil {
+				return 0, err
+			}
+
+			select {
+			case <-t.C:
+			case v := <-sub.Chan():
+				if err, ok := v.(error); ok {
+					return 0, err
+				}
+				return v.(uint64), nil
+			case <-ctx.Done():
+				return 0, err
+			}
+		}
+	}()
+
+	if err != nil {
+		c <- err
+		return
+	}
+
+	// current node is up to date.
+	if index <= d.appliedIndex.Get() {
+		c <- nil
+		return
+	}
+
+	// wait until leader index applied into this node.
+	sub := d.msgbus.SubscribeOnce(index)
+	defer sub.Unsubscribe()
+
+	select {
+	case v := <-sub.Chan():
+		if v != nil {
+			err = v.(error)
+		}
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+
+	c <- err
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
@@ -347,6 +412,8 @@ func (d *daemon) eventLoop() error {
 		case <-d.ticker.C:
 			d.node.Tick()
 		case rd := <-d.node.Ready():
+			prevIndex := d.appliedIndex.Get()
+
 			if err := d.storage.SaveEntries(rd.HardState, rd.Entries); err != nil {
 				return err
 			}
@@ -366,13 +433,29 @@ func (d *daemon) eventLoop() error {
 			}
 
 			d.publishCommitted(rd.CommittedEntries)
+			d.publishReadState(rd.ReadStates)
+			d.publishAppliedIndices(prevIndex, d.appliedIndex.Get())
 
 			d.snapshotc <- struct{}{}
 
 			d.node.Advance()
+
 		case <-d.ctx.Done():
 			return ErrStopped
 		}
+	}
+}
+
+func (d *daemon) publishReadState(rss []raft.ReadState) {
+	for _, rs := range rss {
+		id := binary.BigEndian.Uint64(rs.RequestCtx)
+		d.msgbus.Broadcast(id, rs.Index)
+	}
+}
+
+func (d *daemon) publishAppliedIndices(prev, curr uint64) {
+	for i := prev + 1; i < curr+1; i++ {
+		d.msgbus.Broadcast(i, nil)
 	}
 }
 
