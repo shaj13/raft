@@ -25,7 +25,7 @@ var (
 )
 
 type Daemon interface {
-	LinearizableRead(ctx context.Context, retryAfter time.Duration, c chan error)
+	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
 	Push(m etcdraftpb.Message) error
 	TransferLeadership(context.Context, uint64) error
 	Status() (raft.Status, error)
@@ -81,10 +81,9 @@ type daemon struct {
 	cState       *etcdraftpb.ConfState
 }
 
-func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration, c chan error) {
+func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
 	if d.started.False() {
-		c <- ErrStopped
-		return
+		return ErrStopped
 	}
 
 	// read raft leader index.
@@ -118,14 +117,12 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration,
 	}()
 
 	if err != nil {
-		c <- err
-		return
+		return err
 	}
 
 	// current node is up to date.
 	if index <= d.appliedIndex.Get() {
-		c <- nil
-		return
+		return nil
 	}
 
 	// wait until leader index applied into this node.
@@ -135,13 +132,13 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration,
 	select {
 	case v := <-sub.Chan():
 		if v != nil {
-			err = v.(error)
+			return v.(error)
 		}
 	case <-ctx.Done():
-		err = ctx.Err()
+		return ctx.Err()
 	}
 
-	c <- err
+	return nil
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
