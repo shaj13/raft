@@ -49,6 +49,18 @@ type cluster struct {
 }
 
 func (c *cluster) LinearizableRead(ctx context.Context, retryAfter time.Duration) <-chan error {
+	err := c.precondition(
+		joined(),
+		noLeader(),
+		available(),
+	)
+
+	if err != nil {
+		ch := make(chan error, 1)
+		ch <- err
+		return ch
+	}
+
 	ch := make(chan error)
 	go c.daemon.LinearizableRead(ctx, retryAfter, ch)
 	return ch
