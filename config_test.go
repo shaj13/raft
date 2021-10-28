@@ -9,6 +9,7 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/etcd/raft/v3"
 )
 
 func TestConfig(t *testing.T) {
@@ -18,6 +19,18 @@ func TestConfig(t *testing.T) {
 		opt      Option
 		value    func(c *config) interface{}
 	}{
+		{
+			defaults: raft.ReadOnlySafe,
+			expected: raft.ReadOnlySafe,
+			opt:      WithLinearizableReadSafe(),
+			value:    func(c *config) interface{} { return c.rcfg.ReadOnlyOption },
+		},
+		{
+			defaults: raft.ReadOnlySafe,
+			expected: raft.ReadOnlyLeaseBased,
+			opt:      WithLinearizableReadLeaseBased(),
+			value:    func(c *config) interface{} { return c.rcfg.ReadOnlyOption },
+		},
 		{
 			defaults: context.Background(),
 			expected: context.TODO(),

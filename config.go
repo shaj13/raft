@@ -74,6 +74,25 @@ func (fn optionFunc) apply(c *config) {
 	fn(c)
 }
 
+// WithLinearizableReadSafe guarantees the linearizability of the read request by
+// communicating with the quorum. It is the default and suggested option.
+func WithLinearizableReadSafe() Option {
+	return optionFunc(func(c *config) {
+		// no-op.
+	})
+}
+
+// WithLinearizableReadLeaseBased ensures linearizability of the read only request by
+// relying on the leader lease. It can be affected by clock drift.
+// If the clock drift is unbounded, leader might keep the lease longer than it
+// should (clock can move backward/pause without any bound). ReadIndex is not safe
+// in that case.
+func WithLinearizableReadLeaseBased() Option {
+	return optionFunc(func(c *config) {
+		c.rcfg.ReadOnlyOption = raft.ReadOnlyLeaseBased
+	})
+}
+
 // WithLogger sets logger that is used to generates lines of output.
 func WithLogger(lg Logger) Option {
 	return optionFunc(func(c *config) {
