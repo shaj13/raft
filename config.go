@@ -23,6 +23,11 @@ const (
 	// LocalLearnerMember represents the current learner raft node.
 	// LocalLearnerMember will receive log entries, but it won't participate in elections or log entry commitment.
 	LocalLearnerMember MemberType = raftpb.LocalLearnerMember
+	// LocalStagingMember represents the current learner raft node.
+	// LocalStagingMember will receive log entries, but it won't participate in elections or log entry commitment,
+	// and once it receives enough log entries to be sufficiently caught up to
+	// the leader's log, the leader will promote him to LocalMember.
+	LocalStagingMember MemberType = raftpb.LocalStagingMember
 	// RemoteMember represents an remote raft node.
 	RemoteMember MemberType = raftpb.RemoteMember
 	// RemovedMember represents an removed raft node.
@@ -30,6 +35,11 @@ const (
 	// LearnerMember represents an remote learner raft node
 	// LearnerMember will receive log entries, but it won't participate in elections or log entry commitment.
 	LearnerMember MemberType = raftpb.LearnerMember
+	// StagingMember represents an remote learner raft node
+	// StagingMember will receive log entries, but it won't participate in elections or log entry commitment,
+	// and once it receives enough log entries to be sufficiently caught up to
+	// the leader's log, the leader will promote him to RemoteMember.
+	StagingMember MemberType = raftpb.StagingMember
 )
 
 // MemberType used to distinguish members (local, remote, etc).

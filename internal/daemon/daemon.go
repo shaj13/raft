@@ -29,8 +29,10 @@ var (
 var memberTypeLoopBack = map[memberTypeCond]raftpb.MemberType{
 	{false, raftpb.LocalMember}:        raftpb.RemoteMember,
 	{false, raftpb.LocalLearnerMember}: raftpb.LearnerMember,
+	{false, raftpb.LocalStagingMember}: raftpb.StagingMember,
 	{true, raftpb.RemoteMember}:        raftpb.LocalMember,
 	{true, raftpb.LearnerMember}:       raftpb.LocalLearnerMember,
+	{true, raftpb.StagingMember}:       raftpb.LocalStagingMember,
 }
 
 // memberTypeCond define a condition to retrieve the correct member type
@@ -589,7 +591,6 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	if t, ok := memberTypeLoopBack[cond]; ok {
 		mem.Type = t
 	}
-
 
 	switch cc.Type {
 	case etcdraftpb.ConfChangeAddNode, etcdraftpb.ConfChangeAddLearnerNode:

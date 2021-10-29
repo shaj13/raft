@@ -204,7 +204,12 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	}
 
 	cct := etcdraftpb.ConfChangeAddNode
-	if raw.Type == raftpb.LearnerMember || raw.Type == raftpb.LocalLearnerMember {
+
+	switch raw.Type {
+	case raftpb.LearnerMember,
+		raftpb.LocalLearnerMember,
+		raftpb.StagingMember,
+		raftpb.LocalStagingMember:
 		cct = etcdraftpb.ConfChangeAddLearnerNode
 	}
 

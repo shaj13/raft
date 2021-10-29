@@ -131,9 +131,9 @@ func (p *pool) Restore(pool raftpb.Pool) {
 
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
 	switch m.Type {
-	case raftpb.LocalMember, raftpb.LocalLearnerMember:
+	case raftpb.LocalMember, raftpb.LocalLearnerMember, raftpb.LocalStagingMember:
 		return newLocal(p.ctx, p.cfg, m)
-	case raftpb.RemoteMember, raftpb.LearnerMember:
+	case raftpb.RemoteMember, raftpb.LearnerMember, raftpb.StagingMember:
 		return newRemote(p.ctx, p.cfg, m)
 	case raftpb.RemovedMember:
 		return newRemoved(p.ctx, p.cfg, m)
