@@ -1,11 +1,10 @@
 # raftkit
 
 ### TODO 
+- [ ] spike demote voter
 - [ ] WithMembers and WithAddress tests 
 - [ ] prevent learner from send any propose requests 
 - [ ] add wg for daemon remove memebr 
-- [ ] support staging memeber type 
-- [ ] spike demote voter
 - [ ] validate quorm availbalete by calclulte it without learners
 - [ ] renmae cluster to node
 - [ ] fix all logs that have raft.rpc 
