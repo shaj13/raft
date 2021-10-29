@@ -20,7 +20,7 @@ service Raft {
 }
 
 message Member {
-	// ID specifies the cluster memeber id.
+	// ID specifies the cluster member id.
 	uint64 id = 1 [(gogoproto.customname) = "ID" ];
 	// Address specifies the address of the cluster member.
 	string addr = 2 [(gogoproto.customname) = "Address" ];
@@ -29,6 +29,8 @@ message Member {
 	// Context is treated as an opaque payload and can be used to
 	// attach an extra info/data on member. 
 	bytes  context  = 4;
+	// Local specifies the current cluster member.
+	bool local = 5;
 }
 
 message Replicate {
@@ -41,13 +43,10 @@ message Replicate {
 
 enum MemberType {
 	option (gogoproto.enum_customname) = "MemberType";
-	remote = 0 [(gogoproto.enumvalue_customname) = "RemoteMember"];
+	voter = 0 [(gogoproto.enumvalue_customname) = "VoterMember"];
 	removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
-	local = 2 [(gogoproto.enumvalue_customname) = "LocalMember"];
-	localLearner = 3 [(gogoproto.enumvalue_customname) = "LocalLearnerMember"];
-	learner = 4 [(gogoproto.enumvalue_customname) = "LearnerMember"];
-	localStaging = 5 [(gogoproto.enumvalue_customname) = "LocalStagingMember"];
-	staging = 6 [(gogoproto.enumvalue_customname) = "StagingMember"];
+	learner = 2 [(gogoproto.enumvalue_customname) = "LearnerMember"];
+	staging = 3 [(gogoproto.enumvalue_customname) = "StagingMember"];
 
 }
 
