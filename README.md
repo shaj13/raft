@@ -1,7 +1,6 @@
 # raftkit
 
 ### TODO 
-- [ ] validate quorm availbalete by calclulte it without learners
 - [ ] check all cluster precondetions
 - [ ] prevent learner from send any propose requests 
 - [ ] renmae cluster to node
