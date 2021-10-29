@@ -29,8 +29,6 @@ message Member {
 	// Context is treated as an opaque payload and can be used to
 	// attach an extra info/data on member. 
 	bytes  context  = 4;
-	// Local specifies the current cluster member.
-	bool local = 5;
 }
 
 message Replicate {
