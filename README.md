@@ -1,7 +1,6 @@
 # raftkit
 
 ### TODO 
-- [ ] add demote voter
 - [ ] WithMembers and WithAddress tests 
 - [ ] check all cluster precondetions
 - [ ] prevent learner from send any propose requests 
