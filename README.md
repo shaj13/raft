@@ -6,7 +6,6 @@
 - [ ] add wg for daemon remove memebr 
 - [ ] validate quorm availbalete by calclulte it without learners
 - [ ] renmae cluster to node
-- [ ] fix all logs that have raft.rpc 
 - [ ] close gc when closing disk 
 - [ ] add tcp rpc 
 - [ ] check the conf change v2 in etcd

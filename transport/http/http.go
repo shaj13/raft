@@ -75,12 +75,12 @@ func Register(opts ...Option) {
 	itransport.HTTP.Register(ns, dialer)
 }
 
-// Handler return's http.Handler for rpc server.
+// Handler return's http.Handler for transport server.
 func Handler(v transport.Server) http.Handler {
 	if h, ok := v.(http.Handler); ok {
 		return h
 	}
 
-	log.Fatalf("raft.rpc.http: type %T does not implement rpc service", v)
+	log.Fatalf("raft.http: type %T does not implement transport service", v)
 	return nil
 }

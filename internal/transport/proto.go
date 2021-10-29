@@ -27,7 +27,7 @@ type Proto uint
 // in packages that implement proto function.
 func (c Proto) Register(ns NewServer, dial Dialer) {
 	if c <= 0 && c >= max { //nolint:staticcheck
-		panic("raft/rpc: Register of unknown proto function")
+		panic("raft/transport: Register of unknown proto function")
 	}
 
 	registry[c] = &protoPair{
@@ -45,7 +45,7 @@ func (c Proto) Available() bool {
 // Get panics if the proto function is not linked into the binary.
 func (c Proto) Get() (NewServer, Dialer) {
 	if !c.Available() {
-		panic("raft/rpc: Requested proto function #" + strconv.Itoa(int(c)) + " is unavailable")
+		panic("raft/transport: Requested proto function #" + strconv.Itoa(int(c)) + " is unavailable")
 	}
 	p := registry[c]
 	return p.nsrv, p.dial
@@ -56,6 +56,8 @@ func (c Proto) String() string {
 	switch c {
 	case GRPC:
 		return "gRPC"
+	case HTTP:
+		return "http"
 	default:
 		return "unknown proto value " + strconv.Itoa(int(c))
 	}

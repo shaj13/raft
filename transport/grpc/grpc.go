@@ -73,12 +73,12 @@ func Register(opts ...Option) {
 	itransport.GRPC.Register(ns, dialer)
 }
 
-// RegisterServer registers rpc service and its implementation to the gRPC server.
+// RegisterServer registers transport service and its implementation to the gRPC server.
 func RegisterServer(s *grpc.Server, v transport.Server) {
 	if rs, ok := v.(raftpb.RaftServer); ok {
 		raftpb.RegisterRaftServer(s, rs)
 		return
 	}
 
-	log.Fatalf("raft.rpc.grpc: type %T does not implement rpc service", v)
+	log.Fatalf("raft.grpc: type %T does not implement transport service", v)
 }
