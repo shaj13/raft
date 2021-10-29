@@ -20,15 +20,22 @@ func New(ctx context.Context, cfg Config) Pool {
 		ctx:   ctx,
 		cfg:   cfg,
 		membs: make(map[uint64]Member),
+		matcher: func(m raftpb.Member) raftpb.MemberType {
+			return m.Type
+		},
 	}
 }
 
 type pool struct {
-	ctx   context.Context
-	cfg   Config
-	mu    sync.Mutex // protects membs
-	membs map[uint64]Member
-	// typeFinder func(m raftpb.Member) raftpb.MemberType
+	ctx     context.Context
+	cfg     Config
+	matcher func(m raftpb.Member) raftpb.MemberType
+	mu      sync.Mutex // protects the membs
+	membs   map[uint64]Member
+}
+
+func (p *pool) RegisterTypeMatcher(fn func(m raftpb.Member) raftpb.MemberType) {
+	p.matcher = fn
 }
 
 func (p *pool) NextID() uint64 {
@@ -131,14 +138,13 @@ func (p *pool) Restore(pool raftpb.Pool) {
 }
 
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
-	if m.Local {
-		return newLocal(p.ctx, p.cfg, m)
-	}
-	switch m.Type {
+	switch p.matcher(m) {
 	case raftpb.VoterMember, raftpb.LearnerMember, raftpb.StagingMember:
 		return newRemote(p.ctx, p.cfg, m)
 	case raftpb.RemovedMember:
 		return newRemoved(p.ctx, p.cfg, m)
+	case raftpb.LocalMember:
+		return newLocal(p.ctx, p.cfg, m)
 	default:
 		return nil, fmt.Errorf("raft/membership: unknown member type %s", m.Type)
 	}

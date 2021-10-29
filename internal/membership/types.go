@@ -46,4 +46,5 @@ type Pool interface {
 	Remove(m raftpb.Member) error
 	Snapshot() []raftpb.Member
 	Restore(pool raftpb.Pool)
+	RegisterTypeMatcher(fn func(m raftpb.Member) raftpb.MemberType)
 }

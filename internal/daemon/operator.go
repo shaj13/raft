@@ -101,10 +101,6 @@ func (f forceJoin) before(ost *operatorsState) error {
 
 func (f forceJoin) after(ost *operatorsState) error {
 	for _, mem := range ost.membs {
-		mem.Local = false
-		if mem.ID == ost.local.ID {
-			mem.Local = true
-		}
 		if err := ost.daemon.pool.Add(mem); err != nil {
 			return err
 		}
@@ -277,6 +273,14 @@ func (s setup) after(ost *operatorsState) (err error) {
 	cfg.Storage = ost.daemon.cache
 	ost.cfg = cfg
 	ost.local = local
+
+	ost.daemon.pool.RegisterTypeMatcher(func(m raftpb.Member) raftpb.MemberType {
+		if cfg.ID == m.ID && m.Type != raftpb.RemovedMember {
+			return raftpb.LocalMember
+		}
+		return m.Type
+	})
+
 	return
 }
 

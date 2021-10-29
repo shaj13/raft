@@ -18,10 +18,7 @@ func TestPoolNewMember(t *testing.T) {
 		Local:   true,
 	}
 
-	p := &pool{
-		ctx: context.TODO(),
-		cfg: testConfig(t),
-	}
+	p := New(context.TODO(), testConfig(t)).(*pool)
 
 	mem, err := p.newMember(m)
 	require.NoError(t, err)

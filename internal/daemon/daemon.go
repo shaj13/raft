@@ -24,26 +24,6 @@ var (
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
-// #### remove me ###
-// memberTypeLoopBack aims to set the member type from this node perspective,
-// i.e, m.ID == my_id && m.Type == RemoteMember => LocalMember.
-// var memberTypeLoopBack = map[memberTypeCond]raftpb.MemberType{
-// 	{false, raftpb.LocalMember}:        raftpb.RemoteMember,
-// 	{false, raftpb.LocalLearnerMember}: raftpb.LearnerMember,
-// 	{false, raftpb.LocalStagingMember}: raftpb.StagingMember,
-// 	{true, raftpb.RemoteMember}:        raftpb.LocalMember,
-// 	{true, raftpb.LearnerMember}:       raftpb.LocalLearnerMember,
-// 	{true, raftpb.StagingMember}:       raftpb.LocalStagingMember,
-// }
-
-// // memberTypeCond define a condition to retrieve the correct member type
-// // from this node perspective.
-// type memberTypeCond struct {
-// 	// me reports whether the member is the current node or not.
-// 	me bool
-// 	t  raftpb.MemberType
-// }
-
 type Daemon interface {
 	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
 	Push(m etcdraftpb.Message) error
@@ -603,11 +583,6 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 
 	if err = mem.Unmarshal(cc.Context); err != nil {
 		return
-	}
-
-	fmt.Println(mem.Address, mem.Type, mem.Local, "########")
-	if mem.ID == d.local.ID {
-		mem.Local = true
 	}
 
 	switch cc.Type {

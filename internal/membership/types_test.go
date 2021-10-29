@@ -38,6 +38,20 @@ func (m *MockMember) EXPECT() *MockMemberMockRecorder {
 	return m.recorder
 }
 
+// ActiveSince mocks base method.
+func (m *MockMember) ActiveSince() time.Time {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ActiveSince")
+	ret0, _ := ret[0].(time.Time)
+	return ret0
+}
+
+// ActiveSince indicates an expected call of ActiveSince.
+func (mr *MockMemberMockRecorder) ActiveSince() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActiveSince", reflect.TypeOf((*MockMember)(nil).ActiveSince))
+}
+
 // Address mocks base method.
 func (m *MockMember) Address() string {
 	m.ctrl.T.Helper()
@@ -94,6 +108,20 @@ func (mr *MockMemberMockRecorder) IsActive() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActive", reflect.TypeOf((*MockMember)(nil).IsActive))
 }
 
+// Raw mocks base method.
+func (m *MockMember) Raw() raftpb.Member {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Raw")
+	ret0, _ := ret[0].(raftpb.Member)
+	return ret0
+}
+
+// Raw indicates an expected call of Raw.
+func (mr *MockMemberMockRecorder) Raw() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Raw", reflect.TypeOf((*MockMember)(nil).Raw))
+}
+
 // Send mocks base method.
 func (m *MockMember) Send(arg0 raftpb0.Message) error {
 	m.ctrl.T.Helper()
@@ -106,20 +134,6 @@ func (m *MockMember) Send(arg0 raftpb0.Message) error {
 func (mr *MockMemberMockRecorder) Send(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockMember)(nil).Send), arg0)
-}
-
-// Since mocks base method.
-func (m *MockMember) Since() time.Time {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Since")
-	ret0, _ := ret[0].(time.Time)
-	return ret0
-}
-
-// Since indicates an expected call of Since.
-func (mr *MockMemberMockRecorder) Since() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Since", reflect.TypeOf((*MockMember)(nil).Since))
 }
 
 // Type mocks base method.
@@ -137,17 +151,17 @@ func (mr *MockMemberMockRecorder) Type() *gomock.Call {
 }
 
 // Update mocks base method.
-func (m *MockMember) Update(arg0 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", arg0)
+func (m_2 *MockMember) Update(m raftpb.Member) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "Update", m)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockMemberMockRecorder) Update(arg0 interface{}) *gomock.Call {
+func (mr *MockMemberMockRecorder) Update(m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMember)(nil).Update), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockMember)(nil).Update), m)
 }
 
 // MockReporter is a mock of Reporter interface.
@@ -366,6 +380,18 @@ func (m *MockPool) NextID() uint64 {
 func (mr *MockPoolMockRecorder) NextID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextID", reflect.TypeOf((*MockPool)(nil).NextID))
+}
+
+// RegisterTypeMatcher mocks base method.
+func (m *MockPool) RegisterTypeMatcher(fn func(raftpb.Member) raftpb.MemberType) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterTypeMatcher", fn)
+}
+
+// RegisterTypeMatcher indicates an expected call of RegisterTypeMatcher.
+func (mr *MockPoolMockRecorder) RegisterTypeMatcher(fn interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTypeMatcher", reflect.TypeOf((*MockPool)(nil).RegisterTypeMatcher), fn)
 }
 
 // Remove mocks base method.
