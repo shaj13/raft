@@ -1,7 +1,6 @@
 # raftkit
 
 ### TODO 
-- [ ] WithMembers and WithAddress tests 
 - [ ] check all cluster precondetions
 - [ ] prevent learner from send any propose requests 
 - [ ] add wg for daemon remove memebr 

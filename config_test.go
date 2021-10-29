@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/shaj13/raftkit/internal/log"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 )
 
@@ -137,10 +137,10 @@ func TestConfig(t *testing.T) {
 
 	for _, tt := range table {
 		c1 := newConfig()
-		assert.Equal(t, tt.defaults, tt.value(c1))
+		require.Equal(t, tt.defaults, tt.value(c1))
 
 		c2 := newConfig(tt.opt)
-		assert.Equal(t, tt.expected, tt.value(c2))
+		require.Equal(t, tt.expected, tt.value(c2))
 	}
 }
 
@@ -156,15 +156,21 @@ func TestStartConfig(t *testing.T) {
 		{expected: "daemon.restart", opt: WithRestart()},
 		{expected: "*daemon.fallback", opt: WithFallback()},
 		{expected: "daemon.restore", opt: WithRestore("")},
+		{expected: "daemon.members", opt: WithMembers()},
 	}
 
 	for _, tt := range table {
 		c := new(startConfig)
 		c.apply(tt.opt)
-		got := ""
-		if len(c.operators) != 0 {
-			got = fmt.Sprintf("%T", c.operators[0])
-		}
-		assert.Equal(t, ""+tt.expected, got)
+		require.GreaterOrEqual(t, 1, len(c.operators))
+		require.Equal(t, tt.expected, fmt.Sprintf("%T", c.operators[0]))
 	}
+}
+
+func TestWithAddress(t *testing.T) {
+	addr := ":TestWithAddress:"
+	opt := WithAddress(addr)
+	c := new(startConfig)
+	opt.apply(c)
+	require.Equal(t, addr, c.addr)
 }
