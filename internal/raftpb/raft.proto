@@ -47,6 +47,7 @@ enum MemberType {
 	removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
 	learner = 2 [(gogoproto.enumvalue_customname) = "LearnerMember"];
 	staging = 3 [(gogoproto.enumvalue_customname) = "StagingMember"];
+	local = 4 [(gogoproto.enumvalue_customname) = "LocalMember"];
 
 }
 
