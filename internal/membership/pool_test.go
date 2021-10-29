@@ -15,7 +15,7 @@ func TestPoolNewMember(t *testing.T) {
 	m := raftpb.Member{
 		Address: ":5052",
 		ID:      123,
-		Local:   true,
+		Type:    raftpb.LocalMember,
 	}
 
 	p := New(context.TODO(), testConfig(t)).(*pool)
@@ -43,7 +43,7 @@ func TestPoolNextID(t *testing.T) {
 }
 
 func TestPoolUpdate(t *testing.T) {
-	m := &raftpb.Member{ID: 1, Local: true}
+	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
 	p := New(context.TODO(), testConfig(t))
 	p.Add(*m)
 	m.Address = "5050"
@@ -66,7 +66,7 @@ func TestPoolRestore(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		m := raftpb.Member{ID: uint64(i), Local: true}
+		m := raftpb.Member{ID: uint64(i), Type: raftpb.LocalMember}
 		ids[uint64(i)] = struct{}{}
 		pool.Members = append(pool.Members, m)
 	}
@@ -83,13 +83,13 @@ func TestPoolRestore(t *testing.T) {
 
 func TestPoolSnapshot(t *testing.T) {
 	p := New(context.TODO(), testConfig(t))
-	p.Add(raftpb.Member{ID: p.NextID(), Local: true})
+	p.Add(raftpb.Member{ID: p.NextID(), Type: raftpb.LocalMember})
 	membs := p.Snapshot()
 	require.Equal(t, len(p.Members()), len(membs))
 }
 
 func TestPoolRemove(t *testing.T) {
-	m := &raftpb.Member{ID: 1, Local: true}
+	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
 	r := NewMockReporter(ctrl)
