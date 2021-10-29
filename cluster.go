@@ -36,7 +36,6 @@ type Cluster interface {
 	Members() []Member
 	// TODO: Remove this api
 	RemovedMembers() []Member
-	IsAvailable() bool
 	Whoami() uint64
 	Leader() uint64
 }
@@ -270,17 +269,6 @@ func (c *cluster) RemovedMembers() []Member {
 	return c.members(cond)
 }
 
-func (c *cluster) IsAvailable() bool {
-	cond := func(m Member) bool {
-		return m.IsActive()
-	}
-
-	q := (len(c.Members()))/2 + 1
-	n := len(c.members(cond))
-
-	return n >= q
-}
-
 func (c *cluster) Whoami() uint64 {
 	s, _ := c.daemon.Status()
 	return s.ID
@@ -370,7 +358,15 @@ func joined() func(c *cluster) error {
 
 func available() func(c *cluster) error {
 	return func(c *cluster) error {
-		if !c.IsAvailable() {
+		reachables := c.members(func(m Member) bool {
+			return m.IsActive() && m.Type() == VoterMember
+		})
+
+		voters := c.members(func(m Member) bool {
+			return m.Type() == VoterMember
+		})
+
+		if len(reachables) < len(voters)/2+1 {
 			return fmt.Errorf("raft: quorum lost and the cluster unavailable, no new logs can be committed")
 		}
 		return nil
