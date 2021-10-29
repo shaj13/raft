@@ -1,7 +1,7 @@
 # raftkit
 
 ### TODO 
-- [ ] spike demote voter
+- [ ] add demote voter
 - [ ] WithMembers and WithAddress tests 
 - [ ] prevent learner from send any propose requests 
 - [ ] add wg for daemon remove memebr 
