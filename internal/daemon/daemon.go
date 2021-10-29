@@ -423,15 +423,17 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
 
 	snapshotc := make(chan struct{}, 10)
+	promotionsc := make(chan struct{}, 10)
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
-	d.notify = merge(snapshotc)
+	d.notify = merge(snapshotc, promotionsc)
 	defer close(d.notify)
 
 	d.started.Set()
 	go d.process(d.proposec)
 	go d.process(d.msgc)
 	go d.snapshots(snapshotc)
+	go d.promotions(promotionsc)
 	return d.eventLoop()
 }
 
@@ -689,6 +691,73 @@ func (d *daemon) snapshots(c chan struct{}) {
 				d.appliedIndex,
 				err,
 			)
+		}
+	}
+}
+
+func (d *daemon) promotions(c chan struct{}) {
+	d.wg.Add(1)
+	defer d.wg.Done()
+	inProgress := new(sync.Map)
+
+	for range c {
+		rs := d.node.Status()
+		// the current node is not the leader.
+		if rs.Progress == nil {
+			continue
+		}
+
+		promotions := []raftpb.Member{}
+		membs := d.pool.Members()
+		reachables := 1
+		voters := 1
+
+		for _, mem := range membs {
+			raw := mem.Raw()
+			if raw.Type == raftpb.RemoteMember {
+				voters++
+			}
+
+			if mem.IsActive() {
+				reachables++
+			}
+
+			if raw.Type != raftpb.StagingMember {
+				continue
+			}
+
+			if _, ok := inProgress.Load(raw.ID); ok {
+				continue
+			}
+
+			leader := rs.Progress[rs.ID].Match
+			staging := rs.Progress[raw.ID].Match
+
+			// the staging Match not caught up with the leader yet.
+			if float64(staging) < float64(leader)*0.9 {
+				continue
+			}
+
+			(&raw).Type = raftpb.RemoteMember
+			promotions = append(promotions, raw)
+		}
+
+		quorumLost := reachables >= voters/2+1
+		if !quorumLost {
+			continue
+		}
+
+		for _, m := range promotions {
+			inProgress.Store(m.ID, nil)
+			go func(m *raftpb.Member) {
+				log.Infof("raft.daemon: promoting staging member %x", m.ID)
+				ctx, cancel := context.WithTimeout(context.Background(), d.cfg.TickInterval()*5)
+				defer cancel()
+				err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
+				if err != nil {
+					log.Warnf("raft.daemon: promoting staging member %x: %v", err)
+				}
+			}(&m)
 		}
 	}
 }
