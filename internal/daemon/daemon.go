@@ -95,7 +95,7 @@ type daemon struct {
 	appliedIndex *atomic.Uint64
 	proposec     chan etcdraftpb.Message
 	msgc         chan etcdraftpb.Message
-	snapshotc    chan struct{}
+	notify       chan struct{}
 	csMu         sync.Mutex // guard ConfState.
 	cState       *etcdraftpb.ConfState
 }
@@ -401,17 +401,37 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 		return err
 	}
 
+	merge := func(cs ...chan struct{}) chan struct{} {
+		in := make(chan struct{})
+		go func() {
+			for range in {
+				for _, c := range cs {
+					c <- struct{}{}
+				}
+			}
+
+			for _, c := range cs {
+				close(c)
+			}
+
+		}()
+		return in
+	}
+
 	// set local member.
 	d.local = ost.local
+	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
+
+	snapshotc := make(chan struct{}, 10)
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
-	d.snapshotc = make(chan struct{}, 10)
-	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
+	d.notify = merge(snapshotc)
+	defer close(d.notify)
 
 	d.started.Set()
 	go d.process(d.proposec)
 	go d.process(d.msgc)
-	go d.snapshots()
+	go d.snapshots(snapshotc)
 	return d.eventLoop()
 }
 
@@ -452,7 +472,7 @@ func (d *daemon) eventLoop() error {
 			d.publishReadState(rd.ReadStates)
 			d.publishAppliedIndices(prevIndex, d.appliedIndex.Get())
 
-			d.snapshotc <- struct{}{}
+			d.notify <- struct{}{}
 
 			d.node.Advance()
 
@@ -654,28 +674,22 @@ func (d *daemon) send(msgs []etcdraftpb.Message) {
 	}
 }
 
-func (d *daemon) snapshots() {
+func (d *daemon) snapshots(c chan struct{}) {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	for {
-		select {
-		case <-d.snapshotc:
-			if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
-				continue
-			}
-
-			if _, err := d.CreateSnapshot(); err != nil {
-				log.Errorf(
-					"raft.daemon: creating new snapshot at index %s failed: %v",
-					d.appliedIndex,
-					err,
-				)
-			}
-		case <-d.ctx.Done():
-			return
+	for range c {
+		if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
+			continue
 		}
 
+		if _, err := d.CreateSnapshot(); err != nil {
+			log.Errorf(
+				"raft.daemon: creating new snapshot at index %s failed: %v",
+				d.appliedIndex,
+				err,
+			)
+		}
 	}
 }
 
