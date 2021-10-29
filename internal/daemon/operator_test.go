@@ -234,11 +234,13 @@ func TestSetup(t *testing.T) {
 	sf := &storage.SnapshotFile{}
 	ctrl := gomock.NewController(t)
 	stg := storagemock.NewMockStorage(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
 	cfg := NewMockConfig(ctrl)
 	ost := new(operatorsState)
 	ost.daemon = new(daemon)
 	ost.daemon.storage = stg
 	ost.daemon.cfg = cfg
+	ost.daemon.pool = pool
 
 	// setup mocks expectation.
 	stg.EXPECT().Exist().Return(false).AnyTimes()
@@ -248,6 +250,7 @@ func TestSetup(t *testing.T) {
 		Return(meta, hs, ents, sf, nil)
 
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
+	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
 
 	ids := map[uint64]struct{}{}
 	for i := 0; i < 20; i++ {
