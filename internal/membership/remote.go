@@ -199,22 +199,12 @@ func (r *remote) drain() error {
 
 func (r *remote) run() {
 	defer func() {
-		log.Debugf(
-			"raft/membership: Member %x context done, ctx.Err: %s",
-			r.ID(),
-			r.ctx.Err(),
-		)
-
 		r.setStatus(false)
 		close(r.msgc) // ctx.Done no goroutines will write to msgc.
 
 		// drain msgc and exit
 		if err := r.drain(); err != nil {
-			log.Warnf(
-				"raft/membership: draining the member %x message queue failed, Err: %s",
-				r.ID(),
-				err,
-			)
+			log.Warnf("raft.membership: draining member %x msg queue: %v", r.ID(), err)
 		}
 
 		close(r.done)
@@ -225,11 +215,7 @@ func (r *remote) run() {
 		case msg := <-r.msgc:
 			err := r.stream(r.ctx, msg)
 			if err != nil {
-				log.Errorf(
-					"raft/membership: streaming the message to member %x failed, Err: %s",
-					r.ID(),
-					err,
-				)
+				log.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
 			}
 			r.setStatus(err == nil)
 		case <-r.ctx.Done():

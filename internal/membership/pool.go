@@ -107,7 +107,7 @@ func (p *pool) Remove(m raftpb.Member) error {
 	defer p.mu.Unlock()
 
 	if err := mem.Close(); err != nil {
-		log.Warnf("closing member %x conn failed, Err: %v", m.ID, err)
+		log.Warnf("raft.membership: closing member %x: %v", m.ID, err)
 	}
 
 	mem, err := p.newMember(m)
@@ -132,7 +132,7 @@ func (p *pool) Snapshot() []raftpb.Member {
 func (p *pool) Restore(pool raftpb.Pool) {
 	for _, m := range pool.Members {
 		if err := p.Add(m); err != nil {
-			log.Errorf("raft/membership: Failed to add member %x, Err: %s", m.ID, err)
+			log.Errorf("raft.membership: adding member %x: %v", m.ID, err)
 		}
 	}
 }
