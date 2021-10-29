@@ -688,7 +688,7 @@ func (d *daemon) promotions(c chan struct{}) {
 				voters++
 			}
 
-			if mem.IsActive() {
+			if mem.IsActive() && raw.Type == raftpb.VoterMember {
 				reachables++
 			}
 
@@ -712,8 +712,8 @@ func (d *daemon) promotions(c chan struct{}) {
 			promotions = append(promotions, raw)
 		}
 
-		quorumLost := reachables >= voters/2+1
-		if !quorumLost {
+		// quorum lost and the cluster unavailable, no new logs can be committed.
+		if reachables < voters/2+1 {
 			continue
 		}
 
