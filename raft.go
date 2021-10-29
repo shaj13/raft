@@ -59,21 +59,6 @@ func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raft
 
 	memb, _ := c.cluster.GetMemebr(m.ID)
 	pool := c.pool.Snapshot()
-
-	for i, m := range pool {
-		if m.Type == raftpb.LocalMember {
-			(&m).Type = raftpb.RemoteMember
-			pool[i] = m
-			continue
-		}
-
-		if m.ID == memb.ID() {
-			(&m).Type = raftpb.LocalMember
-			pool[i] = m
-			continue
-		}
-	}
-
 	return memb.ID(), pool, nil
 }
 

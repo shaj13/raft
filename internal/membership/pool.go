@@ -28,6 +28,7 @@ type pool struct {
 	cfg   Config
 	mu    sync.Mutex // protects membs
 	membs map[uint64]Member
+	// typeFinder func(m raftpb.Member) raftpb.MemberType
 }
 
 func (p *pool) NextID() uint64 {
@@ -130,10 +131,11 @@ func (p *pool) Restore(pool raftpb.Pool) {
 }
 
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
-	switch m.Type {
-	case raftpb.LocalMember, raftpb.LocalLearnerMember, raftpb.LocalStagingMember:
+	if m.Local {
 		return newLocal(p.ctx, p.cfg, m)
-	case raftpb.RemoteMember, raftpb.LearnerMember, raftpb.StagingMember:
+	}
+	switch m.Type {
+	case raftpb.VoterMember, raftpb.LearnerMember, raftpb.StagingMember:
 		return newRemote(p.ctx, p.cfg, m)
 	case raftpb.RemovedMember:
 		return newRemoved(p.ctx, p.cfg, m)

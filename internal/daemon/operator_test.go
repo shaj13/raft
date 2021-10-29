@@ -80,17 +80,14 @@ func TestMembers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ost.local)
 	require.Equal(t, uint64(1), ost.local.ID)
-	require.Equal(t, raftpb.LocalMember, ost.local.Type)
 	require.Equal(t, 0, len(ost.membs))
 
 	// it should set local and membs.
 	err = Members(raftpb.Member{ID: 1}, raftpb.Member{ID: 2}).before(ost)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), ost.local.ID)
-	require.Equal(t, raftpb.LocalMember, ost.local.Type)
 	require.Equal(t, 1, len(ost.membs))
 	require.Equal(t, uint64(2), ost.membs[0].ID)
-	require.Equal(t, raftpb.RemoteMember, ost.membs[0].Type)
 
 	err = Members().after(ost)
 	require.NoError(t, err)
@@ -257,7 +254,6 @@ func TestSetup(t *testing.T) {
 		err := setup.before(ost)
 		require.NoError(t, err)
 		require.False(t, ost.hasExistingState)
-		require.Equal(t, raftpb.LocalMember, ost.local.Type)
 
 		// assert id are auto gen.
 		_, ok := ids[ost.local.ID]

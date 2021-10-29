@@ -101,6 +101,10 @@ func (f forceJoin) before(ost *operatorsState) error {
 
 func (f forceJoin) after(ost *operatorsState) error {
 	for _, mem := range ost.membs {
+		mem.Local = false
+		if mem.ID == ost.local.ID {
+			mem.Local = true
+		}
 		if err := ost.daemon.pool.Add(mem); err != nil {
 			return err
 		}
@@ -250,7 +254,6 @@ func (s setup) before(ost *operatorsState) (err error) {
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
 		Address: s.addr,
-		Type:    raftpb.LocalMember,
 	}
 	return
 }

@@ -111,7 +111,7 @@ func (c *cluster) StepDown(ctx context.Context) error {
 	longest := time.Now().Add(math.MaxInt64)
 	cond := func(m Member) bool {
 		since := m.ActiveSince()
-		ok := m.IsActive() && m.Type() == RemoteMember && since.Before(longest)
+		ok := m.IsActive() && m.Type() == VoterMember && since.Before(longest)
 		if ok {
 			longest = since
 			return true
@@ -204,12 +204,7 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	}
 
 	cct := etcdraftpb.ConfChangeAddNode
-
-	switch raw.Type {
-	case raftpb.LearnerMember,
-		raftpb.LocalLearnerMember,
-		raftpb.StagingMember,
-		raftpb.LocalStagingMember:
+	if raw.Type != VoterMember {
 		cct = etcdraftpb.ConfChangeAddLearnerNode
 	}
 
@@ -293,7 +288,7 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 
 	// TODO: move to precond
 	mem, _ := c.GetMemebr(id)
-	if !(mem.Type() == LocalLearnerMember || mem.Type() == LearnerMember) {
+	if !(mem.Type() == VoterMember || mem.Type() == LearnerMember) {
 		return fmt.Errorf("raft: memebr %x  is not a learner", id)
 	}
 
@@ -332,7 +327,7 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 	}
 
 	raw := mem.Raw()
-	(&raw).Type = RemoteMember
+	(&raw).Type = VoterMember
 
 	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
 }

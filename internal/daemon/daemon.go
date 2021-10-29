@@ -24,24 +24,25 @@ var (
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
+// #### remove me ###
 // memberTypeLoopBack aims to set the member type from this node perspective,
 // i.e, m.ID == my_id && m.Type == RemoteMember => LocalMember.
-var memberTypeLoopBack = map[memberTypeCond]raftpb.MemberType{
-	{false, raftpb.LocalMember}:        raftpb.RemoteMember,
-	{false, raftpb.LocalLearnerMember}: raftpb.LearnerMember,
-	{false, raftpb.LocalStagingMember}: raftpb.StagingMember,
-	{true, raftpb.RemoteMember}:        raftpb.LocalMember,
-	{true, raftpb.LearnerMember}:       raftpb.LocalLearnerMember,
-	{true, raftpb.StagingMember}:       raftpb.LocalStagingMember,
-}
+// var memberTypeLoopBack = map[memberTypeCond]raftpb.MemberType{
+// 	{false, raftpb.LocalMember}:        raftpb.RemoteMember,
+// 	{false, raftpb.LocalLearnerMember}: raftpb.LearnerMember,
+// 	{false, raftpb.LocalStagingMember}: raftpb.StagingMember,
+// 	{true, raftpb.RemoteMember}:        raftpb.LocalMember,
+// 	{true, raftpb.LearnerMember}:       raftpb.LocalLearnerMember,
+// 	{true, raftpb.StagingMember}:       raftpb.LocalStagingMember,
+// }
 
-// memberTypeCond define a condition to retrieve the correct member type
-// from this node perspective.
-type memberTypeCond struct {
-	// me reports whether the member is the current node or not.
-	me bool
-	t  raftpb.MemberType
-}
+// // memberTypeCond define a condition to retrieve the correct member type
+// // from this node perspective.
+// type memberTypeCond struct {
+// 	// me reports whether the member is the current node or not.
+// 	me bool
+// 	t  raftpb.MemberType
+// }
 
 type Daemon interface {
 	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
@@ -604,14 +605,9 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		return
 	}
 
-	// set the correct member type.
-	// this can happen when nodes sends conf change from it's perspective to other nodes.
-	cond := memberTypeCond{
-		me: mem.ID == d.local.ID,
-		t:  mem.Type,
-	}
-	if t, ok := memberTypeLoopBack[cond]; ok {
-		mem.Type = t
+	fmt.Println(mem.Address, mem.Type, mem.Local, "########")
+	if mem.ID == d.local.ID {
+		mem.Local = true
 	}
 
 	switch cc.Type {
@@ -709,12 +705,12 @@ func (d *daemon) promotions(c chan struct{}) {
 
 		promotions := []raftpb.Member{}
 		membs := d.pool.Members()
-		reachables := 1
-		voters := 1
+		reachables := 0
+		voters := 0
 
 		for _, mem := range membs {
 			raw := mem.Raw()
-			if raw.Type == raftpb.RemoteMember {
+			if raw.Type == raftpb.VoterMember {
 				voters++
 			}
 
@@ -738,7 +734,7 @@ func (d *daemon) promotions(c chan struct{}) {
 				continue
 			}
 
-			(&raw).Type = raftpb.RemoteMember
+			(&raw).Type = raftpb.VoterMember
 			promotions = append(promotions, raw)
 		}
 
