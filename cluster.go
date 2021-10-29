@@ -31,6 +31,7 @@ type Cluster interface {
 	RemoveMember(ctx context.Context, id uint64) error
 	AddMember(ctx context.Context, raw *RawMember) error
 	PromoteMember(ctx context.Context, id uint64) error
+	DemoteMember(ctx context.Context, id uint64) error
 	GetMemebr(id uint64) (Member, bool)
 	Members() []Member
 	// TODO: Remove this api
@@ -168,7 +169,7 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		joined(),
 		notMember(id),
 		memberRemoved(id),
-		rmLeader(id),
+		leader(id),
 		noLeader(),
 		disableForwarding(),
 		available(),
@@ -213,6 +214,32 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 
 func (c *cluster) PromoteMember(ctx context.Context, id uint64) error {
 	return c.promoteMember(ctx, id, false)
+}
+
+func (c *cluster) DemoteMember(ctx context.Context, id uint64) error {
+	err := c.precondition(
+		joined(),
+		notMember(id),
+		memberRemoved(id),
+		noLeader(),
+		leader(id),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	mem, _ := c.GetMemebr(id)
+	raw := mem.Raw()
+	// TODO: move to pre cond
+	if raw.Type != VoterMember {
+		return fmt.Errorf("raft: %s memebr %x is not a voter", raw.Type, id)
+	}
+	(&raw).Type = LearnerMember
+
+	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
 }
 
 func (c *cluster) GetMemebr(id uint64) (Member, bool) {
@@ -363,7 +390,7 @@ func memberRemoved(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
 		m, ok := c.GetMemebr(id)
 		if ok && m.Type() == RemovedMember {
-			return fmt.Errorf("raft: member %x already removed", id)
+			return fmt.Errorf("raft: member %x removed", id)
 		}
 		return nil
 	}
@@ -391,10 +418,10 @@ func notLeader() func(c *cluster) error {
 	}
 }
 
-func rmLeader(id uint64) func(c *cluster) error {
+func leader(id uint64) func(c *cluster) error {
 	return func(c *cluster) error {
 		if id == c.Leader() {
-			return fmt.Errorf("raft: member %x is the leader and cannot be removed, transfer leadership first", id)
+			return fmt.Errorf("raft: operation not permitted, member %x is the leader, transfer leadership first", id)
 		}
 		return nil
 	}
