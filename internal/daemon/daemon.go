@@ -45,7 +45,6 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d.cfg = cfg
 	d.ticker = time.NewTicker(cfg.TickInterval())
 	d.wg = sync.WaitGroup{}
-	d.propwg = sync.WaitGroup{}
 	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
 	d.msgbus = msgbus.New()
@@ -65,7 +64,6 @@ type daemon struct {
 	node         raft.Node
 	ticker       *time.Ticker
 	wg           sync.WaitGroup
-	propwg       sync.WaitGroup
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
 	msgbus       *msgbus.MsgBus
@@ -200,7 +198,6 @@ func (d *daemon) Close() error {
 	d.cancel()
 	d.started.UnSet()
 	d.wg.Wait()
-	d.propwg.Wait()
 	d.node.Stop()
 	d.msgbus.Clsoe()
 	return nil
@@ -211,6 +208,9 @@ func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) erro
 	if d.started.False() {
 		return ErrStopped
 	}
+
+	d.wg.Add(1)
+	defer d.wg.Done()
 
 	log.Infof("raft.daemon: start transfer leadership %x -> %x", d.node.Status().Lead, transferee)
 
@@ -238,8 +238,8 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 		return ErrStopped
 	}
 
-	d.propwg.Add(1)
-	defer d.propwg.Done()
+	d.wg.Add(1)
+	defer d.wg.Done()
 
 	r := &raftpb.Replicate{
 		CID:  d.idgen.Next(),
@@ -278,8 +278,8 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcd
 		return ErrStopped
 	}
 
-	d.propwg.Add(1)
-	defer d.propwg.Done()
+	d.wg.Add(1)
+	defer d.wg.Done()
 
 	buf, err := m.Marshal()
 	if err != nil {
@@ -591,7 +591,9 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	case etcdraftpb.ConfChangeUpdateNode:
 		err = d.pool.Update(*mem)
 	case etcdraftpb.ConfChangeRemoveNode:
+		d.wg.Add(1)
 		go func(mem raftpb.Member) {
+			defer d.wg.Done()
 			// wait for two ticks then go and remove the member from the pool.
 			// to make sure the commit ack sent before closing connection.
 			<-time.After(d.cfg.TickInterval() * 2)
@@ -613,10 +615,7 @@ func (d *daemon) process(c chan etcdraftpb.Message) {
 		select {
 		case m := <-c:
 			if err := d.node.Step(d.ctx, m); err != nil {
-				log.Warnf(
-					"raft.daemon: process raft message: %v",
-					err,
-				)
+				log.Warnf("raft.daemon: process raft message: %v", err)
 			}
 		case <-d.ctx.Done():
 			return
