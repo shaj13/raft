@@ -270,18 +270,13 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		notMember(id),
 		noLeader(),
 		notType(n.Whoami(), VoterMember),
+		notType(id, LearnerMember),
 		disableForwarding(),
 		available(),
 	)
 
 	if err != nil {
 		return err
-	}
-
-	// TODO: move to precond
-	mem, _ := n.GetMemebr(id)
-	if !(mem.Type() == VoterMember || mem.Type() == LearnerMember) {
-		return fmt.Errorf("raft: memebr %x  is not a learner", id)
 	}
 
 	rs, err := n.daemon.Status()
@@ -294,6 +289,9 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 	if rs.Progress == nil && forwarded {
 		return daemon.ErrNoLeader
 	}
+
+	mem, _ := n.GetMemebr(id)
+	raw := mem.Raw()
 
 	if rs.Progress == nil {
 		lmem, ok := n.GetMemebr(rs.Lead)
@@ -308,7 +306,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		}
 
 		log.Debugf("raft.node: forwarding member %x promotion to %x", id, lmem.ID())
-		return client.PromoteMember(ctx, mem.Raw())
+		return client.PromoteMember(ctx, raw)
 	}
 
 	leader := rs.Progress[rs.ID].Match
@@ -318,7 +316,6 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		return fmt.Errorf("raft: promotion failed, memebr %x not synced with the leader yet", id)
 	}
 
-	raw := mem.Raw()
 	(&raw).Type = VoterMember
 
 	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
@@ -431,7 +428,7 @@ func notType(id uint64, t MemberType) func(c *Node) error {
 	return func(c *Node) error {
 		mem, _ := c.GetMemebr(id)
 		if mt := mem.Type(); mt != t {
-			return fmt.Errorf("raft: %s memebr (%x) is not a %s", mt, id, t)
+			return fmt.Errorf("raft: memebr (%x) is a %s not a %s", id, mt, t)
 		}
 		return nil
 	}
