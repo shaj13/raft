@@ -23,8 +23,22 @@ func TestNodePreConditions(t *testing.T) {
 		expected []func(c *Node) error
 	}{
 		{
-			call:     func(n *Node) error { return n.LinearizableRead(ctx, 0) },
-			expected: []func(c *Node) error{joined(), noLeader(), notType(0, 0), available()},
+			call: func(n *Node) error { return n.LinearizableRead(ctx, 0) },
+			expected: []func(c *Node) error{
+				joined(),
+				noLeader(),
+				notType(0, 0),
+				available(),
+			},
+		},
+		{
+			call: func(n *Node) error { 
+				 _, _, err := n.Snapshot()
+				 return err  
+			},
+			expected: []func(c *Node) error{
+				joined(),
+			},
 		},
 		{
 			call: func(n *Node) error { return n.TransferLeadership(ctx, 0) },
