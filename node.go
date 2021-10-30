@@ -32,7 +32,7 @@ func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) e
 	err := n.precondition(
 		joined(),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		available(),
 	)
 
@@ -66,7 +66,7 @@ func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 		notMember(id),
 		memberRemoved(id),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		disableForwarding(), // TODO: verify this.
 		available(),
 	)
@@ -130,7 +130,7 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 		notMember(raw.ID),
 		memberRemoved(raw.ID),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		addressInUse(raw.ID, raw.Address),
 		disableForwarding(),
 		available(),
@@ -153,7 +153,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 		memberRemoved(id),
 		leader(id),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		disableForwarding(),
 		available(),
 	)
@@ -175,7 +175,7 @@ func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 		idInUse(raw.ID),
 		addressInUse(raw.ID, raw.Address),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		disableForwarding(),
 		available(),
 	)
@@ -207,7 +207,7 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 		memberRemoved(id),
 		noLeader(),
 		leader(id),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		disableForwarding(),
 		available(),
 	)
@@ -269,7 +269,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		joined(),
 		notMember(id),
 		noLeader(),
-		// TODO: verify we are not a learner.
+		nonVoter(),
 		disableForwarding(),
 		available(),
 	)
@@ -422,6 +422,16 @@ func disableForwarding() func(c *Node) error {
 	return func(c *Node) error {
 		if c.Leader() != c.Whoami() && c.disableForwarding {
 			return errNotLeader
+		}
+		return nil
+	}
+}
+
+func nonVoter() func(c *Node) error {
+	return func(c *Node) error {
+		mem, ok := c.GetMemebr(c.Whoami())
+		if ok && mem.Type() != VoterMember {
+			return fmt.Errorf("raft: node is not a voter")
 		}
 		return nil
 	}
