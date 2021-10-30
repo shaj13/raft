@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
+	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 )
@@ -32,9 +34,9 @@ func TestNodePreConditions(t *testing.T) {
 			},
 		},
 		{
-			call: func(n *Node) error { 
-				 _, _, err := n.Snapshot()
-				 return err  
+			call: func(n *Node) error {
+				_, _, err := n.Snapshot()
+				return err
 			},
 			expected: []func(c *Node) error{
 				joined(),
@@ -144,4 +146,49 @@ func TestNodePreConditions(t *testing.T) {
 			require.Equal(t, fmt.Sprintf("%p", tt.expected[i]), fmt.Sprintf("%p", fn))
 		}
 	}
+}
+
+func TestNodePreCond(t *testing.T) {
+	table := []struct {
+		fn  func(n *Node) error
+		err error
+	}{
+		{
+			fn:  func(n *Node) error { return errNotLeader },
+			err: errNotLeader,
+		},
+		{
+			fn:  func(n *Node) error { return nil },
+			err: nil,
+		},
+	}
+
+	for _, tt := range table {
+		n := new(Node)
+		err := n.preCond(tt.fn)
+		require.Equal(t, tt.err, err)
+	}
+}
+
+func TestHandler(t *testing.T) {
+	h := transport.Handler("TestHandler")
+	n := new(Node)
+	n.handler = h
+	require.Equal(t, h, n.Handler())
+}
+
+func TestLinearizableRead(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().LinearizableRead(gomock.Any(), gomock.Eq(time.Second)).Return(nil)
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	n := new(Node)
+	n.daemon = daemon
+	n.exec = testPreCond
+	err := n.LinearizableRead(context.TODO(), time.Second)
+	require.NoError(t, err)
+}
+
+func testPreCond(fns ...func(c *Node) error) error {
+	return nil
 }
