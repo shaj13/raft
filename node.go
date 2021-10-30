@@ -245,13 +245,6 @@ func (n *Node) Members() []Member {
 	return n.members(func(m Member) bool { return true })
 }
 
-func (n *Node) RemovedMembers() []Member {
-	cond := func(m Member) bool {
-		return m.Type() == raftpb.RemovedMember
-	}
-	return n.members(cond)
-}
-
 func (n *Node) Whoami() uint64 {
 	s, _ := n.daemon.Status()
 	return s.ID
