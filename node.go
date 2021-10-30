@@ -26,6 +26,8 @@ type Node struct {
 	storage           storage.Storage
 	daemon            daemon.Daemon
 	disableForwarding bool
+	// exec pre conditions, its used by tests.
+	exec func(fns ...func(c *Node) error) error
 }
 
 func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
@@ -253,6 +255,10 @@ func (n *Node) Leader() uint64 {
 }
 
 func (n *Node) preCond(fns ...func(c *Node) error) error {
+	if n.exec != nil {
+		return n.exec(fns...)
+	}
+
 	for _, fn := range fns {
 		if err := fn(n); err != nil {
 			return err

@@ -24,6 +24,8 @@ var (
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
+//go:generate mockgen -package daemonmock  -source internal/daemon/daemon.go -destination internal/mocks/daemon/daemon.go
+
 type Daemon interface {
 	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
 	Push(m etcdraftpb.Message) error
