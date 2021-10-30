@@ -18,7 +18,7 @@ import (
 const None = raft.None
 
 const (
-	// VoterMember participate in elections and log entry commitment.
+	// VoterMember participate in elections and log entry commitment, It is the default type.
 	VoterMember MemberType = raftpb.VoterMember
 	// RemovedMember represents an removed raft node.
 	RemovedMember MemberType = raftpb.RemovedMember
@@ -30,7 +30,7 @@ const (
 	StagingMember MemberType = raftpb.StagingMember
 )
 
-// MemberType used to distinguish members (local, remote, etc).
+// MemberType used to distinguish members (voter, learner, etc).
 type MemberType = raftpb.MemberType
 
 // RawMember represents a raft cluster member and holds its metadata.
