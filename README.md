@@ -1,7 +1,8 @@
 # raftkit
 
 ### TODO 
-- [ ] check all cluster precondetions
+- [ ] fix Members 
+- [] remove RemovedMembers api 
 - [ ] prevent learner from send any propose requests 
 - [ ] close gc when closing disk 
 - [ ] add tcp rpc 

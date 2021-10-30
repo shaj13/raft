@@ -32,6 +32,7 @@ func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) e
 	err := n.precondition(
 		joined(),
 		noLeader(),
+		// TODO: verify we are not a learner.
 		available(),
 	)
 
@@ -42,30 +43,31 @@ func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) e
 	return n.daemon.LinearizableRead(ctx, retryAfter)
 }
 
-func (n *Node) CreateSnapshot() (io.ReadCloser, error) {
+func (n *Node) Snapshot() (string, io.ReadCloser, error) {
 	err := n.precondition(
 		joined(),
 	)
 
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	snap, err := n.daemon.CreateSnapshot()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	_, r, err := n.storage.Snapshotter().Reader(snap)
-	return r, err
+	return n.storage.Snapshotter().Reader(snap)
 }
 
 func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 	err := n.precondition(
 		joined(),
 		notMember(id),
+		memberRemoved(id),
 		noLeader(),
-		disableForwarding(),
+		// TODO: verify we are not a learner.
+		disableForwarding(), // TODO: verify this.
 		available(),
 	)
 
@@ -101,7 +103,6 @@ func (n *Node) StepDown(ctx context.Context) error {
 	}
 
 	// get longest active member then transfer leadership to it.
-	// TODO: can we get it progress ?
 	membs := n.members(cond)
 	if len(membs) == 0 {
 		return errors.New("raft: failed to find longest active member")
@@ -127,8 +128,10 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 	err := n.precondition(
 		joined(),
 		notMember(raw.ID),
-		addressInUse(raw.ID, raw.Address),
+		memberRemoved(raw.ID),
 		noLeader(),
+		// TODO: verify we are not a learner.
+		addressInUse(raw.ID, raw.Address),
 		disableForwarding(),
 		available(),
 	)
@@ -150,6 +153,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 		memberRemoved(id),
 		leader(id),
 		noLeader(),
+		// TODO: verify we are not a learner.
 		disableForwarding(),
 		available(),
 	)
@@ -168,9 +172,10 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 	err := n.precondition(
 		joined(),
-		addressInUse(raw.ID, raw.Address),
 		idInUse(raw.ID),
+		addressInUse(raw.ID, raw.Address),
 		noLeader(),
+		// TODO: verify we are not a learner.
 		disableForwarding(),
 		available(),
 	)
@@ -202,6 +207,7 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 		memberRemoved(id),
 		noLeader(),
 		leader(id),
+		// TODO: verify we are not a learner.
 		disableForwarding(),
 		available(),
 	)
@@ -273,6 +279,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		joined(),
 		notMember(id),
 		noLeader(),
+		// TODO: verify we are not a learner.
 		disableForwarding(),
 		available(),
 	)
