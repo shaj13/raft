@@ -68,17 +68,17 @@ func Register(opts ...Option) {
 	}
 
 	dialer := raftgrpc.Dialer(c.dopts, c.copts)
-	ns := raftgrpc.NewServer
+	nh := raftgrpc.NewHandler
 
-	itransport.GRPC.Register(ns, dialer)
+	itransport.GRPC.Register(nh, dialer)
 }
 
-// RegisterServer registers transport service and its implementation to the gRPC server.
-func RegisterServer(s *grpc.Server, v transport.Server) {
-	if rs, ok := v.(raftpb.RaftServer); ok {
+// RegisterHandler registers transport handler and its implementation to the gRPC server.
+func RegisterHandler(s *grpc.Server, h transport.Handler) {
+	if rs, ok := h.(raftpb.RaftServer); ok {
 		raftpb.RegisterRaftServer(s, rs)
 		return
 	}
 
-	log.Fatalf("raft.grpc: type %T does not implement transport service", v)
+	log.Fatalf("raft.grpc: type %T does not implement transport handler", h)
 }

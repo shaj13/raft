@@ -11,5 +11,5 @@ const (
 // and represents the underlying RPC protocol.
 type Proto uint
 
-// Server represents an RPC Server.
-type Server = transport.Server
+// Handler responds to an RPC request.
+type Handler = transport.Handler

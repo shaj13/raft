@@ -10,8 +10,8 @@ import (
 
 //go:generate mockgen -package transportmock  -source internal/transport/types.go -destination internal/mocks/transport/transport.go
 
-// ServerConfig define common configuration used by the NewServer function.
-type ServerConfig interface {
+// HandlerConfig define common configuration used by the NewHandler function.
+type HandlerConfig interface {
 	DialerConfig
 	Controller() Controller
 }
@@ -21,8 +21,8 @@ type DialerConfig interface {
 	Snapshotter() storage.Snapshotter
 }
 
-// Server represents an RPC Server.
-type Server interface{}
+// Handler responds to an RPC request.
+type Handler interface{}
 
 // Dialer return's Dial from the given config.
 type Dialer func(context.Context, DialerConfig) Dial
@@ -30,9 +30,8 @@ type Dialer func(context.Context, DialerConfig) Dial
 // Dial connects to an RPC server at the specified network address.
 type Dial func(context.Context, string) (Client, error)
 
-// NewServer returns a new Server to handle requests
-// to the set of services at the other end of the connection.
-type NewServer func(context.Context, ServerConfig) (Server, error)
+// NewHandler returns a new Handler.
+type NewHandler func(context.Context, HandlerConfig) Handler
 
 // Client provides access to the exported methods of an object across a network.
 //

@@ -16,36 +16,36 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// NewServerFunc retur'ns func that create an http server.
-func NewServerFunc(basePath string) transport.NewServer {
-	return func(c context.Context, cfg transport.ServerConfig) (transport.Server, error) {
-		s := &server{
+// NewHandlerFunc retur'ns func that create an http transport handler.
+func NewHandlerFunc(basePath string) transport.NewHandler {
+	return func(c context.Context, cfg transport.HandlerConfig) transport.Handler {
+		s := &handler{
 			ctrl: cfg.Controller(),
 			snap: cfg.Snapshotter(),
 		}
-		return mux(s, basePath), nil
+		return mux(s, basePath)
 	}
 }
 
-type server struct {
+type handler struct {
 	ctrl transport.Controller
 	snap storage.Snapshotter
 }
 
-func (s *server) message(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
 	msg := new(etcdraftpb.Message)
 	if code, err := decode(r.Body, msg); err != nil {
 		return code, err
 	}
 
-	if err := s.ctrl.Push(r.Context(), *msg); err != nil {
+	if err := h.ctrl.Push(r.Context(), *msg); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusNoContent, nil
 }
 
-func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	vals := r.Header.Values(snapshotHeader)
 	if len(vals) < 3 {
 		return http.StatusBadRequest, errors.New("raft/http: snapshot header missing")
@@ -65,7 +65,7 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	log.Debugf("raft.http: downloading sanpshot %s file", snapname)
 
-	wr, peek, err := s.snap.Writer(snapname)
+	wr, peek, err := h.snap.Writer(snapname)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -88,14 +88,14 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	m.From = from
 	m.To = to
 
-	if err := s.ctrl.Push(r.Context(), *m); err != nil {
+	if err := h.ctrl.Push(r.Context(), *m); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusNoContent, nil
 }
 
-func (s *server) join(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
 		return code, err
@@ -103,7 +103,7 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	log.Debugf("raft.http: new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := s.ctrl.Join(r.Context(), m)
+	id, membs, err := h.ctrl.Join(r.Context(), m)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -124,22 +124,22 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusOK, nil
 }
 
-func (s *server) promoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) promoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
 		return code, err
 	}
 
-	if err := s.ctrl.PromoteMember(r.Context(), *m); err != nil {
+	if err := h.ctrl.PromoteMember(r.Context(), *m); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusNoContent, nil
 }
 
-type handler func(w http.ResponseWriter, r *http.Request) (int, error)
+type handlerFunc func(w http.ResponseWriter, r *http.Request) (int, error)
 
-func httpHandler(h handler) http.HandlerFunc {
+func httpHandler(h handlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			code := http.StatusMethodNotAllowed
@@ -161,7 +161,7 @@ func httpHandler(h handler) http.HandlerFunc {
 	})
 }
 
-func mux(s *server, basePath string) http.Handler {
+func mux(s *handler, basePath string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message))
 	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot))

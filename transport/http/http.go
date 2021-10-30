@@ -70,17 +70,17 @@ func Register(opts ...Option) {
 	}
 
 	dialer := rafthttp.Dialer(c.tr, c.basePath)
-	ns := rafthttp.NewServerFunc(c.basePath)
+	nh := rafthttp.NewHandlerFunc(c.basePath)
 
-	itransport.HTTP.Register(ns, dialer)
+	itransport.HTTP.Register(nh, dialer)
 }
 
-// Handler return's http.Handler for transport server.
-func Handler(v transport.Server) http.Handler {
-	if h, ok := v.(http.Handler); ok {
+// Handler return's http.Handler for http transport server.
+func Handler(h transport.Handler) http.Handler {
+	if h, ok := h.(http.Handler); ok {
 		return h
 	}
 
-	log.Fatalf("raft.http: type %T does not implement transport service", v)
+	log.Fatalf("raft.http: type %T does not implement transport handler", h)
 	return nil
 }

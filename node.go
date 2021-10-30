@@ -14,6 +14,7 @@ import (
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
+	etransport "github.com/shaj13/raftkit/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -21,6 +22,7 @@ import (
 var errNotLeader = errors.New("raft: operation not permitted, node is not the leader")
 
 type Node struct {
+	handler           transport.Handler
 	dial              transport.Dial
 	pool              membership.Pool
 	storage           storage.Storage
@@ -28,6 +30,10 @@ type Node struct {
 	disableForwarding bool
 	// exec pre conditions, its used by tests.
 	exec func(fns ...func(c *Node) error) error
+}
+
+func (n *Node) Handler() etransport.Handler {
+	return n.handler
 }
 
 func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {

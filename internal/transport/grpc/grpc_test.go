@@ -185,9 +185,9 @@ func TestPromoteMember(t *testing.T) {
 	}
 }
 
-func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *server) {
+func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 	ln := bufconn.Listen(1024)
-	srv := new(server)
+	srv := new(handler)
 
 	server := grpc.NewServer()
 	raftpb.RegisterRaftServer(server, srv)

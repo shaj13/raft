@@ -42,6 +42,7 @@ func main() {
 		opt2 = raft.WithMembers(raft.RawMember{
 			ID:      3,
 			Address: addr,
+			Type:    raft.LearnerMember,
 		})
 	} else {
 		opt = raft.WithFallback(
@@ -51,31 +52,30 @@ func main() {
 		opt2 = raft.WithAddress(addr)
 	}
 
-	cluster, srv := raft.New(transport.GRPC, raft.WithStateDIR(dir), raft.WithDisableProposalForwarding())
+	node := raft.New(transport.GRPC, raft.WithStateDIR(dir))
 	go func() {
-		if join == "" {
+		if join != "" {
 			return
 		}
-
 		time.Sleep(time.Second * 5)
-		err := cluster.PromoteMember(context.Background(), 3)
+		err := node.DemoteMember(context.Background(), 3)
 		fmt.Println("####", err)
 	}()
 
-	go startRaftServer(srv)
-	if err := cluster.Start(opt, opt2); err != nil {
+	go startRaftServer(node.Handler())
+	if err := node.Start(opt, opt2); err != nil {
 		panic(err)
 	}
 }
 
-func startRaftServer(srv interface{}) {
+func startRaftServer(h transport.Handler) {
 	s := grpc.NewServer()
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	raftgrpc.RegisterServer(s, srv)
+	raftgrpc.RegisterHandler(s, h)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

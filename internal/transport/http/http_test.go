@@ -184,8 +184,8 @@ func TestPromoteMember(t *testing.T) {
 	}
 }
 
-func testClientServer(tb testing.TB) (*httptest.Server, *client, *server) {
-	srv := new(server)
+func testClientServer(tb testing.TB) (*httptest.Server, *client, *handler) {
+	srv := new(handler)
 	ts := httptest.NewServer(mux(srv, ""))
 
 	ctx := context.TODO()

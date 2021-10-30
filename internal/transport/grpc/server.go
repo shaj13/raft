@@ -19,27 +19,27 @@ import (
 
 var errSnapHeader = errors.New("raft/grpc: snapshot header missing from grpc metadata")
 
-// NewServer return an GRPC Server.
+// NewHandler return an GRPC transport Handler.
 //
-// NewServer compatible with rpc.New.
-func NewServer(ctx context.Context, cfg transport.ServerConfig) (transport.Server, error) {
-	return &server{
+// NewHandler compatible with transport.NewHandler.
+func NewHandler(c context.Context, cfg transport.HandlerConfig) transport.Handler {
+	return &handler{
 		ctrl: cfg.Controller(),
 		snap: cfg.Snapshotter(),
-	}, nil
+	}
 }
 
-type server struct {
+type handler struct {
 	ctrl transport.Controller
 	snap storage.Snapshotter
 }
 
-func (s *server) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
-	err := s.ctrl.PromoteMember(ctx, *m)
+func (h *handler) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
+	err := h.ctrl.PromoteMember(ctx, *m)
 	return &emptypb.Empty{}, err
 }
 
-func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
+func (h *handler) Message(stream raftpb.Raft_MessageServer) (err error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	dec := newDecoder(buf)
@@ -71,14 +71,14 @@ func (s *server) Message(stream raftpb.Raft_MessageServer) (err error) {
 		return err
 	}
 
-	if err := s.ctrl.Push(stream.Context(), *m); err != nil {
+	if err := h.ctrl.Push(stream.Context(), *m); err != nil {
 		return err
 	}
 
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
+func (h *handler) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft.grpc: downloading snapshot: %v", err)
@@ -110,7 +110,7 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 
 	log.Debugf("raft.grpc: downloading sanpshot %s file", snapname)
 
-	w, peek, err := s.snap.Writer(snapname)
+	w, peek, err := h.snap.Writer(snapname)
 	if err != nil {
 		return err
 	}
@@ -144,14 +144,14 @@ func (s *server) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	m.From = from
 	m.To = to
 
-	if err := s.ctrl.Push(ctx, *m); err != nil {
+	if err := h.ctrl.Push(ctx, *m); err != nil {
 		return err
 	}
 
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
+func (h *handler) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft.grpc: handle join request: %v", err)
@@ -160,7 +160,7 @@ func (s *server) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err erro
 
 	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := s.ctrl.Join(stream.Context(), m)
+	id, membs, err := h.ctrl.Join(stream.Context(), m)
 	if err != nil {
 		return err
 	}

@@ -12,10 +12,10 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func New(proto transport.Proto, opts ...Option) (*Node, interface{}) {
+func New(proto transport.Proto, opts ...Option) *Node {
 	cfg := newConfig(opts...)
 	ctx := cfg.ctx
-	newServer, dialer := itransport.Proto(proto).Get()
+	newHandler, dialer := itransport.Proto(proto).Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = dialer(ctx, cfg)
@@ -28,14 +28,13 @@ func New(proto transport.Proto, opts ...Option) (*Node, interface{}) {
 	node.storage = cfg.storage
 	node.dial = cfg.dial
 	node.disableForwarding = cfg.rcfg.DisableProposalForwarding
+	node.handler = newHandler(ctx, cfg)
 
 	cfg.controller.(*controller).node = node
 	cfg.controller.(*controller).daemon = cfg.daemon
 	cfg.controller.(*controller).pool = cfg.pool
 
-	srv, _ := newServer(ctx, cfg)
-
-	return node, srv
+	return node
 }
 
 type controller struct {

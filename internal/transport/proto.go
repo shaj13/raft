@@ -13,7 +13,7 @@ const (
 var registry = make([]*protoPair, max)
 
 type protoPair struct {
-	nsrv NewServer
+	nh   NewHandler
 	dial Dialer
 }
 
@@ -25,13 +25,13 @@ type Proto uint
 // of the given proto function.
 // This is intended to be called from the init function,
 // in packages that implement proto function.
-func (c Proto) Register(ns NewServer, dial Dialer) {
+func (c Proto) Register(nh NewHandler, dial Dialer) {
 	if c <= 0 && c >= max { //nolint:staticcheck
 		panic("raft/transport: Register of unknown proto function")
 	}
 
 	registry[c] = &protoPair{
-		nsrv: ns,
+		nh:   nh,
 		dial: dial,
 	}
 }
@@ -43,12 +43,12 @@ func (c Proto) Available() bool {
 
 // Get returns proto server and client.
 // Get panics if the proto function is not linked into the binary.
-func (c Proto) Get() (NewServer, Dialer) {
+func (c Proto) Get() (NewHandler, Dialer) {
 	if !c.Available() {
 		panic("raft/transport: Requested proto function #" + strconv.Itoa(int(c)) + " is unavailable")
 	}
 	p := registry[c]
-	return p.nsrv, p.dial
+	return p.nh, p.dial
 }
 
 // String returns string describes the proto function.
