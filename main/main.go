@@ -9,7 +9,6 @@ import (
 	"time"
 
 	raft "github.com/shaj13/raftkit"
-	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/transport"
 	raftgrpc "github.com/shaj13/raftkit/transport/grpc"
 	"google.golang.org/grpc"
@@ -43,7 +42,6 @@ func main() {
 		opt2 = raft.WithMembers(raft.RawMember{
 			ID:      3,
 			Address: addr,
-			Type:    raftpb.LocalLearnerMember,
 		})
 	} else {
 		opt = raft.WithFallback(

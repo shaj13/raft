@@ -12,7 +12,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func New(proto transport.Proto, opts ...Option) (Cluster, interface{}) {
+func New(proto transport.Proto, opts ...Option) (*Node, interface{}) {
 	cfg := newConfig(opts...)
 	ctx := cfg.ctx
 	newServer, dialer := itransport.Proto(proto).Get()
@@ -22,42 +22,42 @@ func New(proto transport.Proto, opts ...Option) (Cluster, interface{}) {
 	cfg.pool = membership.New(ctx, cfg)
 	cfg.daemon = daemon.New(ctx, cfg)
 
-	cluster := new(cluster)
-	cluster.pool = cfg.pool
-	cluster.daemon = cfg.daemon
-	cluster.storage = cfg.storage
-	cluster.dial = cfg.dial
-	cluster.disableForwarding = cfg.rcfg.DisableProposalForwarding
+	node := new(Node)
+	node.pool = cfg.pool
+	node.daemon = cfg.daemon
+	node.storage = cfg.storage
+	node.dial = cfg.dial
+	node.disableForwarding = cfg.rcfg.DisableProposalForwarding
 
-	cfg.controller.(*controller).cluster = cluster
+	cfg.controller.(*controller).node = node
 	cfg.controller.(*controller).daemon = cfg.daemon
 	cfg.controller.(*controller).pool = cfg.pool
 
 	srv, _ := newServer(ctx, cfg)
 
-	return cluster, srv
+	return node, srv
 }
 
 type controller struct {
-	cluster *cluster
-	daemon  daemon.Daemon
-	pool    membership.Pool
+	node   *Node
+	daemon daemon.Daemon
+	pool   membership.Pool
 }
 
 func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raftpb.Member, error) {
 	var err error
 
-	if mm, _ := c.cluster.GetMemebr(m.ID); mm == nil {
-		err = c.cluster.AddMember(ctx, m)
+	if mm, _ := c.node.GetMemebr(m.ID); mm == nil {
+		err = c.node.AddMember(ctx, m)
 	} else {
-		err = c.cluster.UpdateMember(ctx, m)
+		err = c.node.UpdateMember(ctx, m)
 	}
 
 	if err != nil {
 		return 0, []raftpb.Member{}, err
 	}
 
-	memb, _ := c.cluster.GetMemebr(m.ID)
+	memb, _ := c.node.GetMemebr(m.ID)
 	pool := c.pool.Snapshot()
 	return memb.ID(), pool, nil
 }
@@ -67,5 +67,5 @@ func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
 }
 
 func (c *controller) PromoteMember(ctx context.Context, m raftpb.Member) error {
-	return c.cluster.promoteMember(ctx, m.ID, true)
+	return c.node.promoteMember(ctx, m.ID, true)
 }

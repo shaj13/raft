@@ -20,27 +20,7 @@ import (
 // TODO: do we need to expose ?
 var errNotLeader = errors.New("raft: operation not permitted, node is not the leader")
 
-type Cluster interface {
-	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
-	Start(opts ...StartOption) error
-	Leave(ctx context.Context) error
-	StepDown(ctx context.Context) error
-	UpdateMember(ctx context.Context, raw *RawMember) error
-	CreateSnapshot() (io.ReadCloser, error)
-	TransferLeadership(ctx context.Context, id uint64) error
-	RemoveMember(ctx context.Context, id uint64) error
-	AddMember(ctx context.Context, raw *RawMember) error
-	PromoteMember(ctx context.Context, id uint64) error
-	DemoteMember(ctx context.Context, id uint64) error
-	GetMemebr(id uint64) (Member, bool)
-	Members() []Member
-	// TODO: Remove this api
-	RemovedMembers() []Member
-	Whoami() uint64
-	Leader() uint64
-}
-
-type cluster struct {
+type Node struct {
 	dial              transport.Dial
 	pool              membership.Pool
 	storage           storage.Storage
@@ -48,8 +28,8 @@ type cluster struct {
 	disableForwarding bool
 }
 
-func (c *cluster) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
-	err := c.precondition(
+func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
+	err := n.precondition(
 		joined(),
 		noLeader(),
 		available(),
@@ -59,11 +39,11 @@ func (c *cluster) LinearizableRead(ctx context.Context, retryAfter time.Duration
 		return err
 	}
 
-	return c.daemon.LinearizableRead(ctx, retryAfter)
+	return n.daemon.LinearizableRead(ctx, retryAfter)
 }
 
-func (c *cluster) CreateSnapshot() (io.ReadCloser, error) {
-	err := c.precondition(
+func (n *Node) CreateSnapshot() (io.ReadCloser, error) {
+	err := n.precondition(
 		joined(),
 	)
 
@@ -71,17 +51,17 @@ func (c *cluster) CreateSnapshot() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	snap, err := c.daemon.CreateSnapshot()
+	snap, err := n.daemon.CreateSnapshot()
 	if err != nil {
 		return nil, err
 	}
 
-	_, r, err := c.storage.Snapshotter().Reader(snap)
+	_, r, err := n.storage.Snapshotter().Reader(snap)
 	return r, err
 }
 
-func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
-	err := c.precondition(
+func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
+	err := n.precondition(
 		joined(),
 		notMember(id),
 		noLeader(),
@@ -93,11 +73,11 @@ func (c *cluster) TransferLeadership(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	return c.daemon.TransferLeadership(ctx, id)
+	return n.daemon.TransferLeadership(ctx, id)
 }
 
-func (c *cluster) StepDown(ctx context.Context) error {
-	err := c.precondition(
+func (n *Node) StepDown(ctx context.Context) error {
+	err := n.precondition(
 		joined(),
 		notLeader(),
 		available(),
@@ -122,29 +102,29 @@ func (c *cluster) StepDown(ctx context.Context) error {
 
 	// get longest active member then transfer leadership to it.
 	// TODO: can we get it progress ?
-	membs := c.members(cond)
+	membs := n.members(cond)
 	if len(membs) == 0 {
 		return errors.New("raft: failed to find longest active member")
 	}
 
-	return c.daemon.TransferLeadership(ctx, membs[0].ID())
+	return n.daemon.TransferLeadership(ctx, membs[0].ID())
 }
 
-func (c *cluster) Start(opts ...StartOption) error {
+func (n *Node) Start(opts ...StartOption) error {
 	cfg := new(startConfig)
 	cfg.apply(opts...)
-	return c.daemon.Start(cfg.addr, cfg.operators...)
+	return n.daemon.Start(cfg.addr, cfg.operators...)
 }
 
-func (c *cluster) Leave(ctx context.Context) error {
-	return c.RemoveMember(
+func (n *Node) Leave(ctx context.Context) error {
+	return n.RemoveMember(
 		ctx,
-		c.Whoami(),
+		n.Whoami(),
 	)
 }
 
-func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
-	err := c.precondition(
+func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
+	err := n.precondition(
 		joined(),
 		notMember(raw.ID),
 		addressInUse(raw.ID, raw.Address),
@@ -157,14 +137,14 @@ func (c *cluster) UpdateMember(ctx context.Context, raw *RawMember) error {
 		return err
 	}
 
-	mem, _ := c.GetMemebr(raw.ID)
+	mem, _ := n.GetMemebr(raw.ID)
 	raw.Type = mem.Type()
 
-	return c.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
+	return n.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
 }
 
-func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
-	err := c.precondition(
+func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
+	err := n.precondition(
 		joined(),
 		notMember(id),
 		memberRemoved(id),
@@ -178,15 +158,15 @@ func (c *cluster) RemoveMember(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	mem, _ := c.GetMemebr(id)
+	mem, _ := n.GetMemebr(id)
 	raw := mem.Raw()
 	raw.Type = raftpb.RemovedMember
 
-	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
+	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
 }
 
-func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
-	err := c.precondition(
+func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
+	err := n.precondition(
 		joined(),
 		addressInUse(raw.ID, raw.Address),
 		idInUse(raw.ID),
@@ -200,7 +180,7 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 	}
 
 	if raw.ID == None {
-		raw.ID = c.pool.NextID()
+		raw.ID = n.pool.NextID()
 	}
 
 	cct := etcdraftpb.ConfChangeAddNode
@@ -208,15 +188,15 @@ func (c *cluster) AddMember(ctx context.Context, raw *RawMember) error {
 		cct = etcdraftpb.ConfChangeAddLearnerNode
 	}
 
-	return c.daemon.ProposeConfChange(ctx, raw, cct)
+	return n.daemon.ProposeConfChange(ctx, raw, cct)
 }
 
-func (c *cluster) PromoteMember(ctx context.Context, id uint64) error {
-	return c.promoteMember(ctx, id, false)
+func (n *Node) PromoteMember(ctx context.Context, id uint64) error {
+	return n.promoteMember(ctx, id, false)
 }
 
-func (c *cluster) DemoteMember(ctx context.Context, id uint64) error {
-	err := c.precondition(
+func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
+	err := n.precondition(
 		joined(),
 		notMember(id),
 		memberRemoved(id),
@@ -230,7 +210,7 @@ func (c *cluster) DemoteMember(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	mem, _ := c.GetMemebr(id)
+	mem, _ := n.GetMemebr(id)
 	raw := mem.Raw()
 	// TODO: move to pre cond
 	if raw.Type != VoterMember {
@@ -238,16 +218,16 @@ func (c *cluster) DemoteMember(ctx context.Context, id uint64) error {
 	}
 	(&raw).Type = LearnerMember
 
-	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
+	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
 }
 
-func (c *cluster) GetMemebr(id uint64) (Member, bool) {
-	return c.pool.Get(id)
+func (n *Node) GetMemebr(id uint64) (Member, bool) {
+	return n.pool.Get(id)
 }
 
-func (c *cluster) members(cond func(m Member) bool) []Member {
+func (n *Node) members(cond func(m Member) bool) []Member {
 	mems := []Member{}
-	for _, m := range c.pool.Members() {
+	for _, m := range n.pool.Members() {
 		if cond(m) {
 			mems = append(mems, m)
 		}
@@ -255,41 +235,41 @@ func (c *cluster) members(cond func(m Member) bool) []Member {
 	return mems
 }
 
-func (c *cluster) Members() []Member {
+func (n *Node) Members() []Member {
 	cond := func(m Member) bool {
 		return m.Type() != raftpb.RemovedMember
 	}
-	return c.members(cond)
+	return n.members(cond)
 }
 
-func (c *cluster) RemovedMembers() []Member {
+func (n *Node) RemovedMembers() []Member {
 	cond := func(m Member) bool {
 		return m.Type() == raftpb.RemovedMember
 	}
-	return c.members(cond)
+	return n.members(cond)
 }
 
-func (c *cluster) Whoami() uint64 {
-	s, _ := c.daemon.Status()
+func (n *Node) Whoami() uint64 {
+	s, _ := n.daemon.Status()
 	return s.ID
 }
 
-func (c *cluster) Leader() uint64 {
-	s, _ := c.daemon.Status()
+func (n *Node) Leader() uint64 {
+	s, _ := n.daemon.Status()
 	return s.Lead
 }
 
-func (c *cluster) precondition(fns ...func(c *cluster) error) error {
+func (n *Node) precondition(fns ...func(c *Node) error) error {
 	for _, fn := range fns {
-		if err := fn(c); err != nil {
+		if err := fn(n); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) error {
-	err := c.precondition(
+func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) error {
+	err := n.precondition(
 		joined(),
 		notMember(id),
 		noLeader(),
@@ -302,12 +282,12 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 	}
 
 	// TODO: move to precond
-	mem, _ := c.GetMemebr(id)
+	mem, _ := n.GetMemebr(id)
 	if !(mem.Type() == VoterMember || mem.Type() == LearnerMember) {
 		return fmt.Errorf("raft: memebr %x  is not a learner", id)
 	}
 
-	rs, err := c.daemon.Status()
+	rs, err := n.daemon.Status()
 	if err != nil {
 		return err
 	}
@@ -319,13 +299,13 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 	}
 
 	if rs.Progress == nil {
-		lmem, ok := c.GetMemebr(rs.Lead)
+		lmem, ok := n.GetMemebr(rs.Lead)
 		// leader lost, because rs.Lead = None.
 		if !ok {
 			return daemon.ErrNoLeader
 		}
 
-		client, err := c.dial(ctx, lmem.Address())
+		client, err := n.dial(ctx, lmem.Address())
 		if err != nil {
 			return err
 		}
@@ -344,11 +324,11 @@ func (c *cluster) promoteMember(ctx context.Context, id uint64, forwarded bool) 
 	raw := mem.Raw()
 	(&raw).Type = VoterMember
 
-	return c.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
+	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
 }
 
-func joined() func(c *cluster) error {
-	return func(c *cluster) error {
+func joined() func(c *Node) error {
+	return func(c *Node) error {
 		if c.Whoami() == 0 {
 			return fmt.Errorf("raft: node is not yet part of a raft cluster")
 		}
@@ -356,8 +336,8 @@ func joined() func(c *cluster) error {
 	}
 }
 
-func available() func(c *cluster) error {
-	return func(c *cluster) error {
+func available() func(c *Node) error {
+	return func(c *Node) error {
 		reachables := c.members(func(m Member) bool {
 			return m.IsActive() && m.Type() == VoterMember
 		})
@@ -373,8 +353,8 @@ func available() func(c *cluster) error {
 	}
 }
 
-func notMember(id uint64) func(c *cluster) error {
-	return func(c *cluster) error {
+func notMember(id uint64) func(c *Node) error {
+	return func(c *Node) error {
 		if _, ok := c.GetMemebr(id); !ok {
 			return fmt.Errorf("raft: unknown member %x", id)
 		}
@@ -382,8 +362,8 @@ func notMember(id uint64) func(c *cluster) error {
 	}
 }
 
-func memberRemoved(id uint64) func(c *cluster) error {
-	return func(c *cluster) error {
+func memberRemoved(id uint64) func(c *Node) error {
+	return func(c *Node) error {
 		m, ok := c.GetMemebr(id)
 		if ok && m.Type() == RemovedMember {
 			return fmt.Errorf("raft: member %x removed", id)
@@ -392,8 +372,8 @@ func memberRemoved(id uint64) func(c *cluster) error {
 	}
 }
 
-func addressInUse(mid uint64, addr string) func(c *cluster) error {
-	return func(c *cluster) error {
+func addressInUse(mid uint64, addr string) func(c *Node) error {
+	return func(c *Node) error {
 		membs := c.members(func(m Member) bool {
 			return m.Address() == addr && m.ID() != mid
 		})
@@ -405,8 +385,8 @@ func addressInUse(mid uint64, addr string) func(c *cluster) error {
 	}
 }
 
-func notLeader() func(c *cluster) error {
-	return func(c *cluster) error {
+func notLeader() func(c *Node) error {
+	return func(c *Node) error {
 		if c.Whoami() != c.Leader() {
 			return errNotLeader
 		}
@@ -414,8 +394,8 @@ func notLeader() func(c *cluster) error {
 	}
 }
 
-func leader(id uint64) func(c *cluster) error {
-	return func(c *cluster) error {
+func leader(id uint64) func(c *Node) error {
+	return func(c *Node) error {
 		if id == c.Leader() {
 			return fmt.Errorf("raft: operation not permitted, member %x is the leader, transfer leadership first", id)
 		}
@@ -423,8 +403,8 @@ func leader(id uint64) func(c *cluster) error {
 	}
 }
 
-func idInUse(id uint64) func(c *cluster) error {
-	return func(c *cluster) error {
+func idInUse(id uint64) func(c *Node) error {
+	return func(c *Node) error {
 		if _, ok := c.GetMemebr(id); ok {
 			return fmt.Errorf("raft: id used by member %x", id)
 		}
@@ -432,8 +412,8 @@ func idInUse(id uint64) func(c *cluster) error {
 	}
 }
 
-func noLeader() func(c *cluster) error {
-	return func(c *cluster) error {
+func noLeader() func(c *Node) error {
+	return func(c *Node) error {
 		if c.Leader() == None {
 			return daemon.ErrNoLeader
 		}
@@ -441,8 +421,8 @@ func noLeader() func(c *cluster) error {
 	}
 }
 
-func disableForwarding() func(c *cluster) error {
-	return func(c *cluster) error {
+func disableForwarding() func(c *Node) error {
+	return func(c *Node) error {
 		if c.Leader() != c.Whoami() && c.disableForwarding {
 			return errNotLeader
 		}
