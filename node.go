@@ -29,7 +29,7 @@ type Node struct {
 }
 
 func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		noLeader(),
 		notType(n.Whoami(), VoterMember),
@@ -44,7 +44,7 @@ func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) e
 }
 
 func (n *Node) Snapshot() (string, io.ReadCloser, error) {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 	)
 
@@ -61,7 +61,7 @@ func (n *Node) Snapshot() (string, io.ReadCloser, error) {
 }
 
 func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notMember(id),
 		memberRemoved(id),
@@ -79,7 +79,7 @@ func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 }
 
 func (n *Node) StepDown(ctx context.Context) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notLeader(),
 		available(),
@@ -125,7 +125,7 @@ func (n *Node) Leave(ctx context.Context) error {
 }
 
 func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notMember(raw.ID),
 		memberRemoved(raw.ID),
@@ -147,7 +147,7 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 }
 
 func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notMember(id),
 		memberRemoved(id),
@@ -170,7 +170,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 }
 
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		idInUse(raw.ID),
 		addressInUse(raw.ID, raw.Address),
@@ -201,7 +201,7 @@ func (n *Node) PromoteMember(ctx context.Context, id uint64) error {
 }
 
 func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notMember(id),
 		memberRemoved(id),
@@ -252,7 +252,7 @@ func (n *Node) Leader() uint64 {
 	return s.Lead
 }
 
-func (n *Node) precondition(fns ...func(c *Node) error) error {
+func (n *Node) preCond(fns ...func(c *Node) error) error {
 	for _, fn := range fns {
 		if err := fn(n); err != nil {
 			return err
@@ -262,7 +262,7 @@ func (n *Node) precondition(fns ...func(c *Node) error) error {
 }
 
 func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) error {
-	err := n.precondition(
+	err := n.preCond(
 		joined(),
 		notMember(id),
 		noLeader(),
