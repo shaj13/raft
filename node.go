@@ -242,10 +242,7 @@ func (n *Node) members(cond func(m Member) bool) []Member {
 }
 
 func (n *Node) Members() []Member {
-	cond := func(m Member) bool {
-		return m.Type() != raftpb.RemovedMember
-	}
-	return n.members(cond)
+	return n.members(func(m Member) bool { return true })
 }
 
 func (n *Node) RemovedMembers() []Member {

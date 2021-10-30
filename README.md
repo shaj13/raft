@@ -2,7 +2,7 @@
 
 ### TODO 
 - [ ] fix Members 
-- [] remove RemovedMembers api 
+- [ ] remove RemovedMembers api 
 - [ ] prevent learner from send any propose requests 
 - [ ] close gc when closing disk 
 - [ ] add tcp rpc 
