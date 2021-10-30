@@ -208,6 +208,7 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 		noLeader(),
 		leader(id),
 		notType(n.Whoami(), VoterMember),
+		notType(id, VoterMember),
 		disableForwarding(),
 		available(),
 	)
@@ -218,10 +219,6 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 
 	mem, _ := n.GetMemebr(id)
 	raw := mem.Raw()
-	// TODO: move to pre cond
-	if raw.Type != VoterMember {
-		return fmt.Errorf("raft: %s memebr %x is not a voter", raw.Type, id)
-	}
 	(&raw).Type = LearnerMember
 
 	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
