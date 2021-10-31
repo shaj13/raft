@@ -258,6 +258,26 @@ func TestNodeStepDown(t *testing.T) {
 	require.Contains(t, err.Error(), "longest active member")
 }
 
+func TestNodeUpdateMember(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	m1.EXPECT().Type().Return(LearnerMember)
+	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
+
+	raw := &RawMember{}
+	n := new(Node)
+	n.daemon = daemon
+	n.pool = pool
+	n.exec = testPreCond
+	err := n.UpdateMember(context.TODO(), raw)
+	require.NoError(t, err)
+	require.Equal(t, LearnerMember, raw.Type)
+}
+
 func testPreCond(fns ...func(c *Node) error) error {
 	return nil
 }
