@@ -8,9 +8,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
+	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 func TestNodePreConditions(t *testing.T) {
@@ -170,14 +172,14 @@ func TestNodePreCond(t *testing.T) {
 	}
 }
 
-func TestHandler(t *testing.T) {
+func TestNodeHandler(t *testing.T) {
 	h := transport.Handler("TestHandler")
 	n := new(Node)
 	n.handler = h
 	require.Equal(t, h, n.Handler())
 }
 
-func TestLinearizableRead(t *testing.T) {
+func TestNodeLinearizableRead(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	daemon := daemonmock.NewMockDaemon(ctrl)
 	daemon.EXPECT().LinearizableRead(gomock.Any(), gomock.Eq(time.Second)).Return(nil)
@@ -187,6 +189,27 @@ func TestLinearizableRead(t *testing.T) {
 	n.exec = testPreCond
 	err := n.LinearizableRead(context.TODO(), time.Second)
 	require.NoError(t, err)
+}
+
+func TestNodeSnapshot(t *testing.T) {
+	expected := "snap-path"
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
+	shotter := storagemock.NewMockSnapshotter(ctrl)
+
+	daemon.EXPECT().CreateSnapshot().Return(etcdraftpb.Snapshot{}, nil)
+	stg.EXPECT().Snapshotter().Return(shotter)
+	shotter.EXPECT().Reader(gomock.Any()).Return(expected, nil, nil)
+
+	n := new(Node)
+	n.daemon = daemon
+	n.exec = testPreCond
+	n.storage = stg
+	got, _, err := n.Snapshot()
+
+	require.NoError(t, err)
+	require.Equal(t, expected, got)
 }
 
 func testPreCond(fns ...func(c *Node) error) error {
