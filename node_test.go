@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/shaj13/raftkit/internal/membership"
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
+	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
@@ -223,6 +225,37 @@ func TestNodeTransferLeadership(t *testing.T) {
 	n.exec = testPreCond
 	err := n.TransferLeadership(context.TODO(), id)
 	require.NoError(t, err)
+}
+
+func TestNodeStepDown(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	m2 := membershipmock.NewMockMember(ctrl)
+
+	for i, m := range []*membershipmock.MockMember{m1, m2} {
+		m.EXPECT().ID().Return(uint64(i))
+		m.EXPECT().Type().Return(VoterMember)
+		m.EXPECT().IsActive().Return(true)
+		m.EXPECT().ActiveSince().Return(time.Now().Add(time.Second * time.Duration(i)))
+	}
+
+	pool.EXPECT().Members().Return([]membership.Member{m1, m2})
+	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(uint64(0)))
+
+	n := new(Node)
+	n.exec = testPreCond
+	n.daemon = daemon
+	n.pool = pool
+
+	err := n.StepDown(context.TODO())
+	require.NoError(t, err)
+
+	pool.EXPECT().Members().Return(nil)
+	err = n.StepDown(context.TODO())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "longest active member")
 }
 
 func testPreCond(fns ...func(c *Node) error) error {
