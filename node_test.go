@@ -11,6 +11,7 @@ import (
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
@@ -276,6 +277,54 @@ func TestNodeUpdateMember(t *testing.T) {
 	err := n.UpdateMember(context.TODO(), raw)
 	require.NoError(t, err)
 	require.Equal(t, LearnerMember, raw.Type)
+}
+
+func TestNodeRemoveMember(t *testing.T) {
+	var raw *raftpb.Member
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.
+		EXPECT().
+		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
+			raw = m
+			return nil
+		})
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	m1.EXPECT().Raw().Return(RawMember{})
+	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
+
+	n := new(Node)
+	n.daemon = daemon
+	n.pool = pool
+	n.exec = testPreCond
+	err := n.RemoveMember(context.TODO(), 0)
+	require.NoError(t, err)
+	require.Equal(t, RemovedMember, raw.Type)
+}
+
+func TestNodeAddMember(t *testing.T) {
+	id := uint64(10)
+	raw := &raftpb.Member{Type: LearnerMember}
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.
+		EXPECT().
+		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddLearnerNode)).
+		Return(nil)
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	pool.EXPECT().NextID().Return(id)
+
+	n := new(Node)
+	n.daemon = daemon
+	n.pool = pool
+	n.exec = testPreCond
+	err := n.AddMember(context.TODO(), raw)
+	require.NoError(t, err)
+	require.Equal(t, id, raw.ID)
 }
 
 func testPreCond(fns ...func(c *Node) error) error {
