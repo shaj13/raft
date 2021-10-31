@@ -212,6 +212,19 @@ func TestNodeSnapshot(t *testing.T) {
 	require.Equal(t, expected, got)
 }
 
+func TestNodeTransferLeadership(t *testing.T) {
+	id := uint64(10)
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(id)).Return(nil)
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	n := new(Node)
+	n.daemon = daemon
+	n.exec = testPreCond
+	err := n.TransferLeadership(context.TODO(), id)
+	require.NoError(t, err)
+}
+
 func testPreCond(fns ...func(c *Node) error) error {
 	return nil
 }
