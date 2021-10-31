@@ -327,6 +327,58 @@ func TestNodeAddMember(t *testing.T) {
 	require.Equal(t, id, raw.ID)
 }
 
+func TestNodeDemoteMember(t *testing.T) {
+	var raw *raftpb.Member
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.
+		EXPECT().
+		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
+			raw = m
+			return nil
+		})
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	m1.EXPECT().Raw().Return(RawMember{})
+	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
+
+	n := new(Node)
+	n.daemon = daemon
+	n.pool = pool
+	n.exec = testPreCond
+	err := n.DemoteMember(context.TODO(), 0)
+	require.NoError(t, err)
+	require.Equal(t, LearnerMember, raw.Type)
+}
+
+func TestNodeMembers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	m2 := membershipmock.NewMockMember(ctrl)
+	pool.EXPECT().Members().Return([]membership.Member{m1, m2})
+	n := new(Node)
+	n.pool = pool
+	membs := n.Members()
+	require.Equal(t, 2, len(membs))
+}
+
+func TestNNodeLeader(t *testing.T) {
+	st := raft.Status{
+		BasicStatus: raft.BasicStatus{
+			SoftState: raft.SoftState{Lead: 10},
+		},
+	}
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().Status().Return(st, nil)
+	n := new(Node)
+	n.daemon = daemon
+	require.Equal(t, st.Lead, n.Leader())
+}
+
 func testPreCond(fns ...func(c *Node) error) error {
 	return nil
 }
