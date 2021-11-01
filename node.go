@@ -332,7 +332,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 
 func joined() func(c *Node) error {
 	return func(c *Node) error {
-		if c.Whoami() == 0 {
+		if c.Whoami() == None {
 			return fmt.Errorf("raft: node is not yet part of a raft cluster")
 		}
 		return nil

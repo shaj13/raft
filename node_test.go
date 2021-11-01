@@ -464,6 +464,281 @@ func TestNodePromoteMember(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestPreConditions(t *testing.T) {
+	nilErr := fmt.Errorf("<nil>")
+	table := []struct {
+		fn       func(c *Node) error
+		contains string
+		expect   func(c *Node)
+	}{
+		{
+			fn:       notType(1, VoterMember),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				mem := membershipmock.NewMockMember(ctrl)
+				pool.EXPECT().Get(gomock.Eq(uint64(1))).Return(mem, true)
+				mem.EXPECT().Type().Return(VoterMember)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       notType(1, VoterMember),
+			contains: "not a voter",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				mem := membershipmock.NewMockMember(ctrl)
+				pool.EXPECT().Get(gomock.Eq(uint64(1))).Return(mem, true)
+				mem.EXPECT().Type().Return(LearnerMember)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       disableForwarding(),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       disableForwarding(),
+			contains: errNotLeader.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{
+					BasicStatus: raft.BasicStatus{
+						ID: 12,
+					},
+				}, nil).MaxTimes(2)
+				n.daemon = daemon
+				n.disableForwarding = true
+			},
+		},
+		{
+			fn:       noLeader(),
+			contains: "no elected cluster leader",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       noLeader(),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{
+					BasicStatus: raft.BasicStatus{
+						SoftState: raft.SoftState{Lead: 10},
+					},
+				}, nil)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       idInUse(1),
+			contains: "id used by member",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(nil, true)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       idInUse(1),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       leader(1),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       leader(0),
+			contains: "is the leader",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       notLeader(),
+			contains: errNotLeader.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{
+					BasicStatus: raft.BasicStatus{
+						ID: 15,
+					},
+				}, nil).MaxTimes(2)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       notLeader(),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       addressInUse(1, "addr"),
+			contains: "address used by member",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				mem := membershipmock.NewMockMember(ctrl)
+				pool.EXPECT().Members().Return([]membership.Member{mem})
+				mem.EXPECT().ID().Return(uint64(2)).AnyTimes()
+				mem.EXPECT().Address().Return("addr")
+				n.pool = pool
+			},
+		},
+		{
+			fn:       addressInUse(0, ""),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Members().Return([]membership.Member{})
+				n.pool = pool
+			},
+		},
+		{
+			fn:       memberRemoved(0),
+			contains: "removed",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				mem := membershipmock.NewMockMember(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(mem, true)
+				mem.EXPECT().Type().Return(RemovedMember)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       memberRemoved(0),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       notMember(0),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(nil, true)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       notMember(0),
+			contains: "unknown member",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       available(),
+			contains: " quorum lost",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				m1 := membershipmock.NewMockMember(ctrl)
+				m2 := membershipmock.NewMockMember(ctrl)
+				m1.EXPECT().Type().Return(VoterMember).MaxTimes(2)
+				m2.EXPECT().Type().Return(VoterMember).MaxTimes(2)
+				m1.EXPECT().IsActive().Return(false)
+				m2.EXPECT().IsActive().Return(true)
+				pool.EXPECT().Members().Return([]membership.Member{m1, m2}).MaxTimes(2)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       available(),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				m1 := membershipmock.NewMockMember(ctrl)
+				m1.EXPECT().Type().Return(VoterMember).MaxTimes(2)
+				m1.EXPECT().IsActive().Return(true)
+				pool.EXPECT().Members().Return([]membership.Member{m1}).MaxTimes(2)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       joined(),
+			contains: "not yet part of a raft",
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{}, nil)
+				n.daemon = daemon
+			},
+		},
+		{
+			fn:       joined(),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				daemon := daemonmock.NewMockDaemon(ctrl)
+				daemon.EXPECT().Status().Return(raft.Status{
+					BasicStatus: raft.BasicStatus{
+						ID: 1,
+					},
+				}, nil)
+				n.daemon = daemon
+			},
+		},
+	}
+
+	for _, tt := range table {
+		n := new(Node)
+		tt.expect(n)
+		err := tt.fn(n)
+		if err == nil {
+			err = nilErr
+		}
+		require.Contains(t, err.Error(), tt.contains)
+	}
+}
+
 func testPreCond(fns ...func(c *Node) error) error {
 	return nil
 }
