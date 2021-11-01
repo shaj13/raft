@@ -11,11 +11,13 @@ import (
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
+	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/raft/v3/tracker"
 )
 
 func TestNodePreConditions(t *testing.T) {
@@ -386,6 +388,79 @@ func TestNodeStart(t *testing.T) {
 	n := new(Node)
 	n.daemon = daemon
 	err := n.Start()
+	require.NoError(t, err)
+}
+
+func TestNodePromoteMember(t *testing.T) {
+	ctx := context.TODO()
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
+	mem := membershipmock.NewMockMember(ctrl)
+	client := transportmock.NewMockClient(ctrl)
+	n := new(Node)
+	n.exec = testPreCond
+	n.daemon = daemon
+	n.pool = pool
+
+	daemon.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
+	pool.EXPECT().Get(gomock.Any()).Return(mem, true).AnyTimes()
+	mem.EXPECT().Raw().Return(RawMember{}).AnyTimes()
+	mem.EXPECT().Address().Return("").AnyTimes()
+	mem.EXPECT().ID().Return(uint64(1)).AnyTimes()
+	client.EXPECT().PromoteMember(gomock.Any(), gomock.Any()).Return(nil)
+
+	// round #1 it return error when promote forwarded
+	// and leader lost.
+	err := n.promoteMember(ctx, 1, true)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no elected cluster leader")
+
+	// round #2 it return error when dial return error
+	n.dial = func(c context.Context, s string) (transport.Client, error) {
+		return nil, errNotLeader
+	}
+	err = n.promoteMember(ctx, 1, false)
+	require.Equal(t, errNotLeader, err)
+
+	// round #3 it forward promote request.
+	n.dial = func(c context.Context, s string) (transport.Client, error) {
+		return client, nil
+	}
+	err = n.promoteMember(ctx, 1, false)
+	require.NoError(t, err)
+
+	// round #4 it return error when member not ready yet.
+	st := raft.Status{
+		BasicStatus: raft.BasicStatus{
+			SoftState: raft.SoftState{Lead: 10},
+		},
+		Progress: map[uint64]tracker.Progress{
+			10: {Match: 100},
+		},
+	}
+	daemon = daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().Status().Return(st, nil).AnyTimes()
+	n.daemon = daemon
+	err = n.promoteMember(ctx, 1, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not synced with the leader yet")
+
+	// round #5 it return promote member.
+	st = raft.Status{
+		BasicStatus: raft.BasicStatus{
+			SoftState: raft.SoftState{Lead: 10},
+		},
+		Progress: map[uint64]tracker.Progress{
+			10: {Match: 100},
+			1:  {Match: 90},
+		},
+	}
+	daemon = daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().Status().Return(st, nil).AnyTimes()
+	daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	n.daemon = daemon
+	err = n.promoteMember(ctx, 1, false)
 	require.NoError(t, err)
 }
 

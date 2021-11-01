@@ -318,7 +318,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		return client.PromoteMember(ctx, raw)
 	}
 
-	leader := rs.Progress[rs.ID].Match
+	leader := rs.Progress[rs.Lead].Match
 	learner := rs.Progress[id].Match
 	// the learner's Match not caught up with the leader yet.
 	if float64(learner) < float64(leader)*0.9 {
