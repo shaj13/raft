@@ -379,6 +379,16 @@ func TestNNodeLeader(t *testing.T) {
 	require.Equal(t, st.Lead, n.Leader())
 }
 
+func TestNodeStart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().Start(gomock.Any(), gomock.Any()).Return(nil)
+	n := new(Node)
+	n.daemon = daemon
+	err := n.Start()
+	require.NoError(t, err)
+}
+
 func testPreCond(fns ...func(c *Node) error) error {
 	return nil
 }
