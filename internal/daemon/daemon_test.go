@@ -383,3 +383,38 @@ func TestEventLoop(t *testing.T) {
 	err := d.eventLoop()
 	require.Equal(t, ErrStopped, err)
 }
+
+func TestPublishReadState(t *testing.T) {
+	buf := make([]byte, 8)
+	sid := uint64(1)
+	index := uint64(2)
+	binary.BigEndian.PutUint64(buf, sid)
+	rs := raft.ReadState{
+		Index:      index,
+		RequestCtx: buf,
+	}
+	bus := msgbus.New()
+	sub := bus.SubscribeOnce(sid)
+	d := new(daemon)
+	d.msgbus = bus
+	d.publishReadState([]raft.ReadState{rs})
+	got := <-sub.Chan()
+	require.Equal(t, index, got)
+}
+
+func TestPublishAppliedIndices(t *testing.T) {
+	bus := msgbus.New()
+	d := new(daemon)
+	d.msgbus = bus
+
+	s1 := bus.SubscribeOnce(2)
+	s2 := bus.SubscribeOnce(3)
+
+	d.publishAppliedIndices(1, 3)
+
+	v1 := <-s1.Chan()
+	v2 := <-s2.Chan()
+
+	require.Nil(t, v2)
+	require.Nil(t, v1)
+}
