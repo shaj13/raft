@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
@@ -211,4 +212,97 @@ func TestTransferLeadership(t *testing.T) {
 	d.node = node
 	err = d.TransferLeadership(context.TODO(), id)
 	require.NoError(t, err)
+}
+
+func TestLinearizableRead(t *testing.T) {
+	expectedErr := errors.New("TestLinearizableRead")
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	d := &daemon{
+		started: atomic.NewBool(),
+		node:    node,
+		idgen:   idutil.NewGenerator(1, time.Now()),
+		msgbus:  msgbus.New(),
+	}
+
+	// round #1 it return err when daemon not started.
+	err := d.LinearizableRead(context.TODO(), time.Second)
+	require.Equal(t, ErrStopped, err)
+
+	// round #2 it return err when read index return err.
+
+	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(expectedErr)
+	d.started.Set()
+	err = d.LinearizableRead(context.TODO(), time.Second)
+	require.Equal(t, expectedErr, err)
+
+	// round #3 it return err when ctx done while waiting to read index.
+	node = NewMockNode(ctrl)
+	d.node = node
+	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(nil)
+	ctx, cancel := context.WithCancel(context.TODO())
+	cancel()
+	err = d.LinearizableRead(ctx, time.Second)
+	require.Equal(t, context.Canceled, err)
+
+	// round #3 it return exit when read index equal applied index.
+	node = NewMockNode(ctrl)
+	d.node = node
+	node.
+		EXPECT().
+		ReadIndex(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, rctx []byte) error {
+			sid := binary.BigEndian.Uint64(rctx)
+			go func() {
+				<-time.After(time.Millisecond * 50)
+				d.msgbus.Broadcast(sid, uint64(0))
+			}()
+			return nil
+		})
+	d.appliedIndex = atomic.NewUint64()
+	err = d.LinearizableRead(context.TODO(), time.Second)
+	require.NoError(t, err)
+
+	// round #4 it return err when ctx done while waiting for read index to be applied.
+	ctx, cancel = context.WithCancel(context.TODO())
+	node = NewMockNode(ctrl)
+	d.node = node
+	node.
+		EXPECT().
+		ReadIndex(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, rctx []byte) error {
+			sid := binary.BigEndian.Uint64(rctx)
+			go func() {
+				<-time.After(time.Millisecond * 50)
+				d.msgbus.Broadcast(sid, uint64(1))
+				<-time.After(time.Millisecond * 50)
+				cancel()
+			}()
+			return nil
+		})
+	d.appliedIndex = atomic.NewUint64()
+	err = d.LinearizableRead(ctx, time.Second)
+	require.Equal(t, context.Canceled, err)
+
+	// round #5 it return err when there an error while waiting for read index to be applied.
+	node = NewMockNode(ctrl)
+	d.node = node
+	node.
+		EXPECT().
+		ReadIndex(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, rctx []byte) error {
+			sid := binary.BigEndian.Uint64(rctx)
+			go func() {
+				dur := time.Millisecond * 50
+				index := uint64(1)
+				<-time.After(dur)
+				d.msgbus.Broadcast(sid, index)
+				<-time.After(dur)
+				d.msgbus.Broadcast(index, expectedErr)
+			}()
+			return nil
+		})
+	d.appliedIndex = atomic.NewUint64()
+	err = d.LinearizableRead(context.TODO(), time.Second)
+	require.Equal(t, expectedErr, err)
 }

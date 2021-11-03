@@ -112,7 +112,7 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration)
 				}
 				return v.(uint64), nil
 			case <-ctx.Done():
-				return 0, err
+				return 0, ctx.Err()
 			}
 		}
 	}()
