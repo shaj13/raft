@@ -18,7 +18,7 @@ type controller struct {
 func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raftpb.Member, error) {
 	var err error
 
-	if mm, _ := c.node.GetMemebr(m.ID); mm == nil {
+	if _, ok := c.node.GetMemebr(m.ID); !ok {
 		err = c.node.AddMember(ctx, m)
 	} else {
 		err = c.node.UpdateMember(ctx, m)
@@ -28,9 +28,8 @@ func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raft
 		return 0, []raftpb.Member{}, err
 	}
 
-	memb, _ := c.node.GetMemebr(m.ID)
 	pool := c.pool.Snapshot()
-	return memb.ID(), pool, nil
+	return m.ID, pool, nil
 }
 
 func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
