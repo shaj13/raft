@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/atomic"
 	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -18,44 +20,52 @@ import (
 
 func TestReportUnreachable(t *testing.T) {
 	id := uint64(1)
-	method := "ReportUnreachable"
-	m := &mockNode{Mock: mock.Mock{}}
-	d := daemon{node: m, started: atomic.NewBool()}
-	m.On(method, id).Return()
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	node.EXPECT().ReportUnreachable(gomock.Eq(id)).MaxTimes(1)
+	d := daemon{node: node, started: atomic.NewBool()}
 
 	// round #1 should not call ReportUnreachable when
 	// daemon not started
 	d.ReportUnreachable(id)
-	m.AssertNotCalled(t, method, id)
 
 	// round #2 should call ReportUnreachable when
 	// daemon started
 	d.started.Set()
 	d.ReportUnreachable(id)
-	m.AssertCalled(t, method, id)
 }
 
 func TestReportSnapshot(t *testing.T) {
 	id := uint64(1)
-	method := "ReportSnapshot"
-	m := &mockNode{Mock: mock.Mock{}}
-	d := daemon{node: m, started: atomic.NewBool()}
-	m.On(method, id, raft.SnapshotFinish).Return()
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	node.EXPECT().ReportSnapshot(gomock.Eq(id), gomock.Eq(raft.SnapshotFinish)).MaxTimes(1)
+	d := daemon{node: node, started: atomic.NewBool()}
 
 	// round #1 should not call ReportSnapshot when
 	// daemon not started
 	d.ReportSnapshot(id, raft.SnapshotFinish)
-	m.AssertNotCalled(t, method, id, raft.SnapshotFinish)
 
 	// round #2 should call ReportSnapshot when
 	// daemon started
 	d.started.Set()
 	d.ReportSnapshot(id, raft.SnapshotFinish)
-	m.AssertCalled(t, method, id, raft.SnapshotFinish)
 }
 
 func TestReportShutdown(t *testing.T) {
-	t.Skip("TODO: add test ReportShutdown ")
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	node.EXPECT().Stop().MaxTimes(1)
+	d := daemon{
+		node:    node,
+		started: atomic.NewBool(),
+		msgbus:  msgbus.New(),
+		cancel:  func() {},
+	}
+
+	d.started.Set()
+	d.ReportShutdown(0)
+	require.True(t, d.started.False())
 }
 
 func TestPush(t *testing.T) {

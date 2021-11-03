@@ -25,6 +25,7 @@ var (
 )
 
 //go:generate mockgen -package daemonmock  -source internal/daemon/daemon.go -destination internal/mocks/daemon/daemon.go
+//go:generate mockgen -package daemon  -source vendor/go.etcd.io/etcd/raft/v3/node.go -destination internal/daemon/node_test.go
 
 type Daemon interface {
 	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
