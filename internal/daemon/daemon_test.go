@@ -9,6 +9,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/atomic"
+	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
+	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
@@ -305,4 +307,48 @@ func TestLinearizableRead(t *testing.T) {
 	d.appliedIndex = atomic.NewUint64()
 	err = d.LinearizableRead(context.TODO(), time.Second)
 	require.Equal(t, expectedErr, err)
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	expectedErr := errors.New("TestCreateSnapshot")
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	cfg.EXPECT().SnapInterval().Return(uint64(1))
+	d := &daemon{
+		cfg:          cfg,
+		started:      atomic.NewBool(),
+		appliedIndex: atomic.NewUint64(),
+		snapIndex:    atomic.NewUint64(),
+		cache:        raft.NewMemoryStorage(),
+	}
+
+	// round #1 it return's latest snap when indices are equaled.
+	_, err := d.CreateSnapshot()
+	require.NoError(t, err)
+
+	// round #2 it return err when fsm return err.
+	fsm := NewMockFSM(ctrl)
+	fsm.EXPECT().Snapshot().Return(nil, expectedErr)
+	d.fsm = fsm
+	d.appliedIndex.Set(1)
+	_, err = d.CreateSnapshot()
+	require.Equal(t, expectedErr, err)
+
+	// round #3 it return nil and create snap.
+	pool := membershipmock.NewMockPool(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
+	shotter := storagemock.NewMockSnapshotter(ctrl)
+	stg.EXPECT().Snapshotter().Return(shotter)
+	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)
+	shotter.EXPECT().Write(gomock.Any()).Return(nil)
+	pool.EXPECT().Snapshot().Return(nil)
+	fsm = NewMockFSM(ctrl)
+	fsm.EXPECT().Snapshot().Return(nil, nil)
+	d.fsm = fsm
+	d.storage = stg
+	d.pool = pool
+	d.cache.Append([]etcdraftpb.Entry{{Index: 1}})
+	_, err = d.CreateSnapshot()
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), d.snapIndex.Get())
 }

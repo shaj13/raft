@@ -324,7 +324,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 	if appliedIndex == snapIndex {
 		// up to date just return the latest snap to load it from disk.
-		return d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
+		return d.cache.Snapshot()
 	}
 
 	log.Infof(
