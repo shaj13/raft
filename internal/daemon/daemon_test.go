@@ -130,8 +130,7 @@ func TestProposeReplicate(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
 	err = d.ProposeReplicate(ctx, data)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "canceled")
+	require.Equal(t, context.Canceled, err)
 }
 
 func TestProposeConfChange(t *testing.T) {
@@ -162,6 +161,54 @@ func TestProposeConfChange(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
 	err = d.ProposeConfChange(ctx, &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "canceled")
+	require.Equal(t, context.Canceled, err)
+}
+
+func TestTransferLeadership(t *testing.T) {
+	id := uint64(1)
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	node := NewMockNode(ctrl)
+	cfg.EXPECT().TickInterval().Return(time.Second).AnyTimes()
+
+	d := &daemon{
+		started: atomic.NewBool(),
+		node:    node,
+		cfg:     cfg,
+	}
+
+	// round #1 it return err when daemon not started.
+	err := d.TransferLeadership(context.TODO(), id)
+	require.Equal(t, ErrStopped, err)
+
+	// round #2 it return err when ctx done.
+	node.EXPECT().Status().Return(raft.Status{}).AnyTimes()
+	node.EXPECT().TransferLeadership(gomock.Any(), gomock.Any(), gomock.Eq(id))
+	d.started.Set()
+	ctx, cancel := context.WithCancel(context.TODO())
+	cancel()
+	err = d.TransferLeadership(ctx, id)
+	require.Equal(t, context.Canceled, err)
+
+	// round #3 it return nil err when TransferLeadership success.
+	count := 0
+	node = NewMockNode(ctrl)
+	node.EXPECT().Status().AnyTimes().DoAndReturn(func() raft.Status {
+		// it wait for TransferLeadership to be done.
+		if count == 3 {
+			return raft.Status{
+				BasicStatus: raft.BasicStatus{
+					SoftState: raft.SoftState{
+						Lead: id,
+					},
+				},
+			}
+		}
+		count++
+		return raft.Status{}
+	})
+	node.EXPECT().TransferLeadership(gomock.Any(), gomock.Any(), gomock.Eq(id))
+	d.node = node
+	err = d.TransferLeadership(context.TODO(), id)
+	require.NoError(t, err)
 }
