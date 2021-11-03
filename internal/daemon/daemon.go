@@ -426,10 +426,6 @@ func (d *daemon) eventLoop() error {
 	defer d.wg.Done()
 
 	for {
-		if d.ctx.Err() != nil {
-			return d.ctx.Err()
-		}
-
 		select {
 		case <-d.ticker.C:
 			d.node.Tick()
