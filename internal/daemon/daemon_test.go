@@ -355,20 +355,23 @@ func TestCreateSnapshot(t *testing.T) {
 
 func TestEventLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
+	count := 0
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
 	readyc := make(chan raft.Ready, 1)
 	tcr := time.NewTicker(time.Millisecond * 500)
-	go func() {
-		time.After(time.Millisecond * 600)
-		cancel()
-	}()
+
 	readyc <- raft.Ready{}
-	node.EXPECT().Tick()
+	node.EXPECT().Tick().MaxTimes(3).Do(func() {
+		if count == 2 {
+			cancel()
+		}
+		count++
+	})
 	node.EXPECT().Advance()
-	node.EXPECT().Ready().Return(readyc).MaxTimes(2)
-	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil)
+	node.EXPECT().Ready().Return(readyc).AnyTimes()
+	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
 	d := new(daemon)
 	d.ticker = tcr
 	d.appliedIndex = atomic.NewUint64()
