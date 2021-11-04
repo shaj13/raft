@@ -583,3 +583,29 @@ func TestProcess(t *testing.T) {
 	<-done
 	ctrl.Finish()
 }
+
+func TestSend(t *testing.T) {
+	table := []func(*gomock.Controller, *daemon, uint64){
+		func(ctrl *gomock.Controller, d *daemon, id uint64) {
+			pool := membershipmock.NewMockPool(ctrl)
+			pool.EXPECT().Get(gomock.Eq(id)).Return(nil, false)
+			d.pool = pool
+		},
+		func(ctrl *gomock.Controller, d *daemon, id uint64) {
+			mem := membershipmock.NewMockMember(ctrl)
+			pool := membershipmock.NewMockPool(ctrl)
+			pool.EXPECT().Get(gomock.Eq(id)).Return(mem, true)
+			mem.EXPECT().Send(gomock.Any()).Return(ErrStopped)
+			d.pool = pool
+		},
+	}
+
+	for _, tt := range table {
+		ctrl := gomock.NewController(t)
+		msg := etcdraftpb.Message{To: 1}
+		d := new(daemon)
+		tt(ctrl, d, msg.To)
+		d.send([]etcdraftpb.Message{msg})
+		ctrl.Finish()
+	}
+}
