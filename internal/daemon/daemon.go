@@ -523,7 +523,7 @@ func (d *daemon) publishSnapshotFile(sf *storage.SnapshotFile) error {
 
 func (d *daemon) publishCommitted(ents []etcdraftpb.Entry) {
 	for _, ent := range ents {
-		if ent.Type == etcdraftpb.EntryNormal && ent.Data != nil {
+		if ent.Type == etcdraftpb.EntryNormal && len(ent.Data) > 0 {
 			d.publishReplicate(ent)
 		}
 		if ent.Type == etcdraftpb.EntryConfChange {
