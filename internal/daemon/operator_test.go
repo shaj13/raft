@@ -498,6 +498,38 @@ func TestRestore(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestRemovedMembers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	rm := new(removedMembers)
+	ost := new(operatorsState)
+	mem := &raftpb.Member{
+		ID:   1,
+		Type: raftpb.RemovedMember,
+	}
+	cc := &etcdraftpb.ConfChange{
+		Type:    etcdraftpb.ConfChangeRemoveNode,
+		Context: pbutil.MustMarshal(mem),
+	}
+	ost.ents = []etcdraftpb.Entry{
+		{
+			Index: 1,
+			Type:  etcdraftpb.EntryConfChange,
+			Data:  pbutil.MustMarshal(cc),
+		},
+	}
+	ost.hst = etcdraftpb.HardState{
+		Commit: 1,
+	}
+	ost.daemon = &daemon{
+		pool: pool,
+	}
+
+	pool.EXPECT().Add(gomock.Any()).Return(ErrStopped)
+	err := rm.after(ost)
+	require.Equal(t, ErrStopped, err)
+}
+
 func mockRestartNode(called *bool) func() {
 	temp := restartNode
 	fn := func() {
