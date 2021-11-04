@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/atomic"
+	"github.com/shaj13/raftkit/internal/membership"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/msgbus"
@@ -19,6 +20,7 @@ import (
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/raft/v3/tracker"
 )
 
 func TestReportUnreachable(t *testing.T) {
@@ -496,16 +498,17 @@ func TestPublishConfChange(t *testing.T) {
 	table := []struct {
 		change etcdraftpb.ConfChangeType
 		expect func(*gomock.Controller, *daemon) <-chan struct{}
-		dur    time.Duration
+		err    error
 	}{
 		{
 			change: etcdraftpb.ConfChangeAddNode,
 			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
 				pool := membershipmock.NewMockPool(ctrl)
-				pool.EXPECT().Add(gomock.Any()).MinTimes(1)
+				pool.EXPECT().Add(gomock.Any()).MinTimes(1).Return(ErrStopped)
 				d.pool = pool
 				return closedc
 			},
+			err: ErrStopped,
 		},
 		{
 			change: etcdraftpb.ConfChangeUpdateNode,
@@ -522,8 +525,9 @@ func TestPublishConfChange(t *testing.T) {
 				c := make(chan struct{})
 				pool := membershipmock.NewMockPool(ctrl)
 				cfg := NewMockConfig(ctrl)
-				pool.EXPECT().Remove(gomock.Any()).Do(func(raftpb.Member) {
+				pool.EXPECT().Remove(gomock.Any()).DoAndReturn(func(raftpb.Member) error {
 					c <- struct{}{}
+					return ErrStopped
 				}).MinTimes(1)
 				cfg.EXPECT().TickInterval().Return(time.Duration(-1))
 				d.pool = pool
@@ -557,7 +561,7 @@ func TestPublishConfChange(t *testing.T) {
 		wait := tt.expect(ctrl, d)
 		d.publishConfChange(ent)
 		v := <-sub.Chan()
-		require.Nil(t, v)
+		require.Equal(t, tt.err, v)
 		<-wait
 		ctrl.Finish()
 	}
@@ -572,7 +576,7 @@ func TestProcess(t *testing.T) {
 	d.node = node
 	d.ctx, d.cancel = context.WithCancel(context.TODO())
 
-	node.EXPECT().Step(gomock.Any(), gomock.Any()).MinTimes(1)
+	node.EXPECT().Step(gomock.Any(), gomock.Any()).Return(ErrStopped).MinTimes(1)
 	go func() {
 		d.process(c)
 		done <- struct{}{}
@@ -608,4 +612,88 @@ func TestSend(t *testing.T) {
 		d.send([]etcdraftpb.Message{msg})
 		ctrl.Finish()
 	}
+}
+
+func TestSnapshots(t *testing.T) {
+	c := make(chan struct{})
+	done := make(chan struct{})
+	ctrl := gomock.NewController(t)
+	fsm := NewMockFSM(ctrl)
+	cfg := NewMockConfig(ctrl)
+	d := new(daemon)
+	d.cfg = cfg
+	d.appliedIndex = atomic.NewUint64()
+	d.snapIndex = atomic.NewUint64()
+	d.fsm = fsm
+
+	cfg.EXPECT().SnapInterval().Return(uint64(1)).MaxTimes(2)
+	fsm.EXPECT().Snapshot().Return(nil, ErrStopped).MinTimes(1)
+
+	go func() {
+		d.snapshots(c)
+		done <- struct{}{}
+	}()
+
+	// round #1 it should not create snapshot.
+	c <- struct{}{}
+
+	// round #2 it create snapshot.
+	d.appliedIndex.Set(10)
+	c <- struct{}{}
+
+	close(c)
+	<-done
+	ctrl.Finish()
+}
+
+func TestPromotions(t *testing.T) {
+	c := make(chan struct{})
+	done := make(chan struct{})
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
+	voter := membershipmock.NewMockMember(ctrl)
+	staging := membershipmock.NewMockMember(ctrl)
+	cfg := NewMockConfig(ctrl)
+
+	d := new(daemon)
+	d.node = node
+	d.pool = pool
+	d.cfg = cfg
+	d.idgen = idutil.NewGenerator(1, time.Now())
+	d.started = atomic.NewBool()
+
+	rs := raft.Status{
+		BasicStatus: raft.BasicStatus{
+			ID: 1,
+		},
+		Progress: map[uint64]tracker.Progress{
+			1: {Match: 100},
+			2: {Match: 90},
+		},
+	}
+
+	cfg.EXPECT().TickInterval().Return(time.Duration(-1))
+	voter.EXPECT().Raw().Return(raftpb.Member{ID: 1})
+	voter.EXPECT().IsActive().Return(true)
+	staging.EXPECT().Raw().Return(raftpb.Member{ID: 2, Type: raftpb.StagingMember})
+	staging.EXPECT().IsActive().Return(true)
+	pool.EXPECT().Members().Return([]membership.Member{voter, staging})
+	node.EXPECT().Status().Return(rs)
+	node.
+		EXPECT().
+		ProposeConfChange(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, cc etcdraftpb.ConfChangeI) error {
+			done <- struct{}{}
+			return ErrStopped
+		})
+
+	d.started.Set()
+
+	go d.promotions(c)
+
+	c <- struct{}{}
+	close(c)
+	<-done
+	ctrl.Finish()
 }

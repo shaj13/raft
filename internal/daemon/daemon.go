@@ -563,10 +563,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 	defer func() {
 		d.msgbus.Broadcast(cc.ID, err)
 		if err != nil {
-			log.Warnf(
-				"raft.daemon: publishing conf change: %v",
-				err,
-			)
+			log.Warnf("raft.daemon: publishing conf change: %v", err)
 		}
 	}()
 
@@ -724,7 +721,7 @@ func (d *daemon) promotions(c chan struct{}) {
 				defer cancel()
 				err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
 				if err != nil {
-					log.Warnf("raft.daemon: promoting staging member %x: %v", err)
+					log.Warnf("raft.daemon: promoting staging member %x: %v", m.ID, err)
 				}
 			}(&m)
 		}
