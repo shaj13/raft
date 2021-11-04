@@ -13,6 +13,7 @@ import (
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	"github.com/shaj13/raftkit/internal/msgbus"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
@@ -417,4 +418,50 @@ func TestPublishAppliedIndices(t *testing.T) {
 
 	require.Nil(t, v2)
 	require.Nil(t, v1)
+}
+
+func TestPublishSnapshot(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	stg := storagemock.NewMockStorage(ctrl)
+	shotter := storagemock.NewMockSnapshotter(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
+	fsm := NewMockFSM(ctrl)
+
+	snap := &etcdraftpb.Snapshot{
+		Metadata: etcdraftpb.SnapshotMetadata{
+			Index: 1,
+		},
+	}
+
+	sf := &storage.SnapshotFile{
+		Snap: snap,
+		Pool: new(raftpb.Pool),
+	}
+
+	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)
+	stg.EXPECT().Snapshotter().Return(shotter)
+	shotter.EXPECT().Read(gomock.Any()).Return(sf, nil)
+	pool.EXPECT().Restore(gomock.Any())
+	fsm.EXPECT().Restore(gomock.Any()).Return(nil)
+
+	daemon := new(daemon)
+	daemon.cache = raft.NewMemoryStorage()
+	daemon.storage = stg
+	daemon.appliedIndex = atomic.NewUint64()
+	daemon.snapIndex = atomic.NewUint64()
+	daemon.pool = pool
+	daemon.fsm = fsm
+	daemon.appliedIndex.Set(1)
+
+	// round #1 it return's err if snap index is lower than applied index.
+	err := daemon.publishSnapshot(*snap)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), " should > progress.appliedIndex")
+
+	// round #2 it publish snapshot.
+	snap.Metadata.Index = 3
+	err = daemon.publishSnapshot(*snap)
+	require.NoError(t, err)
+	require.Equal(t, snap.Metadata.Index, daemon.snapIndex.Get())
+	require.Equal(t, snap.Metadata.Index, daemon.appliedIndex.Get())
 }
