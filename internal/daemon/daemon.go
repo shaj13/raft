@@ -163,7 +163,7 @@ func (d *daemon) ReportShutdown(id uint64) {
 	log.Info("raft.daemon: this member removed from the cluster! shutting down.")
 
 	if err := d.Close(); err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 }
 
