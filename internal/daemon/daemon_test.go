@@ -488,3 +488,77 @@ func TestPublishReplicate(t *testing.T) {
 	v := <-sub.Chan()
 	require.Nil(t, v)
 }
+
+func TestPublishConfChange(t *testing.T) {
+	closedc := make(chan struct{})
+	close(closedc)
+
+	table := []struct {
+		change etcdraftpb.ConfChangeType
+		expect func(*gomock.Controller, *daemon) <-chan struct{}
+		dur    time.Duration
+	}{
+		{
+			change: etcdraftpb.ConfChangeAddNode,
+			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Add(gomock.Any()).MinTimes(1)
+				d.pool = pool
+				return closedc
+			},
+		},
+		{
+			change: etcdraftpb.ConfChangeUpdateNode,
+			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+				pool := membershipmock.NewMockPool(ctrl)
+				pool.EXPECT().Update(gomock.Any()).MinTimes(1)
+				d.pool = pool
+				return closedc
+			},
+		},
+		{
+			change: etcdraftpb.ConfChangeRemoveNode,
+			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+				c := make(chan struct{})
+				pool := membershipmock.NewMockPool(ctrl)
+				cfg := NewMockConfig(ctrl)
+				pool.EXPECT().Remove(gomock.Any()).Do(func(raftpb.Member) {
+					c <- struct{}{}
+				}).MinTimes(1)
+				cfg.EXPECT().TickInterval().Return(time.Duration(-1))
+				d.pool = pool
+				d.cfg = cfg
+				return c
+			},
+		},
+	}
+
+	for _, tt := range table {
+		sid := uint64(1)
+		ctrl := gomock.NewController(t)
+		node := NewMockNode(ctrl)
+		d := new(daemon)
+		d.node = node
+		d.msgbus = msgbus.New()
+		sub := d.msgbus.SubscribeOnce(sid)
+		mem := &raftpb.Member{
+			ID: 1,
+		}
+		cc := &etcdraftpb.ConfChange{
+			Type:    tt.change,
+			ID:      sid,
+			Context: pbutil.MustMarshal(mem),
+		}
+		ent := etcdraftpb.Entry{
+			Data: pbutil.MustMarshal(cc),
+		}
+
+		node.EXPECT().ApplyConfChange(gomock.Eq(cc))
+		wait := tt.expect(ctrl, d)
+		d.publishConfChange(ent)
+		v := <-sub.Chan()
+		require.Nil(t, v)
+		<-wait
+		ctrl.Finish()
+	}
+}
