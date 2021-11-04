@@ -412,6 +412,10 @@ type config struct {
 	daemon           daemon.Daemon
 }
 
+func (c *config) Context() context.Context {
+	return c.ctx
+}
+
 func (c *config) TickInterval() time.Duration {
 	return c.tickInterval
 }

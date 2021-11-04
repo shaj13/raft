@@ -42,11 +42,9 @@ type Daemon interface {
 	ReportShutdown(id uint64)
 }
 
-func New(ctx context.Context, cfg Config) Daemon {
+func New(cfg Config) Daemon {
 	d := &daemon{}
-	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.cfg = cfg
-	d.wg = sync.WaitGroup{}
 	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
 	d.msgbus = msgbus.New()
@@ -403,7 +401,7 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	// set local member.
 	d.local = ost.local
 	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
-
+	d.ctx, d.cancel = context.WithCancel(d.cfg.Context())
 	snapshotc := make(chan struct{}, 10)
 	promotionsc := make(chan struct{}, 10)
 	d.proposec = make(chan etcdraftpb.Message, 4096)

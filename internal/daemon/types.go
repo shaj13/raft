@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -31,6 +32,7 @@ type Config interface {
 	Dial() transport.Dial
 	TickInterval() time.Duration
 	FSM() FSM
+	Context() context.Context
 }
 
 // FSM (finite-state machine) define an interface that can be implemented by

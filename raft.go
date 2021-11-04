@@ -16,7 +16,7 @@ func New(proto transport.Proto, opts ...Option) *Node {
 	cfg.storage = disk.New(ctx, cfg)
 	cfg.dial = dialer(ctx, cfg)
 	cfg.pool = membership.New(ctx, cfg)
-	cfg.daemon = daemon.New(ctx, cfg)
+	cfg.daemon = daemon.New(cfg)
 
 	node := new(Node)
 	node.pool = cfg.pool
