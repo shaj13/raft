@@ -562,3 +562,24 @@ func TestPublishConfChange(t *testing.T) {
 		ctrl.Finish()
 	}
 }
+
+func TestProcess(t *testing.T) {
+	c := make(chan etcdraftpb.Message)
+	done := make(chan struct{})
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	d := new(daemon)
+	d.node = node
+	d.ctx, d.cancel = context.WithCancel(context.TODO())
+
+	node.EXPECT().Step(gomock.Any(), gomock.Any()).MinTimes(1)
+	go func() {
+		d.process(c)
+		done <- struct{}{}
+	}()
+
+	c <- etcdraftpb.Message{}
+	d.cancel()
+	<-done
+	ctrl.Finish()
+}
