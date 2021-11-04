@@ -46,7 +46,6 @@ func New(ctx context.Context, cfg Config) Daemon {
 	d := &daemon{}
 	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.cfg = cfg
-	d.ticker = time.NewTicker(cfg.TickInterval())
 	d.wg = sync.WaitGroup{}
 	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
@@ -65,7 +64,6 @@ type daemon struct {
 	local        *raftpb.Member
 	cfg          Config
 	node         raft.Node
-	ticker       *time.Ticker
 	wg           sync.WaitGroup
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
@@ -422,12 +420,14 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 }
 
 func (d *daemon) eventLoop() error {
+	ticker := time.NewTicker(d.cfg.TickInterval())
 	d.wg.Add(1)
 	defer d.wg.Done()
+	defer ticker.Stop()
 
 	for {
 		select {
-		case <-d.ticker.C:
+		case <-ticker.C:
 			d.node.Tick()
 		case rd := <-d.node.Ready():
 			prevIndex := d.appliedIndex.Get()

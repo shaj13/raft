@@ -363,8 +363,8 @@ func TestEventLoop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
+	cfg := NewMockConfig(ctrl)
 	readyc := make(chan raft.Ready, 1)
-	tcr := time.NewTicker(time.Millisecond * 500)
 
 	readyc <- raft.Ready{}
 	node.EXPECT().Tick().MaxTimes(3).Do(func() {
@@ -373,16 +373,18 @@ func TestEventLoop(t *testing.T) {
 		}
 		count++
 	})
+
+	cfg.EXPECT().TickInterval().Return(time.Millisecond * 100)
 	node.EXPECT().Advance()
 	node.EXPECT().Ready().Return(readyc).AnyTimes()
 	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
 	d := new(daemon)
-	d.ticker = tcr
 	d.appliedIndex = atomic.NewUint64()
 	d.node = node
 	d.storage = stg
 	d.notify = make(chan struct{}, 1)
 	d.ctx = ctx
+	d.cfg = cfg
 
 	err := d.eventLoop()
 	require.Equal(t, ErrStopped, err)
