@@ -16,6 +16,7 @@ import (
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/idutil"
+	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -464,4 +465,26 @@ func TestPublishSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, snap.Metadata.Index, daemon.snapIndex.Get())
 	require.Equal(t, snap.Metadata.Index, daemon.appliedIndex.Get())
+}
+
+func TestPublishReplicate(t *testing.T) {
+	sid := uint64(1)
+	data := []byte("testData")
+	ctrl := gomock.NewController(t)
+	fsm := NewMockFSM(ctrl)
+	d := new(daemon)
+	d.fsm = fsm
+	d.msgbus = msgbus.New()
+	sub := d.msgbus.SubscribeOnce(sid)
+	rp := &raftpb.Replicate{
+		Data: data,
+		CID:  sid,
+	}
+	ent := etcdraftpb.Entry{
+		Data: pbutil.MustMarshal(rp),
+	}
+	fsm.EXPECT().Apply(gomock.Eq(data))
+	d.publishReplicate(ent)
+	v := <-sub.Chan()
+	require.Nil(t, v)
 }
