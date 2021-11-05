@@ -104,14 +104,16 @@ func TestReportSnapshot(t *testing.T) {
 func TestReportShutdown(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
 	node.EXPECT().Stop().MaxTimes(1)
+	stg.EXPECT().Close()
 	d := daemon{
 		node:    node,
 		started: atomic.NewBool(),
 		msgbus:  msgbus.New(),
+		storage: stg,
 		cancel:  func() {},
 	}
-
 	d.started.Set()
 	d.ReportShutdown(0)
 	require.True(t, d.started.False())

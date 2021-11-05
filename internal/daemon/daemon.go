@@ -199,12 +199,22 @@ func (d *daemon) Close() error {
 	}
 
 	d.started.UnSet()
-	d.cancel()
-	d.wg.Wait()
-	d.node.Stop()
-	d.msgbus.Clsoe()
-	d.storage.Close()
-	// close pool.
+
+	fns := []func() error{
+		nopClose(d.cancel),
+		nopClose(d.wg.Wait),
+		nopClose(d.node.Stop),
+		d.msgbus.Clsoe,
+		d.storage.Close,
+		// close pool.
+	}
+
+	for _, fn := range fns {
+		if err := fn(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -599,7 +609,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 			// to make sure the commit ack sent before closing connection.
 			<-time.After(d.cfg.TickInterval() * 2)
 			if err := d.pool.Remove(mem); err != nil {
-				log.Error("raft.daemon: removing member %x: %v", mem.ID, err)
+				log.Errorf("raft.daemon: removing member %x: %v", mem.ID, err)
 			}
 		}(*mem)
 	}
@@ -742,4 +752,11 @@ func (d *daemon) confState(cs *etcdraftpb.ConfState) *etcdraftpb.ConfState {
 	}
 
 	return d.cState
+}
+
+func nopClose(fn func()) func() error {
+	return func() error {
+		fn()
+		return nil
+	}
 }
