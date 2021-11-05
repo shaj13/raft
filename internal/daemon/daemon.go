@@ -178,8 +178,8 @@ func (d *daemon) ReportShutdown(id uint64) {
 	}
 }
 
-// Push m to the daemon queue.
-func (d *daemon) Push(m etcdraftpb.Message) error {
+// Push msg to the daemon queue.
+func (d *daemon) Push(msg etcdraftpb.Message) error {
 	if d.started.False() {
 		return ErrStopped
 	}
@@ -187,13 +187,24 @@ func (d *daemon) Push(m etcdraftpb.Message) error {
 	d.propwg.Add(1)
 	defer d.propwg.Done()
 
+	if err := d.ctx.Err(); err != nil {
+		return err
+	}
+
 	// chan based on msg type.
 	c := d.msgc
-	if m.Type == etcdraftpb.MsgProp {
+	if msg.Type == etcdraftpb.MsgProp {
 		c = d.proposec
 	}
 
-	c <- m
+	select {
+	case c <- msg:
+	case <-d.ctx.Done():
+		return d.ctx.Err()
+	default:
+		return errors.New("buffer is full (overloaded network)")
+	}
+
 	return nil
 }
 

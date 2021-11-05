@@ -144,6 +144,7 @@ func TestReportShutdown(t *testing.T) {
 func TestPush(t *testing.T) {
 	d := &daemon{
 		msgc:    make(chan etcdraftpb.Message, 1),
+		ctx:     context.TODO(),
 		started: atomic.NewBool(),
 	}
 
@@ -155,6 +156,17 @@ func TestPush(t *testing.T) {
 	d.started.Set()
 	err = d.Push(etcdraftpb.Message{})
 	require.NoError(t, err)
+
+	// round #2 it return err when buffer is full
+	err = d.Push(etcdraftpb.Message{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "buffer is full")
+
+	// round #4 it return err when ctx.Done
+	d.ctx, d.cancel = context.WithCancel(d.ctx)
+	d.cancel()
+	err = d.Push(etcdraftpb.Message{})
+	require.Equal(t, context.Canceled, err)
 }
 
 func TestStatus(t *testing.T) {
