@@ -677,10 +677,8 @@ func (d *daemon) process(c chan etcdraftpb.Message) {
 	// process must keep processing msg until c closed or ctx.Done(),
 	// for graceful shutdown purposes.
 	for m := range c {
-		select {
-		case <-d.ctx.Done():
+		if err := d.ctx.Err(); err != nil {
 			return
-		default:
 		}
 
 		if err := d.node.Step(d.ctx, m); err != nil {

@@ -171,10 +171,8 @@ func (r *remote) client() transport.Client {
 
 func (r *remote) process(ctx context.Context) {
 	for msg := range r.msgc {
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			return
-		default:
 		}
 
 		ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
