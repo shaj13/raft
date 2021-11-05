@@ -201,6 +201,11 @@ func (d *daemon) Close() error {
 	d.started.UnSet()
 
 	fns := []func() error{
+		nopClose(func() {
+			close(d.proposec)
+			close(d.msgc)
+			close(d.notify)
+		}),
 		nopClose(d.cancel),
 		nopClose(d.wg.Wait),
 		nopClose(d.node.Stop),
@@ -423,14 +428,9 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
 	d.notify = merge(snapshotc, promotionsc)
-	defer func() {
-		close(d.proposec)
-		close(d.msgc)
-		close(d.notify)
-		d.Close()
-	}()
-
 	d.started.Set()
+	defer d.Close()
+
 	go d.process(d.proposec)
 	go d.process(d.msgc)
 	go d.snapshots(snapshotc)

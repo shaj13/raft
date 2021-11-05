@@ -111,12 +111,15 @@ func TestReportShutdown(t *testing.T) {
 	stg.EXPECT().Close()
 	pool.EXPECT().Close()
 	d := daemon{
-		node:    node,
-		started: atomic.NewBool(),
-		msgbus:  msgbus.New(),
-		storage: stg,
-		pool:    pool,
-		cancel:  func() {},
+		node:     node,
+		started:  atomic.NewBool(),
+		msgbus:   msgbus.New(),
+		storage:  stg,
+		pool:     pool,
+		proposec: make(chan etcdraftpb.Message),
+		msgc:     make(chan etcdraftpb.Message),
+		notify:   make(chan struct{}),
+		cancel:   func() {},
 	}
 	d.started.Set()
 	d.ReportShutdown(0)
