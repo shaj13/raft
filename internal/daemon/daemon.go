@@ -62,10 +62,15 @@ type daemon struct {
 	local  *raftpb.Member
 	cfg    Config
 	node   raft.Node
-	// wg controls deamon goroutines
+	// wg waits for most of the daemon goroutines to be terminated before
+	// shutting down the node.
 	wg sync.WaitGroup
-	// propwg controls proposal goroutines
-	propwg       sync.WaitGroup
+	// propwg waits for all the proposals to be terminated before
+	// shutting down the node.
+	propwg sync.WaitGroup
+	// processwg waits for all the process goroutines to be terminated before
+	// shutting down the node.
+	processwg    sync.WaitGroup
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
 	msgbus       *msgbus.MsgBus
@@ -179,6 +184,9 @@ func (d *daemon) Push(m etcdraftpb.Message) error {
 		return ErrStopped
 	}
 
+	d.propwg.Add(1)
+	defer d.propwg.Done()
+
 	// chan based on msg type.
 	c := d.msgc
 	if m.Type == etcdraftpb.MsgProp {
@@ -207,12 +215,14 @@ func (d *daemon) Close() error {
 	d.started.UnSet()
 
 	fns := []func() error{
+		nopClose(d.propwg.Wait),
 		nopClose(func() {
 			close(d.proposec)
 			close(d.msgc)
+			d.processwg.Wait()
 		}),
-		nopClose(d.wg.Wait),
 		nopClose(d.cancel),
+		nopClose(d.wg.Wait),
 		nopClose(d.node.Stop),
 		d.msgbus.Clsoe,
 		d.storage.Close,
@@ -435,6 +445,7 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	d.notify = merge(snapshotc, promotionsc)
 	d.started.Set()
 	defer d.Close()
+	defer close(d.notify)
 
 	go d.process(d.proposec)
 	go d.process(d.msgc)
@@ -444,9 +455,11 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 }
 
 func (d *daemon) eventLoop() error {
+	d.wg.Add(1)
+	defer d.wg.Done()
+
 	ticker := time.NewTicker(d.cfg.TickInterval())
 	defer ticker.Stop()
-	defer close(d.notify)
 
 	for {
 		select {
@@ -631,9 +644,11 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 
 // process the incoming messages from the given chan.
 func (d *daemon) process(c chan etcdraftpb.Message) {
-	d.wg.Add(1)
-	defer d.wg.Done()
+	d.processwg.Add(1)
+	defer d.processwg.Done()
 
+	// process must keep processing msg until c closed or ctx.Done(),
+	// for graceful shutdown purposes.
 	for m := range c {
 		select {
 		case <-d.ctx.Done():
