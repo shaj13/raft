@@ -42,13 +42,15 @@ func TestStart(t *testing.T) {
 	node := NewMockNode(ctrl)
 
 	d := &daemon{
-		node:    node,
-		storage: stg,
-		pool:    pool,
-		cfg:     cfg,
-		msgbus:  msgbus.New(),
-		cache:   raft.NewMemoryStorage(),
-		started: atomic.NewBool(),
+		node:         node,
+		storage:      stg,
+		pool:         pool,
+		cfg:          cfg,
+		msgbus:       msgbus.New(),
+		cache:        raft.NewMemoryStorage(),
+		started:      atomic.NewBool(),
+		snapIndex:    atomic.NewUint64(),
+		appliedIndex: atomic.NewUint64(),
 	}
 
 	ctx, cancel := context.WithCancel(context.TODO())
