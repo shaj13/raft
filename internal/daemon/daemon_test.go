@@ -61,6 +61,7 @@ func TestStart(t *testing.T) {
 	cfg.EXPECT().Context().Return(ctx)
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
 	cfg.EXPECT().TickInterval().Return(time.Second)
+	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond)
 	stg.EXPECT().Exist().Return(false)
 	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
 	pool.EXPECT().TearDown(gomock.Any())
@@ -79,7 +80,10 @@ func TestReportUnreachable(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	node.EXPECT().ReportUnreachable(gomock.Eq(id)).MaxTimes(1)
-	d := daemon{node: node, started: atomic.NewBool()}
+	d := &daemon{
+		node:    node,
+		started: atomic.NewBool(),
+	}
 
 	// round #1 should not call ReportUnreachable when
 	// daemon not started
@@ -113,14 +117,19 @@ func TestReportShutdown(t *testing.T) {
 	node := NewMockNode(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
+	cfg := NewMockConfig(ctrl)
+
 	node.EXPECT().Stop().MaxTimes(1)
 	stg.EXPECT().Close()
 	pool.EXPECT().TearDown(gomock.Any())
+	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond)
+
 	d := daemon{
 		node:     node,
 		started:  atomic.NewBool(),
 		msgbus:   msgbus.New(),
 		storage:  stg,
+		cfg:      cfg,
 		pool:     pool,
 		proposec: make(chan etcdraftpb.Message),
 		msgc:     make(chan etcdraftpb.Message),

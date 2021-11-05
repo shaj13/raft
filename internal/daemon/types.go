@@ -33,6 +33,7 @@ type Config interface {
 	TickInterval() time.Duration
 	FSM() FSM
 	Context() context.Context
+	DrainTimeout() time.Duration
 }
 
 // FSM (finite-state machine) define an interface that can be implemented by

@@ -19,8 +19,6 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-const shutdownTimeout = time.Second * 10
-
 var (
 	ErrStopped  = errors.New("raft: daemon not ready yet or has been stopped")
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
@@ -175,10 +173,7 @@ func (d *daemon) ReportShutdown(id uint64) {
 
 	log.Info("raft.daemon: this member removed from the cluster! shutting down.")
 
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-
-	if err := d.Shutdown(ctx); err != nil {
+	if err := d.Shutdown(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -219,9 +214,15 @@ func (d *daemon) Shutdown(ctx context.Context) error {
 
 	d.started.UnSet()
 
+	var cancel context.CancelFunc
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, d.cfg.DrainTimeout())
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
+
 	// spawn a goroutine to force shutdown when the provided context
 	// expires before the graceful shutdown is complete.
-	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func(ctx context.Context) {
 		<-ctx.Done()

@@ -133,6 +133,20 @@ func (mr *MockConfigMockRecorder) Dial() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dial", reflect.TypeOf((*MockConfig)(nil).Dial))
 }
 
+// DrainTimeout mocks base method.
+func (m *MockConfig) DrainTimeout() time.Duration {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DrainTimeout")
+	ret0, _ := ret[0].(time.Duration)
+	return ret0
+}
+
+// DrainTimeout indicates an expected call of DrainTimeout.
+func (mr *MockConfigMockRecorder) DrainTimeout() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrainTimeout", reflect.TypeOf((*MockConfig)(nil).DrainTimeout))
+}
+
 // FSM mocks base method.
 func (m *MockConfig) FSM() FSM {
 	m.ctrl.T.Helper()
