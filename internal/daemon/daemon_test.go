@@ -23,6 +23,50 @@ import (
 	"go.etcd.io/etcd/raft/v3/tracker"
 )
 
+func TestNew(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+
+	cfg.EXPECT().Storage()
+	cfg.EXPECT().Pool()
+
+	d := New(cfg)
+	require.NotNil(t, d)
+}
+
+func TestStart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
+	stg := storagemock.NewMockStorage(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
+	node := NewMockNode(ctrl)
+
+	d := &daemon{
+		node:    node,
+		storage: stg,
+		pool:    pool,
+		cfg:     cfg,
+		msgbus:  msgbus.New(),
+		cache:   raft.NewMemoryStorage(),
+		started: atomic.NewBool(),
+	}
+
+	ctx, cancel := context.WithCancel(context.TODO())
+	cancel()
+	cfg.EXPECT().Context().Return(ctx)
+	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
+	cfg.EXPECT().TickInterval().Return(time.Second)
+	stg.EXPECT().Exist().Return(false)
+	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
+	stg.EXPECT().Boot(gomock.Any())
+	stg.EXPECT().Close()
+	node.EXPECT().Ready()
+	node.EXPECT().Stop()
+
+	err := d.Start(":80")
+	require.Equal(t, ErrStopped, err)
+}
+
 func TestReportUnreachable(t *testing.T) {
 	id := uint64(1)
 	ctrl := gomock.NewController(t)

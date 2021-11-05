@@ -194,11 +194,17 @@ func (d *daemon) Status() (raft.Status, error) {
 
 // Close the daemon.
 func (d *daemon) Close() error {
-	d.cancel()
+	if d.started.False() {
+		return nil
+	}
+
 	d.started.UnSet()
+	d.cancel()
 	d.wg.Wait()
 	d.node.Stop()
 	d.msgbus.Clsoe()
+	d.storage.Close()
+	// close pool.
 	return nil
 }
 
@@ -407,6 +413,7 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
 	d.notify = merge(snapshotc, promotionsc)
+	defer d.Close()
 	defer close(d.notify)
 
 	d.started.Set()
