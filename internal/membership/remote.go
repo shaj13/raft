@@ -28,10 +28,7 @@ func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error)
 	mem.dial = cfg.Dial()
 	mem.msgc = make(chan etcdraftpb.Message, 4096)
 	mem.done = make(chan struct{})
-	// assuming member is active.
-	mem.active = true
-	mem.activeSince = time.Now()
-	go mem.run()
+	go mem.process(mem.ctx)
 
 	return mem, nil
 }
@@ -128,8 +125,16 @@ func (r *remote) ID() uint64 {
 }
 
 func (r *remote) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.DrainTimeout())
+	defer cancel()
+	return r.tearDown(ctx)
+}
+
+func (r *remote) tearDown(ctx context.Context) error {
 	r.cancel()
-	<-r.done
+	r.setStatus(false)
+	close(r.msgc)  // ctx.Done no goroutines will write to msgc.
+	r.process(ctx) // drain msgc
 	return r.client().Close()
 }
 
@@ -164,63 +169,22 @@ func (r *remote) client() transport.Client {
 	return r.rc
 }
 
-func (r *remote) stream(ctx context.Context, msg etcdraftpb.Message) error {
-	ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
-	defer cancel()
-
-	rpc := r.client()
-	err := rpc.Message(ctx, msg)
-	r.report(msg, err)
-
-	return err
-}
-
-func (r *remote) drain() error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.DrainTimeout())
-	defer cancel()
-
-	for {
+func (r *remote) process(ctx context.Context) {
+	for msg := range r.msgc {
 		select {
-		case msg, ok := <-r.msgc:
-
-			if !ok {
-				return nil
-			}
-
-			if err := r.stream(ctx, msg); err != nil {
-				return err
-			}
-
 		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func (r *remote) run() {
-	defer func() {
-		r.setStatus(false)
-		close(r.msgc) // ctx.Done no goroutines will write to msgc.
-
-		// drain msgc and exit
-		if err := r.drain(); err != nil {
-			log.Warnf("raft.membership: draining member %x msg queue: %v", r.ID(), err)
-		}
-
-		close(r.done)
-	}()
-
-	for {
-		select {
-		case msg := <-r.msgc:
-			err := r.stream(r.ctx, msg)
-			if err != nil {
-				log.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
-			}
-			r.setStatus(err == nil)
-		case <-r.ctx.Done():
 			return
+		default:
 		}
 
+		ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
+		rpc := r.client()
+		err := rpc.Message(ctx, msg)
+		if err != nil {
+			log.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
+		}
+		r.report(msg, err)
+		r.setStatus(err == nil)
+		cancel()
 	}
 }

@@ -118,18 +118,6 @@ func TestRemoteUpdate(t *testing.T) {
 	require.Equal(t, uaddr, r.Address())
 }
 
-func TestRemoteStream(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := transportmock.NewMockClient(ctrl)
-	client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
-
-	r := new(remote)
-	r.rc = client
-	r.cfg = testConfig(t)
-	err := r.stream(context.TODO(), etcdraftpb.Message{})
-	require.NoError(t, err)
-}
-
 func TestRemoteReport(t *testing.T) {
 	id := uint64(1)
 	err := fmt.Errorf("TestRemoteReport error")
@@ -210,52 +198,7 @@ func TestRemoteSend(t *testing.T) {
 	require.Contains(t, err.Error(), "buffer is full")
 }
 
-func TestRemoteDrain(t *testing.T) {
-	table := []struct {
-		name    string
-		timeout time.Duration
-		err     string
-	}{
-		{
-			name:    "it return error when ctx done",
-			timeout: -1,
-			err:     "deadline exceeded",
-		},
-		{
-			name:    "it return nil when all msgs flushed",
-			timeout: time.Second * 3,
-			err:     "deadline exceeded",
-		},
-	}
-
-	for _, tt := range table {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			client := transportmock.NewMockClient(ctrl)
-			client.EXPECT().Message(gomock.Any(), gomock.Any()).Return(nil)
-
-			cfg := testConfig(t)
-			cfg.EXPECT().DrainTimeout().Return(tt.timeout)
-
-			r := new(remote)
-			r.msgc = make(chan etcdraftpb.Message, 1)
-			r.rc = client
-			r.cfg = cfg
-			r.ctx = context.TODO()
-
-			_ = r.Send(etcdraftpb.Message{})
-			err := r.drain()
-			if tt.err != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tt.err)
-				return
-			}
-			require.NoError(t, err)
-		})
-	}
-}
-
-func TestRemoteRun(t *testing.T) {
+func TestRemoteProcess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	rep := NewMockReporter(ctrl)
 	client := transportmock.NewMockClient(ctrl)
@@ -273,7 +216,7 @@ func TestRemoteRun(t *testing.T) {
 	r.active = true
 	r.done = make(chan struct{})
 	r.msgc = make(chan etcdraftpb.Message, 1)
-	go r.run()
+	go r.process(context.TODO())
 
 	_ = r.Send(etcdraftpb.Message{})
 
