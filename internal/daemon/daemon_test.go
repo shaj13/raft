@@ -55,6 +55,9 @@ func TestStart(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
+
+	defer d.Shutdown(ctx)
+
 	cfg.EXPECT().Context().Return(ctx)
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
 	cfg.EXPECT().TickInterval().Return(time.Second)

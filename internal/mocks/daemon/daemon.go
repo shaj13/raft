@@ -39,20 +39,6 @@ func (m *MockDaemon) EXPECT() *MockDaemonMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method.
-func (m *MockDaemon) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockDaemonMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDaemon)(nil).Close))
-}
-
 // CreateSnapshot mocks base method.
 func (m *MockDaemon) CreateSnapshot() (raftpb0.Snapshot, error) {
 	m.ctrl.T.Helper()
@@ -158,6 +144,20 @@ func (m *MockDaemon) ReportUnreachable(id uint64) {
 func (mr *MockDaemonMockRecorder) ReportUnreachable(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportUnreachable", reflect.TypeOf((*MockDaemon)(nil).ReportUnreachable), id)
+}
+
+// Shutdown mocks base method.
+func (m *MockDaemon) Shutdown(arg0 context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockDaemonMockRecorder) Shutdown(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockDaemon)(nil).Shutdown), arg0)
 }
 
 // Start mocks base method.
