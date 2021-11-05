@@ -184,6 +184,16 @@ func TestNodeHandler(t *testing.T) {
 	require.Equal(t, h, n.Handler())
 }
 
+func TestShutdown(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().Shutdown(gomock.Any())
+	n := new(Node)
+	n.daemon = daemon
+	err := n.Shutdown(context.TODO())
+	require.NoError(t, err)
+}
+
 func TestNodeLinearizableRead(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	daemon := daemonmock.NewMockDaemon(ctrl)

@@ -32,6 +32,10 @@ type Node struct {
 	exec func(fns ...func(c *Node) error) error
 }
 
+func (n *Node) Shutdown(ctx context.Context) error {
+	return n.daemon.Shutdown(ctx)
+}
+
 func (n *Node) Handler() etransport.Handler {
 	return n.handler
 }
