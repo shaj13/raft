@@ -58,6 +58,7 @@ func TestStart(t *testing.T) {
 	cfg.EXPECT().TickInterval().Return(time.Second)
 	stg.EXPECT().Exist().Return(false)
 	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
+	pool.EXPECT().Close()
 	stg.EXPECT().Boot(gomock.Any())
 	stg.EXPECT().Close()
 	node.EXPECT().Ready()
@@ -104,14 +105,17 @@ func TestReportSnapshot(t *testing.T) {
 func TestReportShutdown(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
+	pool := membershipmock.NewMockPool(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
 	node.EXPECT().Stop().MaxTimes(1)
 	stg.EXPECT().Close()
+	pool.EXPECT().Close()
 	d := daemon{
 		node:    node,
 		started: atomic.NewBool(),
 		msgbus:  msgbus.New(),
 		storage: stg,
+		pool:    pool,
 		cancel:  func() {},
 	}
 	d.started.Set()

@@ -206,7 +206,7 @@ func (d *daemon) Close() error {
 		nopClose(d.node.Stop),
 		d.msgbus.Clsoe,
 		d.storage.Close,
-		// close pool.
+		d.pool.Close,
 	}
 
 	for _, fn := range fns {
