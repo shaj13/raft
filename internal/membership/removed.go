@@ -46,6 +46,7 @@ func (r removed) Raw() raftpb.Member {
 	return r.raw
 }
 
-func (r removed) Close() (err error)         { return }
-func (r removed) ActiveSince() (t time.Time) { return }
-func (r removed) IsActive() (ok bool)        { return }
+func (r removed) Close() (err error)                       { return }
+func (r removed) TearDown(ctx context.Context) (err error) { return }
+func (r removed) ActiveSince() (t time.Time)               { return }
+func (r removed) IsActive() (ok bool)                      { return }

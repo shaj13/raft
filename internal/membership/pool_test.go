@@ -113,12 +113,12 @@ func TestPoolRemove(t *testing.T) {
 func TestPoolClose(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mem := NewMockMember(ctrl)
-	mem.EXPECT().Close().Return(ErrRemovedMember)
+	mem.EXPECT().TearDown(gomock.Any()).Return(ErrRemovedMember)
 	p := new(pool)
 	p.membs = map[uint64]Member{
 		1: mem,
 	}
-	err := p.Close()
+	err := p.TearDown(context.TODO())
 	require.Equal(t, ErrRemovedMember, err)
 }
 

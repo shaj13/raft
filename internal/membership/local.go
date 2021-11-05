@@ -68,3 +68,7 @@ func (l *local) Raw() raftpb.Member {
 	defer l.mu.Unlock()
 	return *l.raw // return shallow copy.
 }
+
+func (l *local) TearDown(ctx context.Context) error {
+	return l.Close()
+}

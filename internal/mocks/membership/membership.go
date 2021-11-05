@@ -5,6 +5,7 @@
 package membershipmock
 
 import (
+	context "context"
 	reflect "reflect"
 	time "time"
 
@@ -135,6 +136,20 @@ func (m *MockMember) Send(arg0 raftpb0.Message) error {
 func (mr *MockMemberMockRecorder) Send(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockMember)(nil).Send), arg0)
+}
+
+// TearDown mocks base method.
+func (m *MockMember) TearDown(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TearDown", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TearDown indicates an expected call of TearDown.
+func (mr *MockMemberMockRecorder) TearDown(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TearDown", reflect.TypeOf((*MockMember)(nil).TearDown), ctx)
 }
 
 // Type mocks base method.
@@ -340,20 +355,6 @@ func (mr *MockPoolMockRecorder) Add(m interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockPool)(nil).Add), m)
 }
 
-// Close mocks base method.
-func (m *MockPool) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockPoolMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockPool)(nil).Close))
-}
-
 // Get mocks base method.
 func (m *MockPool) Get(id uint64) (membership.Member, bool) {
 	m.ctrl.T.Helper()
@@ -447,6 +448,20 @@ func (m *MockPool) Snapshot() []raftpb.Member {
 func (mr *MockPoolMockRecorder) Snapshot() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockPool)(nil).Snapshot))
+}
+
+// TearDown mocks base method.
+func (m *MockPool) TearDown(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TearDown", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TearDown indicates an expected call of TearDown.
+func (mr *MockPoolMockRecorder) TearDown(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TearDown", reflect.TypeOf((*MockPool)(nil).TearDown), ctx)
 }
 
 // Update mocks base method.

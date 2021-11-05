@@ -127,10 +127,10 @@ func (r *remote) ID() uint64 {
 func (r *remote) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), r.cfg.DrainTimeout())
 	defer cancel()
-	return r.tearDown(ctx)
+	return r.TearDown(ctx)
 }
 
-func (r *remote) tearDown(ctx context.Context) error {
+func (r *remote) TearDown(ctx context.Context) error {
 	r.cancel()
 	r.setStatus(false)
 	close(r.msgc)  // ctx.Done no goroutines will write to msgc.

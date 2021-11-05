@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"context"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -22,6 +23,7 @@ type Member interface {
 	Type() raftpb.MemberType
 	Raw() raftpb.Member
 	Close() error
+	TearDown(ctx context.Context) error
 }
 
 type Reporter interface {
@@ -47,5 +49,5 @@ type Pool interface {
 	Snapshot() []raftpb.Member
 	Restore(pool raftpb.Pool)
 	RegisterTypeMatcher(fn func(m raftpb.Member) raftpb.MemberType)
-	Close() error
+	TearDown(ctx context.Context) error
 }

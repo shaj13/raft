@@ -63,11 +63,12 @@ func TestStart(t *testing.T) {
 	cfg.EXPECT().TickInterval().Return(time.Second)
 	stg.EXPECT().Exist().Return(false)
 	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
-	pool.EXPECT().Close()
+	pool.EXPECT().TearDown(gomock.Any())
 	stg.EXPECT().Boot(gomock.Any())
 	stg.EXPECT().Close()
 	node.EXPECT().Ready()
 	node.EXPECT().Stop()
+	node.EXPECT().Status().Return(raft.Status{})
 
 	err := d.Start(":80")
 	require.Equal(t, ErrStopped, err)
@@ -114,7 +115,7 @@ func TestReportShutdown(t *testing.T) {
 	stg := storagemock.NewMockStorage(ctrl)
 	node.EXPECT().Stop().MaxTimes(1)
 	stg.EXPECT().Close()
-	pool.EXPECT().Close()
+	pool.EXPECT().TearDown(gomock.Any())
 	d := daemon{
 		node:     node,
 		started:  atomic.NewBool(),

@@ -137,11 +137,11 @@ func (p *pool) Restore(pool raftpb.Pool) {
 	}
 }
 
-func (p *pool) Close() error {
+func (p *pool) TearDown(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _, mem := range p.membs {
-		if err := mem.Close(); err != nil {
+		if err := mem.TearDown(ctx); err != nil {
 			return err
 		}
 	}

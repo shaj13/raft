@@ -240,7 +240,9 @@ func (d *daemon) Shutdown(ctx context.Context) error {
 		nopClose(d.node.Stop),
 		d.msgbus.Clsoe,
 		d.storage.Close,
-		d.pool.Close,
+		func() error {
+			return d.pool.TearDown(ctx)
+		},
 	}
 
 	for _, fn := range fns {
