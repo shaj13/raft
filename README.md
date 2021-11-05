@@ -2,7 +2,6 @@
 
 ### TODO 
 - [ ] add node replicate
-- [ ] add node shutdown 
 - [ ] add node docs 
 - [ ] remove ctx from all funcs 
 - [ ] close gc when closing disk 
