@@ -340,6 +340,20 @@ func (mr *MockPoolMockRecorder) Add(m interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockPool)(nil).Add), m)
 }
 
+// Close mocks base method.
+func (m *MockPool) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockPoolMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockPool)(nil).Close))
+}
+
 // Get mocks base method.
 func (m *MockPool) Get(id uint64) (membership.Member, bool) {
 	m.ctrl.T.Helper()

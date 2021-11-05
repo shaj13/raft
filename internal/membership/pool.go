@@ -137,6 +137,17 @@ func (p *pool) Restore(pool raftpb.Pool) {
 	}
 }
 
+func (p *pool) Close() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, mem := range p.membs {
+		if err := mem.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
 	switch p.matcher(m) {
 	case raftpb.VoterMember, raftpb.LearnerMember, raftpb.StagingMember:

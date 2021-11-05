@@ -110,6 +110,18 @@ func TestPoolRemove(t *testing.T) {
 	}
 }
 
+func TestPoolClose(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mem := NewMockMember(ctrl)
+	mem.EXPECT().Close().Return(ErrRemovedMember)
+	p := new(pool)
+	p.membs = map[uint64]Member{
+		1: mem,
+	}
+	err := p.Close()
+	require.Equal(t, ErrRemovedMember, err)
+}
+
 func testConfig(t *testing.T) *MockConfig {
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
