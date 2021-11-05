@@ -599,6 +599,7 @@ func TestPublishConfChange(t *testing.T) {
 		d := new(daemon)
 		d.node = node
 		d.msgbus = msgbus.New()
+		d.ctx = context.TODO()
 		sub := d.msgbus.SubscribeOnce(sid)
 		mem := &raftpb.Member{
 			ID: 1,
@@ -682,6 +683,7 @@ func TestSnapshots(t *testing.T) {
 	d.appliedIndex = atomic.NewUint64()
 	d.snapIndex = atomic.NewUint64()
 	d.fsm = fsm
+	d.ctx, d.cancel = context.WithCancel(context.TODO())
 
 	cfg.EXPECT().SnapInterval().Return(uint64(1)).MaxTimes(2)
 	fsm.EXPECT().Snapshot().Return(nil, ErrStopped).MinTimes(1)
@@ -697,8 +699,7 @@ func TestSnapshots(t *testing.T) {
 	// round #2 it create snapshot.
 	d.appliedIndex.Set(10)
 	c <- struct{}{}
-
-	close(c)
+	d.cancel()
 	<-done
 	ctrl.Finish()
 }
@@ -719,7 +720,7 @@ func TestPromotions(t *testing.T) {
 	d.cfg = cfg
 	d.idgen = idutil.NewGenerator(1, time.Now())
 	d.started = atomic.NewBool()
-
+	d.ctx, d.cancel = context.WithCancel(context.TODO())
 	rs := raft.Status{
 		BasicStatus: raft.BasicStatus{
 			ID: 1,
@@ -750,7 +751,7 @@ func TestPromotions(t *testing.T) {
 	go d.promotions(c)
 
 	c <- struct{}{}
-	close(c)
+	d.cancel()
 	<-done
 	ctrl.Finish()
 }

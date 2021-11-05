@@ -56,13 +56,16 @@ func New(cfg Config) Daemon {
 }
 
 type daemon struct {
-	ctx          context.Context
-	cancel       context.CancelFunc
-	fsm          FSM
-	local        *raftpb.Member
-	cfg          Config
-	node         raft.Node
-	wg           sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+	fsm    FSM
+	local  *raftpb.Member
+	cfg    Config
+	node   raft.Node
+	// wg controls deamon goroutines
+	wg sync.WaitGroup
+	// propwg controls proposal goroutines
+	propwg       sync.WaitGroup
 	cache        *raft.MemoryStorage
 	storage      storage.Storage
 	msgbus       *msgbus.MsgBus
@@ -82,6 +85,9 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration)
 	if d.started.False() {
 		return ErrStopped
 	}
+
+	d.propwg.Add(1)
+	defer d.propwg.Done()
 
 	// read raft leader index.
 	index, err := func() (uint64, error) {
@@ -204,10 +210,9 @@ func (d *daemon) Close() error {
 		nopClose(func() {
 			close(d.proposec)
 			close(d.msgc)
-			close(d.notify)
 		}),
-		nopClose(d.cancel),
 		nopClose(d.wg.Wait),
+		nopClose(d.cancel),
 		nopClose(d.node.Stop),
 		d.msgbus.Clsoe,
 		d.storage.Close,
@@ -229,8 +234,8 @@ func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) erro
 		return ErrStopped
 	}
 
-	d.wg.Add(1)
-	defer d.wg.Done()
+	d.propwg.Add(1)
+	defer d.propwg.Done()
 
 	log.Infof("raft.daemon: start transfer leadership %x -> %x", d.node.Status().Lead, transferee)
 
@@ -258,8 +263,8 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 		return ErrStopped
 	}
 
-	d.wg.Add(1)
-	defer d.wg.Done()
+	d.propwg.Add(1)
+	defer d.propwg.Done()
 
 	r := &raftpb.Replicate{
 		CID:  d.idgen.Next(),
@@ -298,8 +303,8 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcd
 		return ErrStopped
 	}
 
-	d.wg.Add(1)
-	defer d.wg.Done()
+	d.propwg.Add(1)
+	defer d.propwg.Done()
 
 	buf, err := m.Marshal()
 	if err != nil {
@@ -440,9 +445,8 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 
 func (d *daemon) eventLoop() error {
 	ticker := time.NewTicker(d.cfg.TickInterval())
-	d.wg.Add(1)
-	defer d.wg.Done()
 	defer ticker.Stop()
+	defer close(d.notify)
 
 	for {
 		select {
@@ -609,11 +613,15 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		d.wg.Add(1)
 		go func(mem raftpb.Member) {
 			defer d.wg.Done()
+			select {
 			// wait for two ticks then go and remove the member from the pool.
 			// to make sure the commit ack sent before closing connection.
-			<-time.After(d.cfg.TickInterval() * 2)
-			if err := d.pool.Remove(mem); err != nil {
-				log.Errorf("raft.daemon: removing member %x: %v", mem.ID, err)
+			case <-time.After(d.cfg.TickInterval() * 2):
+				if err := d.pool.Remove(mem); err != nil {
+					log.Errorf("raft.daemon: removing member %x: %v", mem.ID, err)
+				}
+			case <-d.ctx.Done():
+				return
 			}
 		}(*mem)
 	}
@@ -666,17 +674,22 @@ func (d *daemon) snapshots(c chan struct{}) {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	for range c {
-		if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
-			continue
-		}
+	for {
+		select {
+		case <-c:
+			if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
+				continue
+			}
 
-		if _, err := d.CreateSnapshot(); err != nil {
-			log.Errorf(
-				"raft.daemon: creating new snapshot at index %s failed: %v",
-				d.appliedIndex,
-				err,
-			)
+			if _, err := d.CreateSnapshot(); err != nil {
+				log.Errorf(
+					"raft.daemon: creating new snapshot at index %s failed: %v",
+					d.appliedIndex,
+					err,
+				)
+			}
+		case <-d.ctx.Done():
+			return
 		}
 	}
 }
@@ -686,64 +699,69 @@ func (d *daemon) promotions(c chan struct{}) {
 	defer d.wg.Done()
 	inProgress := new(sync.Map)
 
-	for range c {
-		rs := d.node.Status()
-		// the current node is not the leader.
-		if rs.Progress == nil {
-			continue
-		}
-
-		promotions := []raftpb.Member{}
-		membs := d.pool.Members()
-		reachables := 0
-		voters := 0
-
-		for _, mem := range membs {
-			raw := mem.Raw()
-			if raw.Type == raftpb.VoterMember {
-				voters++
-			}
-
-			if mem.IsActive() && raw.Type == raftpb.VoterMember {
-				reachables++
-			}
-
-			if raw.Type != raftpb.StagingMember {
+	for {
+		select {
+		case <-c:
+			rs := d.node.Status()
+			// the current node is not the leader.
+			if rs.Progress == nil {
 				continue
 			}
 
-			if _, ok := inProgress.Load(raw.ID); ok {
-				continue
-			}
+			promotions := []raftpb.Member{}
+			membs := d.pool.Members()
+			reachables := 0
+			voters := 0
 
-			leader := rs.Progress[rs.ID].Match
-			staging := rs.Progress[raw.ID].Match
-
-			// the staging Match not caught up with the leader yet.
-			if float64(staging) < float64(leader)*0.9 {
-				continue
-			}
-
-			(&raw).Type = raftpb.VoterMember
-			promotions = append(promotions, raw)
-		}
-
-		// quorum lost and the cluster unavailable, no new logs can be committed.
-		if reachables < voters/2+1 {
-			continue
-		}
-
-		for _, m := range promotions {
-			inProgress.Store(m.ID, nil)
-			go func(m *raftpb.Member) {
-				log.Infof("raft.daemon: promoting staging member %x", m.ID)
-				ctx, cancel := context.WithTimeout(context.Background(), d.cfg.TickInterval()*5)
-				defer cancel()
-				err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
-				if err != nil {
-					log.Warnf("raft.daemon: promoting staging member %x: %v", m.ID, err)
+			for _, mem := range membs {
+				raw := mem.Raw()
+				if raw.Type == raftpb.VoterMember {
+					voters++
 				}
-			}(&m)
+
+				if mem.IsActive() && raw.Type == raftpb.VoterMember {
+					reachables++
+				}
+
+				if raw.Type != raftpb.StagingMember {
+					continue
+				}
+
+				if _, ok := inProgress.Load(raw.ID); ok {
+					continue
+				}
+
+				leader := rs.Progress[rs.ID].Match
+				staging := rs.Progress[raw.ID].Match
+
+				// the staging Match not caught up with the leader yet.
+				if float64(staging) < float64(leader)*0.9 {
+					continue
+				}
+
+				(&raw).Type = raftpb.VoterMember
+				promotions = append(promotions, raw)
+			}
+
+			// quorum lost and the cluster unavailable, no new logs can be committed.
+			if reachables < voters/2+1 {
+				continue
+			}
+
+			for _, m := range promotions {
+				inProgress.Store(m.ID, nil)
+				go func(m *raftpb.Member) {
+					log.Infof("raft.daemon: promoting staging member %x", m.ID)
+					ctx, cancel := context.WithTimeout(context.Background(), d.cfg.TickInterval()*5)
+					defer cancel()
+					err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
+					if err != nil {
+						log.Warnf("raft.daemon: promoting staging member %x: %v", m.ID, err)
+					}
+				}(&m)
+			}
+		case <-d.ctx.Done():
+			return
 		}
 	}
 }
