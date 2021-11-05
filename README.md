@@ -12,6 +12,8 @@
 - [ ] Repair wall 
 - [ ] membership use raw instead of *raw 
 - [ ] disk check all logs
+- [ ] remoce retry after from linear read 
+- [ ] pool remove drain timeout and use ctx from shutdown
 
 
 
