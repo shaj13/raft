@@ -423,8 +423,12 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
 	d.notify = merge(snapshotc, promotionsc)
-	defer d.Close()
-	defer close(d.notify)
+	defer func() {
+		close(d.proposec)
+		close(d.msgc)
+		close(d.notify)
+		d.Close()
+	}()
 
 	d.started.Set()
 	go d.process(d.proposec)
@@ -622,14 +626,15 @@ func (d *daemon) process(c chan etcdraftpb.Message) {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	for {
+	for m := range c {
 		select {
-		case m := <-c:
-			if err := d.node.Step(d.ctx, m); err != nil {
-				log.Warnf("raft.daemon: process raft message: %v", err)
-			}
 		case <-d.ctx.Done():
 			return
+		default:
+		}
+
+		if err := d.node.Step(d.ctx, m); err != nil {
+			log.Warnf("raft.daemon: process raft message: %v", err)
 		}
 	}
 }

@@ -636,6 +636,8 @@ func TestProcess(t *testing.T) {
 
 	c <- etcdraftpb.Message{}
 	d.cancel()
+	// it should not process this msg.
+	c <- etcdraftpb.Message{}
 	<-done
 	ctrl.Finish()
 }
