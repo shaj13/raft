@@ -14,7 +14,7 @@ func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
 	return &local{
 		r:      cfg.Reporter(),
 		active: time.Now(),
-		raw:    &m,
+		raw:    m,
 	}, nil
 }
 
@@ -23,7 +23,7 @@ type local struct {
 	r      Reporter
 	active time.Time
 	mu     sync.Mutex // protects raw
-	raw    *raftpb.Member
+	raw    raftpb.Member
 }
 
 func (l *local) ID() uint64 {
@@ -49,7 +49,7 @@ func (l *local) Type() raftpb.MemberType {
 func (l *local) Update(m raftpb.Member) (err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.raw = &m
+	l.raw = m
 	return
 }
 
@@ -66,7 +66,7 @@ func (l *local) Send(etcdraftpb.Message) error {
 func (l *local) Raw() raftpb.Member {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return *l.raw // return shallow copy.
+	return l.raw
 }
 
 func (l *local) TearDown(ctx context.Context) error {

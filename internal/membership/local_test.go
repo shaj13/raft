@@ -12,8 +12,9 @@ import (
 func TestLocal(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
+	raw := raftpb.Member{ID: 2}
 	l := local{
-		raw: &raftpb.Member{
+		raw: raftpb.Member{
 			ID:      id,
 			Address: addr,
 			Type:    raftpb.LearnerMember,
@@ -25,8 +26,8 @@ func TestLocal(t *testing.T) {
 	require.False(t, l.IsActive())
 	require.Equal(t, l.ActiveSince(), time.Time{})
 	require.Equal(t, l.Type(), raftpb.LearnerMember)
-	require.NoError(t, l.Update(raftpb.Member{}))
+	require.NoError(t, l.Update(raw))
 	require.Empty(t, l.Address())
 	require.Panics(t, func() { l.Send(etcdraftpb.Message{}) })
-	require.NotNil(t, l.Raw())
+	require.Equal(t, raw, l.Raw())
 }
