@@ -35,12 +35,11 @@ func TestNewRemote(t *testing.T) {
 func TestRemote(t *testing.T) {
 	id := uint64(1)
 	addr := ":50051"
-	r := remote{
-		raw: raftpb.Member{
-			ID:      id,
-			Address: addr,
-		},
-	}
+	r := remote{}
+	r.raw.Store(raftpb.Member{
+		ID:      id,
+		Address: addr,
+	})
 
 	require.Equal(t, r.ID(), id)
 	require.Equal(t, r.Address(), addr)
@@ -96,7 +95,7 @@ func TestRemoteUpdate(t *testing.T) {
 	client.EXPECT().Close().Return(nil)
 
 	r := new(remote)
-	r.raw = raftpb.Member{Address: addr}
+	r.raw.Store(raftpb.Member{Address: addr})
 	r.rc = client
 	r.ctx = context.TODO()
 	r.dial = mockDial(nil, err)
@@ -169,7 +168,7 @@ func TestRemoteReport(t *testing.T) {
 
 			r := new(remote)
 			r.r = rep
-			r.raw = raftpb.Member{ID: id}
+			r.raw.Store(raftpb.Member{ID: id})
 			r.report(tt.msg, tt.err)
 		})
 	}
@@ -183,7 +182,7 @@ func TestRemoteSend(t *testing.T) {
 	r := new(remote)
 	r.msgc = make(chan etcdraftpb.Message)
 	r.r = rep
-	r.raw = raftpb.Member{}
+	r.raw.Store(raftpb.Member{})
 
 	// Round #1 it return error when ctx canceled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -209,7 +208,7 @@ func TestRemoteProcess(t *testing.T) {
 
 	r := new(remote)
 	r.r = rep
-	r.raw = raftpb.Member{}
+	r.raw.Store(raftpb.Member{})
 	r.cfg = testConfig(t)
 	r.rc = client
 	r.ctx, r.cancel = context.WithCancel(context.Background())
