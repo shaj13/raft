@@ -728,22 +728,21 @@ func (d *daemon) snapshots(c chan struct{}) {
 	d.wg.Add(1)
 	defer d.wg.Done()
 
-	for {
-		select {
-		case <-c:
-			if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
-				continue
-			}
-
-			if _, err := d.CreateSnapshot(); err != nil {
-				log.Errorf(
-					"raft.daemon: creating new snapshot at index %s failed: %v",
-					d.appliedIndex,
-					err,
-				)
-			}
-		case <-d.ctx.Done():
+	for range c {
+		if d.ctx.Err() != nil {
 			return
+		}
+
+		if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
+			continue
+		}
+
+		if _, err := d.CreateSnapshot(); err != nil {
+			log.Errorf(
+				"raft.daemon: creating new snapshot at index %s failed: %v",
+				d.appliedIndex,
+				err,
+			)
 		}
 	}
 }
@@ -753,69 +752,68 @@ func (d *daemon) promotions(c chan struct{}) {
 	defer d.wg.Done()
 	inProgress := new(sync.Map)
 
-	for {
-		select {
-		case <-c:
-			rs := d.node.Status()
-			// the current node is not the leader.
-			if rs.Progress == nil {
-				continue
-			}
-
-			promotions := []raftpb.Member{}
-			membs := d.pool.Members()
-			reachables := 0
-			voters := 0
-
-			for _, mem := range membs {
-				raw := mem.Raw()
-				if raw.Type == raftpb.VoterMember {
-					voters++
-				}
-
-				if mem.IsActive() && raw.Type == raftpb.VoterMember {
-					reachables++
-				}
-
-				if raw.Type != raftpb.StagingMember {
-					continue
-				}
-
-				if _, ok := inProgress.Load(raw.ID); ok {
-					continue
-				}
-
-				leader := rs.Progress[rs.ID].Match
-				staging := rs.Progress[raw.ID].Match
-
-				// the staging Match not caught up with the leader yet.
-				if float64(staging) < float64(leader)*0.9 {
-					continue
-				}
-
-				(&raw).Type = raftpb.VoterMember
-				promotions = append(promotions, raw)
-			}
-
-			// quorum lost and the cluster unavailable, no new logs can be committed.
-			if reachables < voters/2+1 {
-				continue
-			}
-
-			for _, m := range promotions {
-				inProgress.Store(m.ID, nil)
-				go func(m *raftpb.Member) {
-					log.Infof("raft.daemon: promoting staging member %x", m.ID)
-					ctx, cancel := context.WithTimeout(context.Background(), d.cfg.TickInterval()*5)
-					defer cancel()
-					err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
-					if err != nil {
-						log.Warnf("raft.daemon: promoting staging member %x: %v", m.ID, err)
-					}
-				}(&m)
-			}
-		case <-d.ctx.Done():
+	for range c {
+		if d.ctx.Err() != nil {
 			return
+		}
+
+		rs := d.node.Status()
+		// the current node is not the leader.
+		if rs.Progress == nil {
+			continue
+		}
+
+		promotions := []raftpb.Member{}
+		membs := d.pool.Members()
+		reachables := 0
+		voters := 0
+
+		for _, mem := range membs {
+			raw := mem.Raw()
+			if raw.Type == raftpb.VoterMember {
+				voters++
+			}
+
+			if mem.IsActive() && raw.Type == raftpb.VoterMember {
+				reachables++
+			}
+
+			if raw.Type != raftpb.StagingMember {
+				continue
+			}
+
+			if _, ok := inProgress.Load(raw.ID); ok {
+				continue
+			}
+
+			leader := rs.Progress[rs.ID].Match
+			staging := rs.Progress[raw.ID].Match
+
+			// the staging Match not caught up with the leader yet.
+			if float64(staging) < float64(leader)*0.9 {
+				continue
+			}
+
+			(&raw).Type = raftpb.VoterMember
+			promotions = append(promotions, raw)
+		}
+
+		// quorum lost and the cluster unavailable, no new logs can be committed.
+		if reachables < voters/2+1 {
+			continue
+		}
+
+		for _, m := range promotions {
+			inProgress.Store(m.ID, nil)
+			go func(m *raftpb.Member) {
+				log.Infof("raft.daemon: promoting staging member %x", m.ID)
+				ctx, cancel := context.WithTimeout(context.Background(), d.cfg.TickInterval()*5)
+				defer cancel()
+				err := d.ProposeConfChange(ctx, m, etcdraftpb.ConfChangeAddNode)
+				if err != nil {
+					log.Warnf("raft.daemon: promoting staging member %x: %v", m.ID, err)
+				}
+			}(&m)
 		}
 	}
 }

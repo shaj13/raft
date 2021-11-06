@@ -735,7 +735,7 @@ func TestSnapshots(t *testing.T) {
 	// round #2 it create snapshot.
 	d.appliedIndex.Set(10)
 	c <- struct{}{}
-	d.cancel()
+	close(c)
 	<-done
 	ctrl.Finish()
 }
