@@ -1,7 +1,6 @@
 # raftkit
 
 ### TODO 
-- [ ] daemon all prop must also monit daemon ctx.Done 
 - [ ] add node replicate
 - [ ] add node docs 
 - [ ] remove ctx from all funcs 
