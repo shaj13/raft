@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	ErrStopped  = errors.New("raft: daemon not ready yet or has been stopped")
+	ErrStopped  = errors.New("raft: node not ready yet or has been stopped")
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
@@ -224,7 +224,7 @@ func (d *daemon) Status() (raft.Status, error) {
 // Close the daemon.
 func (d *daemon) Shutdown(ctx context.Context) error {
 	if d.started.False() {
-		return nil
+		return ErrStopped
 	}
 
 	d.started.UnSet()
