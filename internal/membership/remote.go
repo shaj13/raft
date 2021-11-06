@@ -22,7 +22,7 @@ func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error)
 	mem := new(remote)
 	mem.ctx, mem.cancel = context.WithCancel(ctx)
 	mem.rc = rpc
-	mem.raw = &m
+	mem.raw = m
 	mem.cfg = cfg
 	mem.r = cfg.Reporter()
 	mem.dial = cfg.Dial()
@@ -45,14 +45,14 @@ type remote struct {
 	mu          sync.Mutex // protects followings
 	active      bool
 	rc          transport.Client
-	raw         *raftpb.Member
+	raw         raftpb.Member
 	activeSince time.Time
 }
 
 func (r *remote) Raw() raftpb.Member {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return *r.raw // return shallow copy.
+	return r.raw
 }
 
 func (r *remote) Type() raftpb.MemberType {
@@ -86,7 +86,7 @@ func (r *remote) Update(m raftpb.Member) error {
 	defer r.mu.Unlock()
 
 	if r.raw.Address == m.Address || r.ctx.Err() != nil {
-		r.raw = &m
+		r.raw = m
 		return r.ctx.Err()
 	}
 
@@ -100,7 +100,7 @@ func (r *remote) Update(m raftpb.Member) error {
 	}
 
 	r.rc = rc
-	r.raw = &m
+	r.raw = m
 	return nil
 }
 
