@@ -10,6 +10,7 @@ require (
 	go.etcd.io/etcd/pkg/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/raft/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/server/v3 v3.5.0-alpha.0
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 )

@@ -9,6 +9,7 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -140,12 +141,18 @@ func (p *pool) Restore(pool raftpb.Pool) {
 func (p *pool) TearDown(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	eg := new(errgroup.Group)
 	for _, mem := range p.membs {
-		if err := mem.TearDown(ctx); err != nil {
-			return err
+		// The following wrapper needed to sync the mem with the goroutine,
+		// Otherwise, all goroutines will use the last mem from the range.
+		fn := func(mem Member) func() error {
+			return func() error {
+				return mem.TearDown(ctx)
+			}
 		}
+		eg.Go(fn(mem))
 	}
-	return nil
+	return eg.Wait()
 }
 
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
