@@ -120,6 +120,8 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration)
 				return v.(uint64), nil
 			case <-ctx.Done():
 				return 0, ctx.Err()
+			case <-d.ctx.Done():
+				return 0, ErrStopped
 			}
 		}
 	}()
@@ -144,6 +146,8 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration)
 		}
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-d.ctx.Done():
+		return ErrStopped
 	}
 
 	return nil
@@ -286,6 +290,8 @@ func (d *daemon) TransferLeadership(ctx context.Context, transferee uint64) erro
 			break
 		}
 		select {
+		case <-d.ctx.Done():
+			return ErrStopped
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
@@ -332,6 +338,8 @@ func (d *daemon) ProposeReplicate(ctx context.Context, data []byte) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-d.ctx.Done():
+		return ErrStopped
 	}
 }
 
@@ -374,11 +382,17 @@ func (d *daemon) ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcd
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-d.ctx.Done():
+		return ErrStopped
 	}
 }
 
 // CreateSnapshot begin a snapshot and return snap metadata.
 func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
+	if d.started.False() {
+		return etcdraftpb.Snapshot{}, ErrStopped
+	}
+
 	appliedIndex := d.appliedIndex.Get()
 	snapIndex := d.snapIndex.Get()
 

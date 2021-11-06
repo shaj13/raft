@@ -40,6 +40,7 @@ func TestStart(t *testing.T) {
 	stg := storagemock.NewMockStorage(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
 	node := NewMockNode(ctrl)
+	ready := make(chan raft.Ready)
 
 	d := &daemon{
 		node:         node,
@@ -67,7 +68,7 @@ func TestStart(t *testing.T) {
 	pool.EXPECT().TearDown(gomock.Any())
 	stg.EXPECT().Boot(gomock.Any())
 	stg.EXPECT().Close()
-	node.EXPECT().Ready()
+	node.EXPECT().Ready().Return(ready)
 	node.EXPECT().Stop()
 	node.EXPECT().Status().Return(raft.Status{})
 
@@ -197,6 +198,7 @@ func TestProposeReplicate(t *testing.T) {
 		node:    node,
 		started: atomic.NewBool(),
 		msgbus:  msgbus.New(),
+		ctx:     context.TODO(),
 	}
 
 	// round #1 it return err when daemon not started
@@ -228,6 +230,7 @@ func TestProposeConfChange(t *testing.T) {
 		node:    node,
 		started: atomic.NewBool(),
 		msgbus:  msgbus.New(),
+		ctx:     context.TODO(),
 	}
 
 	// round #1 it return err when daemon not started
@@ -262,6 +265,7 @@ func TestTransferLeadership(t *testing.T) {
 		started: atomic.NewBool(),
 		node:    node,
 		cfg:     cfg,
+		ctx:     context.TODO(),
 	}
 
 	// round #1 it return err when daemon not started.
@@ -309,6 +313,7 @@ func TestLinearizableRead(t *testing.T) {
 		node:    node,
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		msgbus:  msgbus.New(),
+		ctx:     context.TODO(),
 	}
 
 	// round #1 it return err when daemon not started.
@@ -405,6 +410,8 @@ func TestCreateSnapshot(t *testing.T) {
 		snapIndex:    atomic.NewUint64(),
 		cache:        raft.NewMemoryStorage(),
 	}
+
+	d.started.Set()
 
 	// round #1 it return's latest snap when indices are equaled.
 	_, err := d.CreateSnapshot()
@@ -706,12 +713,14 @@ func TestSnapshots(t *testing.T) {
 	fsm := NewMockFSM(ctrl)
 	cfg := NewMockConfig(ctrl)
 	d := new(daemon)
+	d.started = atomic.NewBool()
 	d.cfg = cfg
 	d.appliedIndex = atomic.NewUint64()
 	d.snapIndex = atomic.NewUint64()
 	d.fsm = fsm
 	d.ctx, d.cancel = context.WithCancel(context.TODO())
 
+	d.started.Set()
 	cfg.EXPECT().SnapInterval().Return(uint64(1)).MaxTimes(2)
 	fsm.EXPECT().Snapshot().Return(nil, ErrStopped).MinTimes(1)
 
