@@ -13,14 +13,12 @@ func TestLocal(t *testing.T) {
 	addr := ":50051"
 	id := uint64(1)
 	raw := raftpb.Member{ID: 2}
-	l := local{
-		raw: raftpb.Member{
-			ID:      id,
-			Address: addr,
-			Type:    raftpb.LearnerMember,
-		},
-	}
-
+	l := local{}
+	l.raw.Store(raftpb.Member{
+		ID:      id,
+		Address: addr,
+		Type:    raftpb.LearnerMember,
+	})
 	require.Equal(t, l.ID(), id)
 	require.Equal(t, l.Address(), addr)
 	require.False(t, l.IsActive())

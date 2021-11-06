@@ -3,7 +3,7 @@ package membership
 import (
 	"context"
 	"log"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -11,19 +11,19 @@ import (
 )
 
 func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
-	return &local{
+	l := &local{
 		r:      cfg.Reporter(),
 		active: time.Now(),
-		raw:    m,
-	}, nil
+	}
+	l.Update(m)
+	return l, nil
 }
 
 // local represents the current cluster member.
 type local struct {
 	r      Reporter
 	active time.Time
-	mu     sync.Mutex // protects raw
-	raw    raftpb.Member
+	raw    atomic.Value
 }
 
 func (l *local) ID() uint64 {
@@ -47,9 +47,7 @@ func (l *local) Type() raftpb.MemberType {
 }
 
 func (l *local) Update(m raftpb.Member) (err error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.raw = m
+	l.raw.Store(m)
 	return
 }
 
@@ -64,9 +62,7 @@ func (l *local) Send(etcdraftpb.Message) error {
 }
 
 func (l *local) Raw() raftpb.Member {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.raw
+	return l.raw.Load().(raftpb.Member)
 }
 
 func (l *local) TearDown(ctx context.Context) error {
