@@ -43,8 +43,8 @@ type remote struct {
 	dial        transport.Dial
 	msgc        chan etcdraftpb.Message
 	done        chan struct{}
+	mu          sync.Mutex // protects following fields
 	raw         atomic.Value
-	mu          sync.Mutex // protects followings
 	active      bool
 	rc          transport.Client
 	activeSince time.Time
