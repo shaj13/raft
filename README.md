@@ -3,7 +3,6 @@
 ### TODO 
 - [ ] add node replicate
 - [ ] add node docs 
-- [ ] close gc when closing disk 
 - [ ] add tcp rpc 
 - [ ] check the conf change v2 in etcd
 - [ ] generete grpc under standalone package. 
