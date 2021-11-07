@@ -18,7 +18,7 @@ func TestPoolNewMember(t *testing.T) {
 		Type:    raftpb.LocalMember,
 	}
 
-	p := New(context.TODO(), testConfig(t)).(*pool)
+	p := New(testConfig(t)).(*pool)
 
 	mem, err := p.newMember(m)
 	require.NoError(t, err)
@@ -28,7 +28,7 @@ func TestPoolNewMember(t *testing.T) {
 }
 
 func TestPoolNextID(t *testing.T) {
-	p := New(context.TODO(), testConfig(t)).(*pool)
+	p := New(testConfig(t)).(*pool)
 	rec := make(map[uint64]struct{})
 
 	for i := 0; i < 10; i++ {
@@ -44,7 +44,7 @@ func TestPoolNextID(t *testing.T) {
 
 func TestPoolUpdate(t *testing.T) {
 	m := &raftpb.Member{ID: 1, Type: raftpb.LocalMember}
-	p := New(context.TODO(), testConfig(t))
+	p := New(testConfig(t))
 	p.Add(*m)
 	m.Address = "5050"
 	p.Update(*m)
@@ -53,13 +53,13 @@ func TestPoolUpdate(t *testing.T) {
 }
 
 func TestPoolRemoveErr(t *testing.T) {
-	p := New(context.TODO(), testConfig(t))
+	p := New(testConfig(t))
 	err := p.Remove(raftpb.Member{})
 	require.Contains(t, err.Error(), "not found")
 }
 
 func TestPoolRestore(t *testing.T) {
-	p := New(context.TODO(), testConfig(t))
+	p := New(testConfig(t))
 	ids := make(map[uint64]struct{})
 	pool := &raftpb.Pool{
 		Members: []raftpb.Member{},
@@ -82,7 +82,7 @@ func TestPoolRestore(t *testing.T) {
 }
 
 func TestPoolSnapshot(t *testing.T) {
-	p := New(context.TODO(), testConfig(t))
+	p := New(testConfig(t))
 	p.Add(raftpb.Member{ID: p.NextID(), Type: raftpb.LocalMember})
 	membs := p.Snapshot()
 	require.Equal(t, len(p.Members()), len(membs))
@@ -96,7 +96,7 @@ func TestPoolRemove(t *testing.T) {
 	r.EXPECT().ReportShutdown(gomock.Eq(m.ID)).Return()
 	cfg.EXPECT().Reporter().Return(r).MaxTimes(2)
 
-	p := New(context.TODO(), cfg)
+	p := New(cfg)
 	p.Add(*m)
 
 	// run twice to check removing
@@ -128,6 +128,7 @@ func testConfig(t *testing.T) *MockConfig {
 	cfg.EXPECT().Reporter().Return(nil).AnyTimes()
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1)).AnyTimes()
 	cfg.EXPECT().StreamTimeout().Return(time.Duration(-1)).AnyTimes()
+	cfg.EXPECT().Context().Return(context.TODO()).AnyTimes()
 	return cfg
 }
 

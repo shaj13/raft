@@ -14,7 +14,9 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func newRemote(ctx context.Context, cfg Config, m raftpb.Member) (Member, error) {
+func newRemote(cfg Config, m raftpb.Member) (Member, error) {
+	ctx := cfg.Context()
+
 	rpc, err := cfg.Dial()(ctx, m.Address)
 	if err != nil {
 		return nil, err

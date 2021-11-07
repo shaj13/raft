@@ -16,9 +16,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func New(ctx context.Context, cfg Config) Pool {
+func New(cfg Config) Pool {
 	return &pool{
-		ctx:   ctx,
 		cfg:   cfg,
 		membs: make(map[uint64]Member),
 		matcher: func(m raftpb.Member) raftpb.MemberType {
@@ -28,7 +27,6 @@ func New(ctx context.Context, cfg Config) Pool {
 }
 
 type pool struct {
-	ctx     context.Context
 	cfg     Config
 	matcher func(m raftpb.Member) raftpb.MemberType
 	mu      sync.Mutex // protects the membs
@@ -158,11 +156,11 @@ func (p *pool) TearDown(ctx context.Context) error {
 func (p *pool) newMember(m raftpb.Member) (Member, error) {
 	switch p.matcher(m) {
 	case raftpb.VoterMember, raftpb.LearnerMember, raftpb.StagingMember:
-		return newRemote(p.ctx, p.cfg, m)
+		return newRemote(p.cfg, m)
 	case raftpb.RemovedMember:
-		return newRemoved(p.ctx, p.cfg, m)
+		return newRemoved(p.cfg, m)
 	case raftpb.LocalMember:
-		return newLocal(p.ctx, p.cfg, m)
+		return newLocal(p.cfg, m)
 	default:
 		return nil, fmt.Errorf("raft/membership: unknown member type %s", m.Type)
 	}

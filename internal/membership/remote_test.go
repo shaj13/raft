@@ -23,8 +23,9 @@ func TestNewRemote(t *testing.T) {
 	cfg.EXPECT().Dial().Return(dial).MaxTimes(2)
 	cfg.EXPECT().Reporter().Return(nil)
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1))
+	cfg.EXPECT().Context().Return(context.Background())
 
-	m, err := newRemote(context.Background(), cfg, raftpb.Member{})
+	m, err := newRemote(cfg, raftpb.Member{})
 	require.NoError(t, err)
 	require.NotNil(t, m)
 

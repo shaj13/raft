@@ -11,7 +11,7 @@ import (
 
 var ErrRemovedMember = errors.New("raft/membership: member was removed")
 
-func newRemoved(_ context.Context, _ Config, m raftpb.Member) (Member, error) {
+func newRemoved(_ Config, m raftpb.Member) (Member, error) {
 	return removed{
 		raw: m,
 	}, nil

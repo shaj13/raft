@@ -10,7 +10,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func newLocal(_ context.Context, cfg Config, m raftpb.Member) (Member, error) {
+func newLocal(cfg Config, m raftpb.Member) (Member, error) {
 	l := &local{
 		r:      cfg.Reporter(),
 		active: time.Now(),

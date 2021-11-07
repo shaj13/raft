@@ -33,6 +33,7 @@ type Reporter interface {
 }
 
 type Config interface {
+	Context() context.Context
 	StreamTimeout() time.Duration
 	DrainTimeout() time.Duration
 	Reporter() Reporter
