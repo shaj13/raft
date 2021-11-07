@@ -14,6 +14,20 @@ import (
 	"go.etcd.io/etcd/raft/v3"
 )
 
+// EnableDebug call the EnableDebug method on logger, if logger
+// type contains an EnableDebug method call it to logs messages at debug level.
+// Otherwise, EnableDebug is a noop func.
+//
+// NOTE: this function must only be called during initialization time (i.e. in
+// an init() function), and is not thread-safe.
+var EnableDebug = log.EnableDebug
+
+// SetLogger sets logger that is used to generates lines of output.
+//
+// NOTE: this function must only be called during initialization time (i.e. in
+// an init() function), and is not thread-safe.
+var _ = log.SetLogger
+
 // None is a placeholder node ID used to identify non-existence.
 const None = raft.None
 
@@ -88,13 +102,6 @@ func WithLinearizableReadSafe() Option {
 func WithLinearizableReadLeaseBased() Option {
 	return optionFunc(func(c *config) {
 		c.rcfg.ReadOnlyOption = raft.ReadOnlyLeaseBased
-	})
-}
-
-// WithLogger sets logger that is used to generates lines of output.
-func WithLogger(lg Logger) Option {
-	return optionFunc(func(c *config) {
-		log.SetLogger(lg)
 	})
 }
 

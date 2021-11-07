@@ -100,3 +100,16 @@ func SetLogger(l Logger) {
 func GetLogger() Logger {
 	return lg
 }
+
+// EnableDebug call the EnableDebug method on logger, if logger
+// type contains an EnableDebug method call it to logs messages at debug level.
+// Otherwise, EnableDebug is a noop func.
+func EnableDebug() {
+	d, ok := lg.(interface {
+		EnableDebug()
+	})
+
+	if ok {
+		d.EnableDebug()
+	}
+}

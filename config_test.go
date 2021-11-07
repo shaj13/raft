@@ -36,13 +36,6 @@ func TestConfig(t *testing.T) {
 			opt:      WithContext(context.TODO()),
 			value:    func(c *config) interface{} { return c.ctx },
 		},
-		// TODO: fix me
-		// {
-		// 	defaults: log.GetLogger(),
-		// 	expected: nil,
-		// 	opt:      WithLogger(nil),
-		// 	value:    func(c *config) interface{} { return log.GetLogger() },
-		// },
 		{
 			defaults: time.Millisecond * 100,
 			expected: time.Nanosecond * 500,
