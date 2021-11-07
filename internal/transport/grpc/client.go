@@ -32,7 +32,7 @@ const (
 
 // Dialer return's grpc dialer.
 func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) transport.Dialer {
-	return func(c context.Context, dc transport.DialerConfig) transport.Dial {
+	return func(dc transport.DialerConfig) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			conn, err := grpc.DialContext(ctx, addr, dopts(ctx)...)
 			if err != nil {

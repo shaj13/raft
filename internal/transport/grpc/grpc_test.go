@@ -214,7 +214,7 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 	cfg := transportmock.NewMockDialerConfig(ctrl)
 	cfg.EXPECT().Snapshotter().Return(nil)
 
-	c, err := Dialer(dopts, copts)(ctx, cfg)(ctx, "")
+	c, err := Dialer(dopts, copts)(cfg)(ctx, "")
 	if err != nil {
 		tb.Fatal(err)
 	}

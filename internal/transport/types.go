@@ -25,13 +25,13 @@ type DialerConfig interface {
 type Handler interface{}
 
 // Dialer return's Dial from the given config.
-type Dialer func(context.Context, DialerConfig) Dial
+type Dialer func(DialerConfig) Dial
 
 // Dial connects to an RPC server at the specified network address.
 type Dial func(context.Context, string) (Client, error)
 
 // NewHandler returns a new Handler.
-type NewHandler func(context.Context, HandlerConfig) Handler
+type NewHandler func(HandlerConfig) Handler
 
 // Client provides access to the exported methods of an object across a network.
 //

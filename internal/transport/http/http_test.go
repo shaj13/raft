@@ -197,7 +197,7 @@ func testClientServer(tb testing.TB) (*httptest.Server, *client, *handler) {
 		return testRoundTripper{ts.Client()}
 	}
 
-	c, err := Dialer(tr, "")(ctx, cfg)(ctx, ts.URL)
+	c, err := Dialer(tr, "")(cfg)(ctx, ts.URL)
 	if err != nil {
 		tb.Fatal(err)
 	}

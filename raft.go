@@ -14,7 +14,7 @@ func New(proto transport.Proto, opts ...Option) *Node {
 	newHandler, dialer := itransport.Proto(proto).Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(ctx, cfg)
-	cfg.dial = dialer(ctx, cfg)
+	cfg.dial = dialer(cfg)
 	cfg.pool = membership.New(cfg)
 	cfg.daemon = daemon.New(cfg)
 
@@ -24,7 +24,7 @@ func New(proto transport.Proto, opts ...Option) *Node {
 	node.storage = cfg.storage
 	node.dial = cfg.dial
 	node.disableForwarding = cfg.rcfg.DisableProposalForwarding
-	node.handler = newHandler(ctx, cfg)
+	node.handler = newHandler(cfg)
 
 	cfg.controller.(*controller).node = node
 	cfg.controller.(*controller).daemon = cfg.daemon

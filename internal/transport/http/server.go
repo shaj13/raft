@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -18,7 +17,7 @@ import (
 
 // NewHandlerFunc retur'ns func that create an http transport handler.
 func NewHandlerFunc(basePath string) transport.NewHandler {
-	return func(c context.Context, cfg transport.HandlerConfig) transport.Handler {
+	return func(cfg transport.HandlerConfig) transport.Handler {
 		s := &handler{
 			ctrl: cfg.Controller(),
 			snap: cfg.Snapshotter(),

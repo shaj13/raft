@@ -15,31 +15,31 @@ import (
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// MockServerConfig is a mock of ServerConfig interface.
-type MockServerConfig struct {
+// MockHandlerConfig is a mock of HandlerConfig interface.
+type MockHandlerConfig struct {
 	ctrl     *gomock.Controller
-	recorder *MockServerConfigMockRecorder
+	recorder *MockHandlerConfigMockRecorder
 }
 
-// MockServerConfigMockRecorder is the mock recorder for MockServerConfig.
-type MockServerConfigMockRecorder struct {
-	mock *MockServerConfig
+// MockHandlerConfigMockRecorder is the mock recorder for MockHandlerConfig.
+type MockHandlerConfigMockRecorder struct {
+	mock *MockHandlerConfig
 }
 
-// NewMockServerConfig creates a new mock instance.
-func NewMockServerConfig(ctrl *gomock.Controller) *MockServerConfig {
-	mock := &MockServerConfig{ctrl: ctrl}
-	mock.recorder = &MockServerConfigMockRecorder{mock}
+// NewMockHandlerConfig creates a new mock instance.
+func NewMockHandlerConfig(ctrl *gomock.Controller) *MockHandlerConfig {
+	mock := &MockHandlerConfig{ctrl: ctrl}
+	mock.recorder = &MockHandlerConfigMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockServerConfig) EXPECT() *MockServerConfigMockRecorder {
+func (m *MockHandlerConfig) EXPECT() *MockHandlerConfigMockRecorder {
 	return m.recorder
 }
 
 // Controller mocks base method.
-func (m *MockServerConfig) Controller() transport.Controller {
+func (m *MockHandlerConfig) Controller() transport.Controller {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Controller")
 	ret0, _ := ret[0].(transport.Controller)
@@ -47,13 +47,13 @@ func (m *MockServerConfig) Controller() transport.Controller {
 }
 
 // Controller indicates an expected call of Controller.
-func (mr *MockServerConfigMockRecorder) Controller() *gomock.Call {
+func (mr *MockHandlerConfigMockRecorder) Controller() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockServerConfig)(nil).Controller))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockHandlerConfig)(nil).Controller))
 }
 
 // Snapshotter mocks base method.
-func (m *MockServerConfig) Snapshotter() storage.Snapshotter {
+func (m *MockHandlerConfig) Snapshotter() storage.Snapshotter {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshotter")
 	ret0, _ := ret[0].(storage.Snapshotter)
@@ -61,9 +61,9 @@ func (m *MockServerConfig) Snapshotter() storage.Snapshotter {
 }
 
 // Snapshotter indicates an expected call of Snapshotter.
-func (mr *MockServerConfigMockRecorder) Snapshotter() *gomock.Call {
+func (mr *MockHandlerConfigMockRecorder) Snapshotter() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockServerConfig)(nil).Snapshotter))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockHandlerConfig)(nil).Snapshotter))
 }
 
 // MockDialerConfig is a mock of DialerConfig interface.
@@ -103,26 +103,26 @@ func (mr *MockDialerConfigMockRecorder) Snapshotter() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockDialerConfig)(nil).Snapshotter))
 }
 
-// MockServer is a mock of Server interface.
-type MockServer struct {
+// MockHandler is a mock of Handler interface.
+type MockHandler struct {
 	ctrl     *gomock.Controller
-	recorder *MockServerMockRecorder
+	recorder *MockHandlerMockRecorder
 }
 
-// MockServerMockRecorder is the mock recorder for MockServer.
-type MockServerMockRecorder struct {
-	mock *MockServer
+// MockHandlerMockRecorder is the mock recorder for MockHandler.
+type MockHandlerMockRecorder struct {
+	mock *MockHandler
 }
 
-// NewMockServer creates a new mock instance.
-func NewMockServer(ctrl *gomock.Controller) *MockServer {
-	mock := &MockServer{ctrl: ctrl}
-	mock.recorder = &MockServerMockRecorder{mock}
+// NewMockHandler creates a new mock instance.
+func NewMockHandler(ctrl *gomock.Controller) *MockHandler {
+	mock := &MockHandler{ctrl: ctrl}
+	mock.recorder = &MockHandlerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockServer) EXPECT() *MockServerMockRecorder {
+func (m *MockHandler) EXPECT() *MockHandlerMockRecorder {
 	return m.recorder
 }
 

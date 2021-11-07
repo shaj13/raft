@@ -32,7 +32,7 @@ var bufferPool = sync.Pool{
 
 // Dialer return's grpc dialer.
 func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transport.Dialer {
-	return func(_ context.Context, dc transport.DialerConfig) transport.Dial {
+	return func(dc transport.DialerConfig) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			return &client{
 				transport: tr,
