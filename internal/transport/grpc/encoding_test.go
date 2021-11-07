@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,13 +19,13 @@ func TestDecoder(t *testing.T) {
 
 	// Round #1 it retrun error when index mismatch
 	dec.index = 2
-	err := dec.Decode(&raftpb.Chunk{})
+	err := dec.Decode(&pb.Chunk{})
 	assert.Contains(t, err.Error(), "index mismatch")
 
 	// Round #2 it assemble all chunks
 	dec.index = 0
 	for i, str := range strings.Split("Test Decoder", " ") {
-		err = dec.Decode(&raftpb.Chunk{Index: uint64(i), Data: []byte(str)})
+		err = dec.Decode(&pb.Chunk{Index: uint64(i), Data: []byte(str)})
 		assert.NoError(t, err)
 	}
 
@@ -35,7 +35,7 @@ func TestDecoder(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	count := 0
-	cb := func(c *raftpb.Chunk) error {
+	cb := func(c *pb.Chunk) error {
 		count++
 		assert.LessOrEqual(t, c.Size(), bufio.MaxScanTokenSize)
 		return nil
@@ -80,7 +80,7 @@ func TestEncodingCompatibility(t *testing.T) {
 	enc := newEncoder(bytes.NewBuffer(msg))
 	dec := newDecoder(w)
 
-	err = enc.Encode(func(c *raftpb.Chunk) error {
+	err = enc.Encode(func(c *pb.Chunk) error {
 		return dec.Decode(c)
 	})
 
@@ -92,6 +92,6 @@ func TestEncoderErr(t *testing.T) {
 	r := bytes.NewBufferString("TestEncoderErr")
 	cerr := fmt.Errorf("TestEncoderErr cb error")
 	enc := newEncoder(r)
-	err := enc.Encode(func(c *raftpb.Chunk) error { return cerr })
+	err := enc.Encode(func(c *pb.Chunk) error { return cerr })
 	assert.Equal(t, cerr, err)
 }

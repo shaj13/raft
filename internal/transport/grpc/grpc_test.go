@@ -14,6 +14,7 @@ import (
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
@@ -190,7 +191,7 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 	srv := new(handler)
 
 	server := grpc.NewServer()
-	raftpb.RegisterRaftServer(server, srv)
+	pb.RegisterRaftServer(server, srv)
 
 	go func() {
 		server.Serve(ln)

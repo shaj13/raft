@@ -12,6 +12,7 @@ import (
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
+	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -39,7 +40,7 @@ func (h *handler) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.E
 	return &emptypb.Empty{}, err
 }
 
-func (h *handler) Message(stream raftpb.Raft_MessageServer) (err error) {
+func (h *handler) Message(stream pb.Raft_MessageServer) (err error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	dec := newDecoder(buf)
@@ -78,7 +79,7 @@ func (h *handler) Message(stream raftpb.Raft_MessageServer) (err error) {
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (h *handler) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
+func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft.grpc: downloading snapshot: %v", err)
@@ -151,7 +152,7 @@ func (h *handler) Snapshot(stream raftpb.Raft_SnapshotServer) (err error) {
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (h *handler) Join(m *raftpb.Member, stream raftpb.Raft_JoinServer) (err error) {
+func (h *handler) Join(m *raftpb.Member, stream pb.Raft_JoinServer) (err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft.grpc: handle join request: %v", err)

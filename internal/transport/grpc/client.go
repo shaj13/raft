@@ -12,6 +12,7 @@ import (
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
+	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -56,7 +57,7 @@ type client struct {
 }
 
 func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
-	_, err := raftpb.NewRaftClient(c.conn).PromoteMember(ctx, &m, c.copts(ctx)...)
+	_, err := pb.NewRaftClient(c.conn).PromoteMember(ctx, &m, c.copts(ctx)...)
 	return err
 }
 
@@ -75,7 +76,7 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	stream, err := raftpb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
+	stream, err := pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -123,7 +124,7 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 		return err
 	}
 
-	stream, err := raftpb.NewRaftClient(c.conn).Message(ctx, c.copts(ctx)...)
+	stream, err := pb.NewRaftClient(c.conn).Message(ctx, c.copts(ctx)...)
 	if err != nil {
 		return err
 	}
@@ -141,7 +142,7 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 	}()
 
 	enc := newEncoder(buf)
-	return enc.Encode(func(c *raftpb.Chunk) error {
+	return enc.Encode(func(c *pb.Chunk) error {
 		return stream.Send(c)
 	})
 }
@@ -159,7 +160,7 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	stream, err := raftpb.NewRaftClient(c.conn).Snapshot(ctx, c.copts(ctx)...)
+	stream, err := pb.NewRaftClient(c.conn).Snapshot(ctx, c.copts(ctx)...)
 	if err != nil {
 		return err
 	}
@@ -172,7 +173,7 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 	}()
 
 	enc := newEncoder(r)
-	return enc.Encode(func(c *raftpb.Chunk) error {
+	return enc.Encode(func(c *pb.Chunk) error {
 		return stream.Send(c)
 	})
 }

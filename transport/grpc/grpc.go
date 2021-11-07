@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/raftpb"
 	itransport "github.com/shaj13/raftkit/internal/transport"
 	raftgrpc "github.com/shaj13/raftkit/internal/transport/grpc"
+	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	"github.com/shaj13/raftkit/transport"
 	"google.golang.org/grpc"
 )
@@ -75,8 +75,8 @@ func Register(opts ...Option) {
 
 // RegisterHandler registers transport handler and its implementation to the gRPC server.
 func RegisterHandler(s *grpc.Server, h transport.Handler) {
-	if rs, ok := h.(raftpb.RaftServer); ok {
-		raftpb.RegisterRaftServer(s, rs)
+	if rs, ok := h.(pb.RaftServer); ok {
+		pb.RegisterRaftServer(s, rs)
 		return
 	}
 
