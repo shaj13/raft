@@ -172,6 +172,6 @@ func (d *disk) Snapshotter() storage.Snapshotter {
 }
 
 func (d *disk) Close() error {
-	d.wal.Close()
-	return nil
+	d.gc.Close()
+	return d.wal.Close()
 }
