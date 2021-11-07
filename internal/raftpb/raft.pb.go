@@ -4,14 +4,9 @@
 package raftpb
 
 import (
-	context "context"
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
-	empty "github.com/golang/protobuf/ptypes/empty"
-	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -83,7 +78,7 @@ func (x SnapshotHeader_Version) String() string {
 }
 
 func (SnapshotHeader_Version) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_dbd5440484cc1d7f, []int{4, 0}
+	return fileDescriptor_dbd5440484cc1d7f, []int{3, 0}
 }
 
 type Member struct {
@@ -218,49 +213,6 @@ func (m *Pool) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Pool proto.InternalMessageInfo
 
-type Chunk struct {
-	// Index specifies the chunk index.
-	Index uint64 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	// Data specifies the raw chunk data.
-	Data                 []byte   `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Chunk) Reset()         { *m = Chunk{} }
-func (m *Chunk) String() string { return proto.CompactTextString(m) }
-func (*Chunk) ProtoMessage()    {}
-func (*Chunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dbd5440484cc1d7f, []int{3}
-}
-func (m *Chunk) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Chunk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_Chunk.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *Chunk) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Chunk.Merge(m, src)
-}
-func (m *Chunk) XXX_Size() int {
-	return m.Size()
-}
-func (m *Chunk) XXX_DiscardUnknown() {
-	xxx_messageInfo_Chunk.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Chunk proto.InternalMessageInfo
-
 type SnapshotHeader struct {
 	// CRC specifies the snapshot crc sum.
 	CRC []byte `protobuf:"bytes,1,opt,name=CRC,proto3" json:"CRC,omitempty"`
@@ -275,7 +227,7 @@ func (m *SnapshotHeader) Reset()         { *m = SnapshotHeader{} }
 func (m *SnapshotHeader) String() string { return proto.CompactTextString(m) }
 func (*SnapshotHeader) ProtoMessage()    {}
 func (*SnapshotHeader) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dbd5440484cc1d7f, []int{4}
+	return fileDescriptor_dbd5440484cc1d7f, []int{3}
 }
 func (m *SnapshotHeader) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -310,333 +262,41 @@ func init() {
 	proto.RegisterType((*Member)(nil), "raftpb.Member")
 	proto.RegisterType((*Replicate)(nil), "raftpb.Replicate")
 	proto.RegisterType((*Pool)(nil), "raftpb.Pool")
-	proto.RegisterType((*Chunk)(nil), "raftpb.Chunk")
 	proto.RegisterType((*SnapshotHeader)(nil), "raftpb.SnapshotHeader")
 }
 
 func init() { proto.RegisterFile("internal/raftpb/raft.proto", fileDescriptor_dbd5440484cc1d7f) }
 
 var fileDescriptor_dbd5440484cc1d7f = []byte{
-	// 559 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x92, 0xcf, 0x4e, 0xdb, 0x4e,
-	0x10, 0xc7, 0xbd, 0x89, 0x13, 0xff, 0x18, 0x20, 0x3f, 0xb3, 0x42, 0xc8, 0x75, 0x25, 0xc7, 0xf2,
-	0xa1, 0xb2, 0x38, 0x38, 0x34, 0xfd, 0xa3, 0xb6, 0xb7, 0x26, 0x54, 0x2a, 0x15, 0x48, 0x68, 0xa9,
-	0xb8, 0x6f, 0xe2, 0xc5, 0x58, 0x75, 0xbc, 0xd6, 0x7a, 0x41, 0x70, 0xee, 0x8d, 0x77, 0xe0, 0xd6,
-	0x47, 0xe8, 0xa9, 0x4f, 0xc0, 0x91, 0x73, 0x0f, 0x51, 0xf1, 0x93, 0x54, 0xde, 0x8d, 0x4b, 0x89,
-	0xda, 0x43, 0x4f, 0x99, 0xef, 0x7c, 0x66, 0x32, 0x5f, 0xcf, 0x0e, 0xb8, 0x69, 0x2e, 0x99, 0xc8,
-	0x69, 0x36, 0x10, 0xf4, 0x44, 0x16, 0x13, 0xf5, 0x13, 0x15, 0x82, 0x4b, 0x8e, 0xbb, 0x3a, 0xe5,
-	0x6e, 0x26, 0x3c, 0xe1, 0x2a, 0x35, 0xa8, 0x23, 0x4d, 0xdd, 0xc7, 0x09, 0xe7, 0x49, 0xc6, 0x06,
-	0x4a, 0x4d, 0xce, 0x4e, 0x06, 0x6c, 0x56, 0xc8, 0x4b, 0x0d, 0x83, 0xcf, 0x08, 0xba, 0x07, 0x6c,
-	0x36, 0x61, 0x02, 0x6f, 0x41, 0x2b, 0x8d, 0x1d, 0xe4, 0xa3, 0xd0, 0x1c, 0x75, 0xab, 0x79, 0xbf,
-	0xb5, 0xb7, 0x4b, 0x5a, 0x69, 0x8c, 0xfb, 0x60, 0xd2, 0x38, 0x16, 0x4e, 0xcb, 0x47, 0xe1, 0xca,
-	0x68, 0xb5, 0x9a, 0xf7, 0xad, 0xb7, 0x71, 0x2c, 0x58, 0x59, 0x12, 0x05, 0xf0, 0x13, 0x30, 0xe5,
-	0x65, 0xc1, 0x9c, 0xb6, 0x8f, 0xc2, 0xde, 0x10, 0x47, 0xda, 0x4d, 0xa4, 0xff, 0xf6, 0xe3, 0x65,
-	0xc1, 0x88, 0xe2, 0xd8, 0x01, 0x6b, 0xca, 0x73, 0xc9, 0x2e, 0xa4, 0x63, 0xfa, 0x28, 0x5c, 0x23,
-	0x8d, 0x0c, 0xde, 0xc0, 0x0a, 0x61, 0x45, 0x96, 0x4e, 0xa9, 0x64, 0xf8, 0x11, 0xb4, 0xa7, 0xbf,
-	0x8c, 0x58, 0xd5, 0xbc, 0xdf, 0x1e, 0xef, 0xed, 0x92, 0x3a, 0x87, 0x31, 0x98, 0x31, 0x95, 0x54,
-	0x59, 0x59, 0x23, 0x2a, 0x0e, 0x5e, 0x82, 0x79, 0xc8, 0x79, 0x86, 0x23, 0xb0, 0x66, 0x6a, 0x62,
-	0xe9, 0x20, 0xbf, 0x1d, 0xae, 0x0e, 0x7b, 0x0f, 0x8d, 0x8c, 0xcc, 0x9b, 0x79, 0xdf, 0x20, 0x4d,
-	0x51, 0xf0, 0x14, 0x3a, 0xe3, 0xd3, 0xb3, 0xfc, 0x13, 0xde, 0x84, 0x4e, 0x9a, 0xc7, 0xec, 0x42,
-	0x4f, 0x24, 0x5a, 0xfc, 0x71, 0x14, 0x87, 0xde, 0x51, 0x4e, 0x8b, 0xf2, 0x94, 0xcb, 0xf7, 0x8c,
-	0xc6, 0x4c, 0x60, 0x1b, 0xda, 0x63, 0x32, 0x56, 0x9d, 0x6b, 0xa4, 0x0e, 0xf1, 0x2b, 0xb0, 0xce,
-	0x99, 0x28, 0x53, 0x9e, 0xab, 0xd6, 0xde, 0xd0, 0x6b, 0x6c, 0x3c, 0x6c, 0x8d, 0x8e, 0x75, 0x15,
-	0x69, 0xca, 0x83, 0x0d, 0xb0, 0x16, 0x39, 0xdc, 0x85, 0xd6, 0xf1, 0x8e, 0x6d, 0x6c, 0x7f, 0x45,
-	0x00, 0xf7, 0x6b, 0xc4, 0x2e, 0x74, 0xce, 0xb9, 0x64, 0xc2, 0x36, 0xdc, 0xff, 0xaf, 0xae, 0xfd,
-	0xd5, 0xe3, 0x5a, 0x2c, 0x5e, 0xcf, 0x03, 0x4b, 0xb0, 0x19, 0x3f, 0x67, 0xb1, 0x8d, 0xdc, 0x8d,
-	0xab, 0x6b, 0x7f, 0x9d, 0x68, 0x79, 0xcf, 0x33, 0x46, 0x45, 0xce, 0x84, 0xdd, 0xd2, 0x7c, 0x5f,
-	0xcb, 0x7b, 0x5e, 0x4a, 0x9a, 0xa4, 0x79, 0x62, 0xb7, 0x35, 0x3f, 0xd2, 0x72, 0xc1, 0x5d, 0xe8,
-	0x64, 0x7c, 0x4a, 0x33, 0xdb, 0xd4, 0xb3, 0xf7, 0x6b, 0xa1, 0x99, 0xdb, 0xfb, 0xf6, 0xc5, 0xfb,
-	0xcd, 0xe7, 0xf0, 0x3b, 0x02, 0x93, 0xd0, 0x13, 0x89, 0x9f, 0x83, 0x75, 0xc0, 0xca, 0x92, 0x26,
-	0x0c, 0xaf, 0x37, 0x6b, 0x50, 0x4b, 0x77, 0xb7, 0x22, 0x7d, 0x95, 0x51, 0x73, 0x95, 0xd1, 0xbb,
-	0xfa, 0x2a, 0x03, 0x23, 0x44, 0xf8, 0x05, 0xfc, 0xd7, 0xec, 0xea, 0x5f, 0xda, 0xb6, 0xc1, 0xfc,
-	0xc0, 0xd3, 0x1c, 0x2f, 0xbd, 0xbb, 0xbb, 0xa4, 0x03, 0x63, 0x07, 0xe1, 0xd7, 0xb0, 0x7e, 0x28,
-	0xf8, 0x8c, 0x4b, 0xb6, 0xf8, 0xbc, 0xe5, 0xa6, 0xbf, 0x0e, 0x1a, 0x6d, 0xde, 0xdc, 0x79, 0xc6,
-	0xed, 0x9d, 0x67, 0xdc, 0x54, 0x1e, 0xba, 0xad, 0x3c, 0xf4, 0xa3, 0xf2, 0xd0, 0xa4, 0xab, 0xea,
-	0x9e, 0xfd, 0x0c, 0x00, 0x00, 0xff, 0xff, 0x41, 0x8e, 0x6f, 0x45, 0xa7, 0x03, 0x00, 0x00,
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
-
-// RaftClient is the client API for Raft service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type RaftClient interface {
-	Message(ctx context.Context, opts ...grpc.CallOption) (Raft_MessageClient, error)
-	Snapshot(ctx context.Context, opts ...grpc.CallOption) (Raft_SnapshotClient, error)
-	Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (Raft_JoinClient, error)
-	PromoteMember(ctx context.Context, in *Member, opts ...grpc.CallOption) (*empty.Empty, error)
-}
-
-type raftClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewRaftClient(cc *grpc.ClientConn) RaftClient {
-	return &raftClient{cc}
-}
-
-func (c *raftClient) Message(ctx context.Context, opts ...grpc.CallOption) (Raft_MessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Raft_serviceDesc.Streams[0], "/raftpb.Raft/Message", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &raftMessageClient{stream}
-	return x, nil
-}
-
-type Raft_MessageClient interface {
-	Send(*Chunk) error
-	CloseAndRecv() (*empty.Empty, error)
-	grpc.ClientStream
-}
-
-type raftMessageClient struct {
-	grpc.ClientStream
-}
-
-func (x *raftMessageClient) Send(m *Chunk) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *raftMessageClient) CloseAndRecv() (*empty.Empty, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(empty.Empty)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *raftClient) Snapshot(ctx context.Context, opts ...grpc.CallOption) (Raft_SnapshotClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Raft_serviceDesc.Streams[1], "/raftpb.Raft/Snapshot", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &raftSnapshotClient{stream}
-	return x, nil
-}
-
-type Raft_SnapshotClient interface {
-	Send(*Chunk) error
-	CloseAndRecv() (*empty.Empty, error)
-	grpc.ClientStream
-}
-
-type raftSnapshotClient struct {
-	grpc.ClientStream
-}
-
-func (x *raftSnapshotClient) Send(m *Chunk) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *raftSnapshotClient) CloseAndRecv() (*empty.Empty, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(empty.Empty)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *raftClient) Join(ctx context.Context, in *Member, opts ...grpc.CallOption) (Raft_JoinClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Raft_serviceDesc.Streams[2], "/raftpb.Raft/Join", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &raftJoinClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Raft_JoinClient interface {
-	Recv() (*Member, error)
-	grpc.ClientStream
-}
-
-type raftJoinClient struct {
-	grpc.ClientStream
-}
-
-func (x *raftJoinClient) Recv() (*Member, error) {
-	m := new(Member)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *raftClient) PromoteMember(ctx context.Context, in *Member, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
-	err := c.cc.Invoke(ctx, "/raftpb.Raft/PromoteMember", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// RaftServer is the server API for Raft service.
-type RaftServer interface {
-	Message(Raft_MessageServer) error
-	Snapshot(Raft_SnapshotServer) error
-	Join(*Member, Raft_JoinServer) error
-	PromoteMember(context.Context, *Member) (*empty.Empty, error)
-}
-
-// UnimplementedRaftServer can be embedded to have forward compatible implementations.
-type UnimplementedRaftServer struct {
-}
-
-func (*UnimplementedRaftServer) Message(srv Raft_MessageServer) error {
-	return status.Errorf(codes.Unimplemented, "method Message not implemented")
-}
-func (*UnimplementedRaftServer) Snapshot(srv Raft_SnapshotServer) error {
-	return status.Errorf(codes.Unimplemented, "method Snapshot not implemented")
-}
-func (*UnimplementedRaftServer) Join(req *Member, srv Raft_JoinServer) error {
-	return status.Errorf(codes.Unimplemented, "method Join not implemented")
-}
-func (*UnimplementedRaftServer) PromoteMember(ctx context.Context, req *Member) (*empty.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PromoteMember not implemented")
-}
-
-func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
-	s.RegisterService(&_Raft_serviceDesc, srv)
-}
-
-func _Raft_Message_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RaftServer).Message(&raftMessageServer{stream})
-}
-
-type Raft_MessageServer interface {
-	SendAndClose(*empty.Empty) error
-	Recv() (*Chunk, error)
-	grpc.ServerStream
-}
-
-type raftMessageServer struct {
-	grpc.ServerStream
-}
-
-func (x *raftMessageServer) SendAndClose(m *empty.Empty) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *raftMessageServer) Recv() (*Chunk, error) {
-	m := new(Chunk)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _Raft_Snapshot_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RaftServer).Snapshot(&raftSnapshotServer{stream})
-}
-
-type Raft_SnapshotServer interface {
-	SendAndClose(*empty.Empty) error
-	Recv() (*Chunk, error)
-	grpc.ServerStream
-}
-
-type raftSnapshotServer struct {
-	grpc.ServerStream
-}
-
-func (x *raftSnapshotServer) SendAndClose(m *empty.Empty) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *raftSnapshotServer) Recv() (*Chunk, error) {
-	m := new(Chunk)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _Raft_Join_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Member)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(RaftServer).Join(m, &raftJoinServer{stream})
-}
-
-type Raft_JoinServer interface {
-	Send(*Member) error
-	grpc.ServerStream
-}
-
-type raftJoinServer struct {
-	grpc.ServerStream
-}
-
-func (x *raftJoinServer) Send(m *Member) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Raft_PromoteMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Member)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RaftServer).PromoteMember(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/raftpb.Raft/PromoteMember",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).PromoteMember(ctx, req.(*Member))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _Raft_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "raftpb.Raft",
-	HandlerType: (*RaftServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "PromoteMember",
-			Handler:    _Raft_PromoteMember_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Message",
-			Handler:       _Raft_Message_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "Snapshot",
-			Handler:       _Raft_Snapshot_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "Join",
-			Handler:       _Raft_Join_Handler,
-			ServerStreams: true,
-		},
-	},
-	Metadata: "internal/raftpb/raft.proto",
+	// 441 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0xc1, 0x6e, 0x9b, 0x4c,
+	0x14, 0x85, 0x19, 0x20, 0xa0, 0x5c, 0xfb, 0xe7, 0x27, 0xa3, 0xa8, 0xa2, 0x2c, 0x00, 0xb1, 0xa8,
+	0x50, 0x17, 0xa4, 0x72, 0xa5, 0xaa, 0xea, 0xae, 0x76, 0x16, 0x8d, 0x94, 0x4a, 0xd5, 0xa4, 0xf2,
+	0x7e, 0xec, 0x99, 0xba, 0x48, 0x98, 0x41, 0xc3, 0xc8, 0x6a, 0xd6, 0xdd, 0xe5, 0x1d, 0xb2, 0xeb,
+	0x23, 0x74, 0xd5, 0x27, 0xf0, 0x32, 0x4f, 0x60, 0x35, 0x3c, 0x49, 0xc5, 0x8c, 0x5d, 0x37, 0x2b,
+	0xee, 0x39, 0xdf, 0x65, 0xce, 0x11, 0x0c, 0xc4, 0x55, 0xa3, 0xb8, 0x6c, 0x68, 0x7d, 0x21, 0xe9,
+	0x17, 0xd5, 0x2e, 0xf4, 0xa3, 0x6c, 0xa5, 0x50, 0x02, 0x7b, 0xc6, 0x8a, 0xcf, 0x57, 0x62, 0x25,
+	0xb4, 0x75, 0x31, 0x4c, 0x86, 0xe6, 0xdf, 0x11, 0x78, 0x1f, 0xf9, 0x7a, 0xc1, 0x25, 0x7e, 0x06,
+	0x76, 0xc5, 0x22, 0x94, 0xa1, 0xc2, 0x9d, 0x7a, 0xfd, 0x2e, 0xb5, 0xaf, 0x2e, 0x89, 0x5d, 0x31,
+	0x9c, 0x82, 0x4b, 0x19, 0x93, 0x91, 0x9d, 0xa1, 0xe2, 0x74, 0x3a, 0xea, 0x77, 0xa9, 0xff, 0x9e,
+	0x31, 0xc9, 0xbb, 0x8e, 0x68, 0x80, 0x5f, 0x80, 0xab, 0x6e, 0x5b, 0x1e, 0x39, 0x19, 0x2a, 0x82,
+	0x09, 0x2e, 0x4d, 0x60, 0x69, 0x8e, 0xfd, 0x7c, 0xdb, 0x72, 0xa2, 0x39, 0x8e, 0xc0, 0x5f, 0x8a,
+	0x46, 0xf1, 0x6f, 0x2a, 0x72, 0x33, 0x54, 0x8c, 0xc9, 0x41, 0xe6, 0xef, 0xe0, 0x94, 0xf0, 0xb6,
+	0xae, 0x96, 0x54, 0x71, 0xfc, 0x1c, 0x9c, 0xe5, 0xdf, 0x22, 0x7e, 0xbf, 0x4b, 0x9d, 0xd9, 0xd5,
+	0x25, 0x19, 0x3c, 0x8c, 0xc1, 0x65, 0x54, 0x51, 0x5d, 0x65, 0x4c, 0xf4, 0x9c, 0xbf, 0x01, 0xf7,
+	0x93, 0x10, 0x35, 0x2e, 0xc1, 0x5f, 0xeb, 0xc4, 0x2e, 0x42, 0x99, 0x53, 0x8c, 0x26, 0xc1, 0xd3,
+	0x22, 0x53, 0x77, 0xbb, 0x4b, 0x2d, 0x72, 0x58, 0xca, 0x05, 0x04, 0x37, 0x0d, 0x6d, 0xbb, 0xaf,
+	0x42, 0x7d, 0xe0, 0x94, 0x71, 0x89, 0x43, 0x70, 0x66, 0x64, 0xa6, 0x83, 0xc7, 0x64, 0x18, 0xf1,
+	0x5b, 0xf0, 0x37, 0x5c, 0x76, 0x95, 0x68, 0x74, 0x64, 0x30, 0x49, 0x0e, 0x67, 0x3e, 0x7d, 0xb5,
+	0x9c, 0x9b, 0x2d, 0x72, 0x58, 0xcf, 0xcf, 0xc0, 0xdf, 0x7b, 0xd8, 0x03, 0x7b, 0xfe, 0x2a, 0xb4,
+	0x5e, 0xfe, 0x44, 0x00, 0xc7, 0x6f, 0x82, 0x63, 0x38, 0xd9, 0x08, 0xc5, 0x65, 0x68, 0xc5, 0xff,
+	0xdf, 0xdd, 0x67, 0xa3, 0xf9, 0x20, 0xf6, 0xbf, 0x22, 0x01, 0x5f, 0xf2, 0xb5, 0xd8, 0x70, 0x16,
+	0xa2, 0xf8, 0xec, 0xee, 0x3e, 0xfb, 0x8f, 0x18, 0x79, 0xe4, 0x35, 0xa7, 0xb2, 0xe1, 0x32, 0xb4,
+	0x0d, 0xbf, 0x36, 0xf2, 0xc8, 0x3b, 0x45, 0x57, 0x55, 0xb3, 0x0a, 0x1d, 0xc3, 0x6f, 0x8c, 0xdc,
+	0xf3, 0x18, 0x4e, 0x6a, 0xb1, 0xa4, 0x75, 0xe8, 0x9a, 0xec, 0xeb, 0x41, 0x18, 0x16, 0x07, 0xbf,
+	0x7e, 0x24, 0xff, 0xf4, 0x9c, 0x9e, 0x6f, 0x1f, 0x13, 0xeb, 0xe1, 0x31, 0xb1, 0xb6, 0x7d, 0x82,
+	0x1e, 0xfa, 0x04, 0xfd, 0xee, 0x13, 0xb4, 0xf0, 0xf4, 0xf5, 0x79, 0xfd, 0x27, 0x00, 0x00, 0xff,
+	0xff, 0xe5, 0xf5, 0x53, 0x8b, 0x7a, 0x02, 0x00, 0x00,
 }
 
 func (m *Member) Marshal() (dAtA []byte, err error) {
@@ -770,45 +430,6 @@ func (m *Pool) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Chunk) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *Chunk) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *Chunk) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.XXX_unrecognized != nil {
-		i -= len(m.XXX_unrecognized)
-		copy(dAtA[i:], m.XXX_unrecognized)
-	}
-	if len(m.Data) > 0 {
-		i -= len(m.Data)
-		copy(dAtA[i:], m.Data)
-		i = encodeVarintRaft(dAtA, i, uint64(len(m.Data)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if m.Index != 0 {
-		i = encodeVarintRaft(dAtA, i, uint64(m.Index))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *SnapshotHeader) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -915,25 +536,6 @@ func (m *Pool) Size() (n int) {
 			l = e.Size()
 			n += 1 + l + sovRaft(uint64(l))
 		}
-	}
-	if m.XXX_unrecognized != nil {
-		n += len(m.XXX_unrecognized)
-	}
-	return n
-}
-
-func (m *Chunk) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Index != 0 {
-		n += 1 + sovRaft(uint64(m.Index))
-	}
-	l = len(m.Data)
-	if l > 0 {
-		n += 1 + l + sovRaft(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -1286,110 +888,6 @@ func (m *Pool) Unmarshal(dAtA []byte) error {
 			m.Members = append(m.Members, Member{})
 			if err := m.Members[len(m.Members)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipRaft(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *Chunk) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowRaft
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: Chunk: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Chunk: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Index", wireType)
-			}
-			m.Index = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Index |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowRaft
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthRaft
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthRaft
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Data = append(m.Data[:0], dAtA[iNdEx:postIndex]...)
-			if m.Data == nil {
-				m.Data = []byte{}
 			}
 			iNdEx = postIndex
 		default:

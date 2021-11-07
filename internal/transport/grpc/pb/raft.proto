@@ -4,7 +4,7 @@ package pb;
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
-import "github.com/shaj13/raftkit/internal/raft.proto";
+import "raftpb/raft.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
@@ -17,7 +17,7 @@ service Raft {
     rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
     rpc Snapshot (stream Chunk) returns (google.protobuf.Empty) {}
     rpc Join (raftpb.Member) returns (stream raftpb.Member) {}
-    rpc PromoteMember(Member) returns (google.protobuf.Empty) {}
+    rpc PromoteMember(raftpb.Member) returns (google.protobuf.Empty) {}
 }
 
 message Chunk {
