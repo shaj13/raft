@@ -48,11 +48,11 @@ var (
 )
 
 var (
-	ErrEmptySnapshot  = errors.New("raft/storage/disk: empty snapshot file")
-	ErrSnapshotFormat = errors.New("raft/storage/disk: invalid snapshot file format")
-	ErrCRCMismatch    = errors.New("raft/storage/disk: snapshot file corrupted, crc mismatch")
-	ErrClosedSnapshot = errors.New("raft/storage/disk: read/write on closed snapshot")
-	ErrNoSnapshot     = errors.New("raft/storage/disk: no available snapshot")
+	ErrEmptySnapshot  = errors.New("raft/storage: empty snapshot file")
+	ErrSnapshotFormat = errors.New("raft/storage: invalid snapshot file format")
+	ErrCRCMismatch    = errors.New("raft/storage: snapshot file corrupted, crc mismatch")
+	ErrClosedSnapshot = errors.New("raft/storage: read/write on closed snapshot")
+	ErrNoSnapshot     = errors.New("raft/storage: no available snapshot")
 )
 
 func snapshotName(term, index uint64) string {

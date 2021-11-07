@@ -95,7 +95,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	if !fileutil.Exist(d.snapdir) {
 		if err := os.MkdirAll(d.snapdir, 0750); err != nil {
 			return fail(
-				fmt.Errorf("raft/storage/disk: create snapshot dir failed, Err: %s", err),
+				fmt.Errorf("raft/storage: create snapshot dir: %v", err),
 			)
 		}
 	}
@@ -103,14 +103,14 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	if !wal.Exist(d.waldir) {
 		if err := os.MkdirAll(d.waldir, 0750); err != nil {
 			return fail(
-				fmt.Errorf("raft/storage/disk: create WAL dir failed, Err: %s", err),
+				fmt.Errorf("raft/storage: create WAL dir: %v", err),
 			)
 		}
 
 		w, err := wal.Create(nil, d.waldir, meta)
 		if err != nil {
 			return fail(
-				fmt.Errorf("raft/storage/disk: create WAL file failed, Err: %s", err),
+				fmt.Errorf("raft/storage: create WAL file: %v", err),
 			)
 		}
 
@@ -122,7 +122,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft/storage/disk: list WAL snapshots failed, Err: %s", err),
+			fmt.Errorf("raft/storage: list WAL snapshots: %v", err),
 		)
 	}
 
@@ -132,7 +132,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 		sf.Snap = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(
-			fmt.Errorf("raft/storage/disk: load newest snapshot failed, Err: %s", err),
+			fmt.Errorf("raft/storage: load newest snapshot: %v", err),
 		)
 	}
 
@@ -144,14 +144,14 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	w, err := wal.Open(nil, d.waldir, walsnap)
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft/storage/disk: open WAL failed, Err: %s", err),
+			fmt.Errorf("raft/storage: open WAL: %v", err),
 		)
 	}
 	meta, st, ents, err := w.ReadAll()
 
 	if err != nil {
 		return fail(
-			fmt.Errorf("raft/storage/disk: read WAL failed, Err: %s", err),
+			fmt.Errorf("raft/storage: read WAL: %v", err),
 		)
 	}
 

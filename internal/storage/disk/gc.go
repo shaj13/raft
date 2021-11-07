@@ -37,7 +37,7 @@ func (gc *gc) Start() {
 			select {
 			case <-gc.notifyc:
 				if err := gc.purge(); err != nil {
-					log.Warnf("raft/storage/disk: purging oldest snapshots/WALs files failed, Err %v", err)
+					log.Warnf("raft/storage: purging oldest snapshots/WALs files: %v", err)
 				}
 			case <-gc.ctx.Done():
 				close(gc.done)
