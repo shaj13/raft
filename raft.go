@@ -10,10 +10,9 @@ import (
 
 func New(proto transport.Proto, opts ...Option) *Node {
 	cfg := newConfig(opts...)
-	ctx := cfg.ctx
 	newHandler, dialer := itransport.Proto(proto).Get()
 	cfg.controller = new(controller)
-	cfg.storage = disk.New(ctx, cfg)
+	cfg.storage = disk.New(cfg)
 	cfg.dial = dialer(cfg)
 	cfg.pool = membership.New(cfg)
 	cfg.daemon = daemon.New(cfg)

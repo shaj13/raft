@@ -20,15 +20,15 @@ var _ storage.Storage = &disk{}
 type Config interface {
 	StateDir() string
 	MaxSnapshotFiles() int
+	Context() context.Context
 }
 
 // New return new disk storage.
-func New(ctx context.Context, c Config) storage.Storage {
-	snapdir := filepath.Join(c.StateDir(), "snap")
-	waldir := filepath.Join(c.StateDir(), "wal")
-	gc := newGC(ctx, waldir, snapdir, c.MaxSnapshotFiles())
+func New(cfg Config) storage.Storage {
+	snapdir := filepath.Join(cfg.StateDir(), "snap")
+	waldir := filepath.Join(cfg.StateDir(), "wal")
 	disk := &disk{
-		gc:      gc,
+		cfg:     cfg,
 		waldir:  waldir,
 		snapdir: snapdir,
 		shoter:  &snapshotter{snapdir: snapdir},
@@ -42,6 +42,7 @@ type disk struct {
 	wal     *wal.WAL
 	shoter  *snapshotter
 	gc      *gc
+	cfg     Config
 	waldir  string
 	snapdir string
 }
@@ -155,6 +156,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	}
 
 	d.wal = w
+	d.gc = newGC(d.cfg.Context(), d.waldir, d.snapdir, d.cfg.MaxSnapshotFiles())
 	d.gc.Start()
 	defer d.purge()
 

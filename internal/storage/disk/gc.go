@@ -49,7 +49,7 @@ func (gc *gc) Start() {
 
 func (gc *gc) purge() error {
 	files, err := list(gc.snapdir, snapExt)
-	if err != nil || len(files) < gc.maxsnaps {
+	if err != nil || len(files) < gc.maxsnaps || len(files) == 0 {
 		return err
 	}
 

@@ -52,6 +52,7 @@ func TestDiskBootMkdir(t *testing.T) {
 	temp := filepath.Join(os.TempDir(), "/test_disk_boot")
 	defer os.RemoveAll(temp)
 	d := new(disk)
+	d.cfg = new(config)
 	d.snapdir = ""
 	d.waldir = ""
 
@@ -109,8 +110,15 @@ func TestDiskExist(t *testing.T) {
 
 func newTestDisk(dir string) *disk {
 	d := new(disk)
+	d.cfg = new(config)
 	d.snapdir = dir
 	d.waldir = dir
 	d.gc = newGC(context.TODO(), dir, dir, 100)
 	return d
 }
+
+type config struct{}
+
+func (config) StateDir() (str string)    { return }
+func (config) MaxSnapshotFiles() (i int) { return }
+func (config) Context() context.Context  { return context.TODO() }
