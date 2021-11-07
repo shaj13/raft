@@ -3,21 +3,12 @@ syntax = "proto3";
 package raftpb;
 
 import "gogoproto/gogo.proto";
-import "google/protobuf/empty.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
 option (gogoproto.unmarshaler_all) = true;
 option (gogoproto.goproto_getters_all) = false;
 option (gogoproto.goproto_enum_prefix_all) = false;
-
-// Raft defines the RPC communication between raft nodes.
-service Raft {
-  rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
-  rpc Snapshot (stream Chunk) returns (google.protobuf.Empty) {}
-  rpc Join (Member) returns (stream Member) {}
-  rpc PromoteMember(Member) returns (google.protobuf.Empty) {}
-}
 
 message Member {
 	// ID specifies the cluster member id.
@@ -49,17 +40,9 @@ enum MemberType {
 
 }
 
-
 // Pool specifies the the cluster pool members.
 message Pool {
 	repeated Member members = 1 [(gogoproto.nullable) = false];
-}
-
-message Chunk {
-	// Index specifies the chunk index.
-	uint64  index = 1; 
-	// Data specifies the raw chunk data.
-	bytes  data  = 2 ;
 }
 
 message SnapshotHeader {
