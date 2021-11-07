@@ -7,8 +7,8 @@
 - [ ] check the conf change v2 in etcd
 - [ ] generete grpc under standalone package. 
 - [ ] Repair wall 
-- [ ] disk check all logs
-- [ ] remoce retry after from linear read 
+- [ ] remove retry after from linear read 
+- [ ] rename fsm to state machine and expose it to public
 
 
 
