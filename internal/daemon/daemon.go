@@ -177,7 +177,10 @@ func (d *daemon) ReportShutdown(id uint64) {
 
 	log.Info("raft.daemon: this member removed from the cluster! shutting down.")
 
-	if err := d.Shutdown(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.DrainTimeout())
+	defer cancel()
+
+	if err := d.Shutdown(ctx); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -229,15 +232,9 @@ func (d *daemon) Shutdown(ctx context.Context) error {
 
 	d.started.UnSet()
 
-	var cancel context.CancelFunc
-	if _, ok := ctx.Deadline(); !ok {
-		ctx, cancel = context.WithTimeout(ctx, d.cfg.DrainTimeout())
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
-	}
-
 	// spawn a goroutine to force shutdown when the provided context
 	// expires before the graceful shutdown is complete.
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func(ctx context.Context) {
 		<-ctx.Done()
