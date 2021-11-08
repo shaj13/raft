@@ -36,8 +36,8 @@ type Config interface {
 	DrainTimeout() time.Duration
 }
 
-// StateMachine define an interface that can be implemented by
-// clients to make use of the raft replicated log.
+// StateMachine define an interface that must be implemented by
+// application to make use of the raft replicated log.
 type StateMachine interface {
 	// Apply committed raft log entry.
 	Apply([]byte)

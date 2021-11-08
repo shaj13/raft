@@ -8,7 +8,11 @@ import (
 	"github.com/shaj13/raftkit/transport"
 )
 
-func New(proto transport.Proto, opts ...Option) *Node {
+func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
+	if fsm == nil {
+		panic("raft: cannot create node from nil state machine")
+	}
+
 	cfg := newConfig(opts...)
 	newHandler, dialer := itransport.Proto(proto).Get()
 	cfg.controller = new(controller)

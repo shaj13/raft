@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -52,7 +53,7 @@ func main() {
 		opt2 = raft.WithAddress(addr)
 	}
 
-	node := raft.New(transport.GRPC, raft.WithStateDIR(dir))
+	node := raft.New(new(stateMachine), transport.GRPC, raft.WithStateDIR(dir))
 	go func() {
 		if join != "" {
 			return
@@ -84,4 +85,16 @@ func startRaftServer(h transport.Handler) {
 	// if err := http.ListenAndServe(strings.TrimPrefix(addr, "http://"), h); err != nil {
 	// 	log.Fatalf("failed to serve: %v", err)
 	// }
+}
+
+var _ raft.StateMachine = new(stateMachine)
+
+type stateMachine struct{}
+
+func (s *stateMachine) Apply([]byte) {}
+func (s *stateMachine) Snapshot() (io.ReadCloser, error) {
+	return nil, nil
+}
+func (s *stateMachine) Restore(io.ReadCloser) error {
+	return nil
 }

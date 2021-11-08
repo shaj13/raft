@@ -54,6 +54,10 @@ type RawMember = raftpb.Member
 // output to an io.Writer.
 type Logger = log.Logger
 
+// StateMachine define an interface that must be implemented by
+// application to make use of the raft replicated log.
+type StateMachine = daemon.StateMachine
+
 // Option configures raft node using the functional options paradigm popularized by Rob Pike and Dave Cheney.
 // If you're unfamiliar with this style,
 // see https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html and
