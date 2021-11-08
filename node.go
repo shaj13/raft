@@ -136,6 +136,22 @@ func (n *Node) Leave(ctx context.Context) error {
 	)
 }
 
+func (n *Node) Replicate(ctx context.Context, data []byte) error {
+	err := n.preCond(
+		joined(),
+		noLeader(),
+		notType(n.Whoami(), VoterMember),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return n.daemon.ProposeReplicate(ctx, data)
+}
+
 func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 	err := n.preCond(
 		joined(),

@@ -70,6 +70,16 @@ func TestNodePreConditions(t *testing.T) {
 			},
 		},
 		{
+			call: func(n *Node) error { return n.Replicate(ctx, nil) },
+			expected: []func(c *Node) error{
+				joined(),
+				noLeader(),
+				notType(0, 0),
+				disableForwarding(),
+				available(),
+			},
+		},
+		{
 			call: func(n *Node) error { return n.UpdateMember(ctx, new(RawMember)) },
 			expected: []func(c *Node) error{
 				joined(),
@@ -289,6 +299,19 @@ func TestNodeUpdateMember(t *testing.T) {
 	err := n.UpdateMember(context.TODO(), raw)
 	require.NoError(t, err)
 	require.Equal(t, LearnerMember, raw.Type)
+}
+
+func TestNodeReplicate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	daemon := daemonmock.NewMockDaemon(ctrl)
+	daemon.EXPECT().ProposeReplicate(gomock.Any(), gomock.Any()).Return(nil)
+	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+
+	n := new(Node)
+	n.daemon = daemon
+	n.exec = testPreCond
+	err := n.Replicate(context.TODO(), nil)
+	require.NoError(t, err)
 }
 
 func TestNodeRemoveMember(t *testing.T) {

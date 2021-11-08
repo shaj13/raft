@@ -14,6 +14,8 @@ func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
 	}
 
 	cfg := newConfig(opts...)
+	cfg.fsm = fsm
+
 	newHandler, dialer := itransport.Proto(proto).Get()
 	cfg.controller = new(controller)
 	cfg.storage = disk.New(cfg)

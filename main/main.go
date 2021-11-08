@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
+	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	raft "github.com/shaj13/raftkit"
@@ -19,6 +24,7 @@ import (
 var (
 	addr string
 	join string
+	api  string
 	dir  string
 )
 
@@ -28,6 +34,7 @@ func init() {
 	)
 	flag.StringVar(&addr, "raft", "", "raft server addr")
 	flag.StringVar(&join, "join", "", "join cluster addr")
+	flag.StringVar(&api, "api", "", "api addr")
 	flag.StringVar(&dir, "dir", "", "join cluster addr")
 	flag.Parse()
 }
@@ -43,7 +50,7 @@ func main() {
 		opt2 = raft.WithMembers(raft.RawMember{
 			ID:      3,
 			Address: addr,
-			Type:    raft.LearnerMember,
+			Type:    raft.VoterMember,
 		})
 	} else {
 		opt = raft.WithFallback(
@@ -52,8 +59,9 @@ func main() {
 		)
 		opt2 = raft.WithAddress(addr)
 	}
-
-	node := raft.New(new(stateMachine), transport.GRPC, raft.WithStateDIR(dir))
+	fsm := new(stateMachine)
+	fsm.kv = map[string]string{}
+	node := raft.New(fsm, transport.GRPC, raft.WithStateDIR(dir))
 	go func() {
 		if join != "" {
 			return
@@ -64,6 +72,7 @@ func main() {
 	}()
 
 	go startRaftServer(node.Handler())
+	go httpListen(fsm, node)
 	if err := node.Start(opt, opt2); err != nil {
 		panic(err)
 	}
@@ -87,14 +96,72 @@ func startRaftServer(h transport.Handler) {
 	// }
 }
 
+func httpListen(fsm *stateMachine, n *raft.Node) {
+	err := http.ListenAndServe(api, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			err := n.LinearizableRead(r.Context())
+			if err != nil {
+				rw.WriteHeader(400)
+				rw.Write([]byte(err.Error()))
+			}
+
+			path := strings.ReplaceAll(r.RequestURI, "/", "")
+			val := fsm.Reead(path)
+			rw.Write([]byte(val))
+			return
+		}
+		buf, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			rw.WriteHeader(400)
+			rw.Write([]byte(err.Error()))
+		}
+
+		err = n.Replicate(r.Context(), buf)
+		if err != nil {
+			rw.WriteHeader(400)
+			rw.Write([]byte(err.Error()))
+		}
+	}))
+
+	if err != nil {
+		panic(err)
+	}
+}
+
 var _ raft.StateMachine = new(stateMachine)
 
-type stateMachine struct{}
+type stateMachine struct {
+	mu sync.Mutex
+	kv map[string]string
+}
 
-func (s *stateMachine) Apply([]byte) {}
+func (s *stateMachine) Apply(data []byte) {
+	var e entry
+	if err := json.Unmarshal(data, &e); err != nil {
+		log.Println("unable to Unmarshal entry", err)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.kv[e.Key] = e.Value
+}
+
 func (s *stateMachine) Snapshot() (io.ReadCloser, error) {
 	return nil, nil
 }
+
 func (s *stateMachine) Restore(io.ReadCloser) error {
 	return nil
+}
+
+func (s *stateMachine) Reead(key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.kv[key]
+}
+
+type entry struct {
+	Key   string
+	Value string
 }
