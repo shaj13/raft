@@ -6,7 +6,6 @@
 - [ ] add tcp rpc 
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
-- [ ] remove retry after from linear read 
 
 
 
