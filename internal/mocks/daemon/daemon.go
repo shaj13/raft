@@ -7,7 +7,6 @@ package daemonmock
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	daemon "github.com/shaj13/raftkit/internal/daemon"
@@ -55,17 +54,17 @@ func (mr *MockDaemonMockRecorder) CreateSnapshot() *gomock.Call {
 }
 
 // LinearizableRead mocks base method.
-func (m *MockDaemon) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
+func (m *MockDaemon) LinearizableRead(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LinearizableRead", ctx, retryAfter)
+	ret := m.ctrl.Call(m, "LinearizableRead", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // LinearizableRead indicates an expected call of LinearizableRead.
-func (mr *MockDaemonMockRecorder) LinearizableRead(ctx, retryAfter interface{}) *gomock.Call {
+func (mr *MockDaemonMockRecorder) LinearizableRead(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LinearizableRead", reflect.TypeOf((*MockDaemon)(nil).LinearizableRead), ctx, retryAfter)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LinearizableRead", reflect.TypeOf((*MockDaemon)(nil).LinearizableRead), ctx)
 }
 
 // ProposeConfChange mocks base method.

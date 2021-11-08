@@ -32,7 +32,7 @@ func TestNodePreConditions(t *testing.T) {
 		expected []func(c *Node) error
 	}{
 		{
-			call: func(n *Node) error { return n.LinearizableRead(ctx, 0) },
+			call: func(n *Node) error { return n.LinearizableRead(ctx) },
 			expected: []func(c *Node) error{
 				joined(),
 				noLeader(),
@@ -197,12 +197,12 @@ func TestShutdown(t *testing.T) {
 func TestNodeLinearizableRead(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().LinearizableRead(gomock.Any(), gomock.Eq(time.Second)).Return(nil)
+	daemon.EXPECT().LinearizableRead(gomock.Any()).Return(nil)
 	daemon.EXPECT().Status().Return(raft.Status{}, nil)
 	n := new(Node)
 	n.daemon = daemon
 	n.exec = testPreCond
-	err := n.LinearizableRead(context.TODO(), time.Second)
+	err := n.LinearizableRead(context.TODO())
 	require.NoError(t, err)
 }
 

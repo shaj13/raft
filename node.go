@@ -40,7 +40,7 @@ func (n *Node) Handler() etransport.Handler {
 	return n.handler
 }
 
-func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
+func (n *Node) LinearizableRead(ctx context.Context) error {
 	err := n.preCond(
 		joined(),
 		noLeader(),
@@ -52,7 +52,7 @@ func (n *Node) LinearizableRead(ctx context.Context, retryAfter time.Duration) e
 		return err
 	}
 
-	return n.daemon.LinearizableRead(ctx, retryAfter)
+	return n.daemon.LinearizableRead(ctx)
 }
 
 func (n *Node) Snapshot() (string, io.ReadCloser, error) {

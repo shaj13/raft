@@ -308,8 +308,10 @@ func TestTransferLeadership(t *testing.T) {
 func TestLinearizableRead(t *testing.T) {
 	expectedErr := errors.New("TestLinearizableRead")
 	ctrl := gomock.NewController(t)
+	cfg := NewMockConfig(ctrl)
 	node := NewMockNode(ctrl)
 	d := &daemon{
+		cfg:     cfg,
 		started: atomic.NewBool(),
 		node:    node,
 		idgen:   idutil.NewGenerator(1, time.Now()),
@@ -317,15 +319,17 @@ func TestLinearizableRead(t *testing.T) {
 		ctx:     context.TODO(),
 	}
 
+	cfg.EXPECT().TickInterval().Return(time.Millisecond * 100).AnyTimes()
+
 	// round #1 it return err when daemon not started.
-	err := d.LinearizableRead(context.TODO(), time.Second)
+	err := d.LinearizableRead(context.TODO())
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err when read index return err.
 
 	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(expectedErr)
 	d.started.Set()
-	err = d.LinearizableRead(context.TODO(), time.Second)
+	err = d.LinearizableRead(context.TODO())
 	require.Equal(t, expectedErr, err)
 
 	// round #3 it return err when ctx done while waiting to read index.
@@ -334,7 +338,7 @@ func TestLinearizableRead(t *testing.T) {
 	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(nil)
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.LinearizableRead(ctx, time.Second)
+	err = d.LinearizableRead(ctx)
 	require.Equal(t, context.Canceled, err)
 
 	// round #3 it return exit when read index equal applied index.
@@ -352,7 +356,7 @@ func TestLinearizableRead(t *testing.T) {
 			return nil
 		})
 	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(context.TODO(), time.Second)
+	err = d.LinearizableRead(context.TODO())
 	require.NoError(t, err)
 
 	// round #4 it return err when ctx done while waiting for read index to be applied.
@@ -373,7 +377,7 @@ func TestLinearizableRead(t *testing.T) {
 			return nil
 		})
 	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(ctx, time.Second)
+	err = d.LinearizableRead(ctx)
 	require.Equal(t, context.Canceled, err)
 
 	// round #5 it return err when there an error while waiting for read index to be applied.
@@ -395,7 +399,7 @@ func TestLinearizableRead(t *testing.T) {
 			return nil
 		})
 	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(context.TODO(), time.Second)
+	err = d.LinearizableRead(context.TODO())
 	require.Equal(t, expectedErr, err)
 }
 

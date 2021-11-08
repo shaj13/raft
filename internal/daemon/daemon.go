@@ -28,7 +28,7 @@ var (
 //go:generate mockgen -package daemon  -source vendor/go.etcd.io/etcd/raft/v3/node.go -destination internal/daemon/node_test.go
 
 type Daemon interface {
-	LinearizableRead(ctx context.Context, retryAfter time.Duration) error
+	LinearizableRead(ctx context.Context) error
 	Push(m etcdraftpb.Message) error
 	TransferLeadership(context.Context, uint64) error
 	Status() (raft.Status, error)
@@ -87,7 +87,7 @@ type daemon struct {
 	cState       *etcdraftpb.ConfState
 }
 
-func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration) error {
+func (d *daemon) LinearizableRead(ctx context.Context) error {
 	if d.started.False() {
 		return ErrStopped
 	}
@@ -97,11 +97,12 @@ func (d *daemon) LinearizableRead(ctx context.Context, retryAfter time.Duration)
 
 	// read raft leader index.
 	index, err := func() (uint64, error) {
+		dur := d.cfg.TickInterval() * 5
 		buf := make([]byte, 8)
 		id := d.idgen.Next()
 		binary.BigEndian.PutUint64(buf, id)
 		sub := d.msgbus.SubscribeOnce(id)
-		t := time.NewTicker(retryAfter)
+		t := time.NewTicker(dur)
 
 		defer t.Stop()
 		defer sub.Unsubscribe()
