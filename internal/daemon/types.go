@@ -31,14 +31,14 @@ type Config interface {
 	Storage() storage.Storage
 	Dial() transport.Dial
 	TickInterval() time.Duration
-	FSM() FSM
+	StateMachine() StateMachine
 	Context() context.Context
 	DrainTimeout() time.Duration
 }
 
-// FSM (finite-state machine) define an interface that can be implemented by
+// StateMachine define an interface that can be implemented by
 // clients to make use of the raft replicated log.
-type FSM interface {
+type StateMachine interface {
 	// Apply committed raft log entry.
 	Apply([]byte)
 

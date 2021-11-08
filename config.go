@@ -475,7 +475,7 @@ func (c *config) Reporter() membership.Reporter {
 	return c.daemon
 }
 
-func (c *config) FSM() daemon.FSM {
+func (c *config) StateMachine() daemon.StateMachine {
 	return nil
 }
 

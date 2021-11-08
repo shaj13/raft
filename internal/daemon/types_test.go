@@ -147,20 +147,6 @@ func (mr *MockConfigMockRecorder) DrainTimeout() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrainTimeout", reflect.TypeOf((*MockConfig)(nil).DrainTimeout))
 }
 
-// FSM mocks base method.
-func (m *MockConfig) FSM() FSM {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FSM")
-	ret0, _ := ret[0].(FSM)
-	return ret0
-}
-
-// FSM indicates an expected call of FSM.
-func (mr *MockConfigMockRecorder) FSM() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FSM", reflect.TypeOf((*MockConfig)(nil).FSM))
-}
-
 // Pool mocks base method.
 func (m *MockConfig) Pool() membership.Pool {
 	m.ctrl.T.Helper()
@@ -203,6 +189,20 @@ func (mr *MockConfigMockRecorder) SnapInterval() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapInterval", reflect.TypeOf((*MockConfig)(nil).SnapInterval))
 }
 
+// StateMachine mocks base method.
+func (m *MockConfig) StateMachine() StateMachine {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StateMachine")
+	ret0, _ := ret[0].(StateMachine)
+	return ret0
+}
+
+// StateMachine indicates an expected call of StateMachine.
+func (mr *MockConfigMockRecorder) StateMachine() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateMachine", reflect.TypeOf((*MockConfig)(nil).StateMachine))
+}
+
 // Storage mocks base method.
 func (m *MockConfig) Storage() storage.Storage {
 	m.ctrl.T.Helper()
@@ -231,43 +231,43 @@ func (mr *MockConfigMockRecorder) TickInterval() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TickInterval", reflect.TypeOf((*MockConfig)(nil).TickInterval))
 }
 
-// MockFSM is a mock of FSM interface.
-type MockFSM struct {
+// MockStateMachine is a mock of StateMachine interface.
+type MockStateMachine struct {
 	ctrl     *gomock.Controller
-	recorder *MockFSMMockRecorder
+	recorder *MockStateMachineMockRecorder
 }
 
-// MockFSMMockRecorder is the mock recorder for MockFSM.
-type MockFSMMockRecorder struct {
-	mock *MockFSM
+// MockStateMachineMockRecorder is the mock recorder for MockStateMachine.
+type MockStateMachineMockRecorder struct {
+	mock *MockStateMachine
 }
 
-// NewMockFSM creates a new mock instance.
-func NewMockFSM(ctrl *gomock.Controller) *MockFSM {
-	mock := &MockFSM{ctrl: ctrl}
-	mock.recorder = &MockFSMMockRecorder{mock}
+// NewMockStateMachine creates a new mock instance.
+func NewMockStateMachine(ctrl *gomock.Controller) *MockStateMachine {
+	mock := &MockStateMachine{ctrl: ctrl}
+	mock.recorder = &MockStateMachineMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockFSM) EXPECT() *MockFSMMockRecorder {
+func (m *MockStateMachine) EXPECT() *MockStateMachineMockRecorder {
 	return m.recorder
 }
 
 // Apply mocks base method.
-func (m *MockFSM) Apply(arg0 []byte) {
+func (m *MockStateMachine) Apply(arg0 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Apply", arg0)
 }
 
 // Apply indicates an expected call of Apply.
-func (mr *MockFSMMockRecorder) Apply(arg0 interface{}) *gomock.Call {
+func (mr *MockStateMachineMockRecorder) Apply(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Apply", reflect.TypeOf((*MockFSM)(nil).Apply), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Apply", reflect.TypeOf((*MockStateMachine)(nil).Apply), arg0)
 }
 
 // Restore mocks base method.
-func (m *MockFSM) Restore(arg0 io.ReadCloser) error {
+func (m *MockStateMachine) Restore(arg0 io.ReadCloser) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Restore", arg0)
 	ret0, _ := ret[0].(error)
@@ -275,13 +275,13 @@ func (m *MockFSM) Restore(arg0 io.ReadCloser) error {
 }
 
 // Restore indicates an expected call of Restore.
-func (mr *MockFSMMockRecorder) Restore(arg0 interface{}) *gomock.Call {
+func (mr *MockStateMachineMockRecorder) Restore(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockFSM)(nil).Restore), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockStateMachine)(nil).Restore), arg0)
 }
 
 // Snapshot mocks base method.
-func (m *MockFSM) Snapshot() (io.ReadCloser, error) {
+func (m *MockStateMachine) Snapshot() (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshot")
 	ret0, _ := ret[0].(io.ReadCloser)
@@ -290,7 +290,7 @@ func (m *MockFSM) Snapshot() (io.ReadCloser, error) {
 }
 
 // Snapshot indicates an expected call of Snapshot.
-func (mr *MockFSMMockRecorder) Snapshot() *gomock.Call {
+func (mr *MockStateMachineMockRecorder) Snapshot() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockFSM)(nil).Snapshot))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockStateMachine)(nil).Snapshot))
 }

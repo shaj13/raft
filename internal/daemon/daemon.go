@@ -45,6 +45,7 @@ type Daemon interface {
 func New(cfg Config) Daemon {
 	d := &daemon{}
 	d.cfg = cfg
+	d.fsm = d.cfg.StateMachine()
 	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
 	d.msgbus = msgbus.New()
@@ -58,7 +59,7 @@ func New(cfg Config) Daemon {
 type daemon struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	fsm    FSM
+	fsm    StateMachine
 	local  *raftpb.Member
 	cfg    Config
 	node   raft.Node

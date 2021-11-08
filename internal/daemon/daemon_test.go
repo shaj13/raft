@@ -29,6 +29,7 @@ func TestNew(t *testing.T) {
 
 	cfg.EXPECT().Storage()
 	cfg.EXPECT().Pool()
+	cfg.EXPECT().StateMachine()
 
 	d := New(cfg)
 	require.NotNil(t, d)
@@ -418,7 +419,7 @@ func TestCreateSnapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	// round #2 it return err when fsm return err.
-	fsm := NewMockFSM(ctrl)
+	fsm := NewMockStateMachine(ctrl)
 	fsm.EXPECT().Snapshot().Return(nil, expectedErr)
 	d.fsm = fsm
 	d.appliedIndex.Set(1)
@@ -433,7 +434,7 @@ func TestCreateSnapshot(t *testing.T) {
 	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)
 	shotter.EXPECT().Write(gomock.Any()).Return(nil)
 	pool.EXPECT().Snapshot().Return(nil)
-	fsm = NewMockFSM(ctrl)
+	fsm = NewMockStateMachine(ctrl)
 	fsm.EXPECT().Snapshot().Return(nil, nil)
 	d.fsm = fsm
 	d.storage = stg
@@ -517,7 +518,7 @@ func TestPublishSnapshot(t *testing.T) {
 	stg := storagemock.NewMockStorage(ctrl)
 	shotter := storagemock.NewMockSnapshotter(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
-	fsm := NewMockFSM(ctrl)
+	fsm := NewMockStateMachine(ctrl)
 
 	snap := &etcdraftpb.Snapshot{
 		Metadata: etcdraftpb.SnapshotMetadata{
@@ -562,7 +563,7 @@ func TestPublishReplicate(t *testing.T) {
 	sid := uint64(1)
 	data := []byte("testData")
 	ctrl := gomock.NewController(t)
-	fsm := NewMockFSM(ctrl)
+	fsm := NewMockStateMachine(ctrl)
 	d := new(daemon)
 	d.fsm = fsm
 	d.msgbus = msgbus.New()
@@ -710,7 +711,7 @@ func TestSnapshots(t *testing.T) {
 	c := make(chan struct{})
 	done := make(chan struct{})
 	ctrl := gomock.NewController(t)
-	fsm := NewMockFSM(ctrl)
+	fsm := NewMockStateMachine(ctrl)
 	cfg := NewMockConfig(ctrl)
 	d := new(daemon)
 	d.started = atomic.NewBool()
