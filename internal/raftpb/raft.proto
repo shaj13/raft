@@ -3,7 +3,7 @@ syntax = "proto3";
 package raftpb;
 
 import "gogoproto/gogo.proto";
-import "go.etcd.io/etcd/raft/v3/raftpb";
+import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;

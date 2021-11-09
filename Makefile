@@ -2,7 +2,7 @@
 protoc: 
 	docker run \
 	-v ${PWD}/vendor/github.com/gogo/protobuf/gogoproto/:/opt/include/gogoproto/ \
-	-v ${PWD}/vendor/go.etcd.io/etcd/raft/v3/raftpb/:/opt/include/vendor/go.etcd.io/etcd/raft/v3/raftpb/ \
+	-v ${PWD}/vendor/go.etcd.io/etcd/raft/v3/raftpb/:/opt/include/go.etcd.io/etcd/raft/v3/raftpb/ \
 	-v ${PWD}:/defs \
 	namely/protoc-all -f ./internal/raftpb/raft.proto -l gogo -o .
 
