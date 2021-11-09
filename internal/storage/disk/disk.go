@@ -87,9 +87,9 @@ func (d *disk) SaveEntries(st raftpb.HardState, ents []raftpb.Entry) error {
 
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
 // Otherwise, it create new wal from given metadata alongside snapshots dir.
-func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
+func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 	gc := newGC(d.cfg.Context(), d.waldir, d.snapdir, d.cfg.MaxSnapshotFiles())
-	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
+	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}
 
@@ -131,7 +131,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 
 	sf, err := decodeNewestAvailableSnapshot(d.snapdir, walSnaps)
 	if err == ErrNoSnapshot {
-		sf = new(storage.SnapshotFile)
+		sf = new(storage.Snapshot)
 		sf.Snap = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(

@@ -57,6 +57,6 @@ type operatorsState struct {
 	cfg              *raft.Config
 	hst              etcdraftpb.HardState
 	ents             []etcdraftpb.Entry
-	sf               *storage.SnapshotFile
+	sf               *storage.Snapshot
 	daemon           *daemon
 }

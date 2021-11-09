@@ -9,7 +9,7 @@ import (
 
 //go:generate mockgen -package storagemock -source internal/storage/types.go -destination internal/mocks/storage/storage.go
 
-type SnapshotFile struct {
+type Snapshot struct {
 	Snap *etcdraftpb.Snapshot
 	Pool *raftpb.Pool
 	Data io.ReadCloser
@@ -18,16 +18,16 @@ type SnapshotFile struct {
 type Snapshotter interface {
 	Reader(etcdraftpb.Snapshot) (string, io.ReadCloser, error)
 	Writer(string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
-	Write(sf *SnapshotFile) error
-	Read(snap etcdraftpb.Snapshot) (*SnapshotFile, error)
-	ReadFromPath(path string) (*SnapshotFile, error)
+	Write(sf *Snapshot) error
+	Read(snap etcdraftpb.Snapshot) (*Snapshot, error)
+	ReadFromPath(path string) (*Snapshot, error)
 }
 
 type Storage interface {
 	SaveSnapshot(snap etcdraftpb.Snapshot) error
 	SaveEntries(st etcdraftpb.HardState, entries []etcdraftpb.Entry) error
 	Snapshotter() Snapshotter
-	Boot(meta []byte) ([]byte, etcdraftpb.HardState, []etcdraftpb.Entry, *SnapshotFile, error)
+	Boot(meta []byte) ([]byte, etcdraftpb.HardState, []etcdraftpb.Entry, *Snapshot, error)
 	Exist() bool
 	Close() error
 }

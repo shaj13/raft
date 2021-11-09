@@ -37,10 +37,10 @@ func (m *MockSnapshotter) EXPECT() *MockSnapshotterMockRecorder {
 }
 
 // Read mocks base method.
-func (m *MockSnapshotter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+func (m *MockSnapshotter) Read(snap raftpb.Snapshot) (*storage.Snapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Read", snap)
-	ret0, _ := ret[0].(*storage.SnapshotFile)
+	ret0, _ := ret[0].(*storage.Snapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -52,10 +52,10 @@ func (mr *MockSnapshotterMockRecorder) Read(snap interface{}) *gomock.Call {
 }
 
 // ReadFromPath mocks base method.
-func (m *MockSnapshotter) ReadFromPath(path string) (*storage.SnapshotFile, error) {
+func (m *MockSnapshotter) ReadFromPath(path string) (*storage.Snapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadFromPath", path)
-	ret0, _ := ret[0].(*storage.SnapshotFile)
+	ret0, _ := ret[0].(*storage.Snapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -83,7 +83,7 @@ func (mr *MockSnapshotterMockRecorder) Reader(arg0 interface{}) *gomock.Call {
 }
 
 // Write mocks base method.
-func (m *MockSnapshotter) Write(sf *storage.SnapshotFile) error {
+func (m *MockSnapshotter) Write(sf *storage.Snapshot) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", sf)
 	ret0, _ := ret[0].(error)
@@ -136,13 +136,13 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // Boot mocks base method.
-func (m *MockStorage) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.SnapshotFile, error) {
+func (m *MockStorage) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Boot", meta)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(raftpb.HardState)
 	ret2, _ := ret[2].([]raftpb.Entry)
-	ret3, _ := ret[3].(*storage.SnapshotFile)
+	ret3, _ := ret[3].(*storage.Snapshot)
 	ret4, _ := ret[4].(error)
 	return ret0, ret1, ret2, ret3, ret4
 }

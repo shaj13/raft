@@ -216,7 +216,7 @@ func (f fallback) String() string {
 }
 
 type stateSetup struct {
-	publishSnapshotFile func(*storage.SnapshotFile) error
+	publishSnapshotFile func(*storage.Snapshot) error
 }
 
 func (s stateSetup) before(ost *operatorsState) (err error) { return }

@@ -101,9 +101,9 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	require.Equal(t, expected.Snap, sf.Snap)
 }
 
-func snapshotTestFile() (storage.SnapshotFile, string) {
+func snapshotTestFile() (storage.Snapshot, string) {
 	const data = "some app data"
-	return storage.SnapshotFile{
+	return storage.Snapshot{
 		Snap: &etcdraftpb.Snapshot{
 			Metadata: etcdraftpb.SnapshotMetadata{
 				ConfState: etcdraftpb.ConfState{

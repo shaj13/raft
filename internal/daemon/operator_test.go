@@ -231,7 +231,7 @@ func TestSetup(t *testing.T) {
 	meta := pbutil.MustMarshal(local)
 	ents := []etcdraftpb.Entry{{Index: 5}}
 	hs := etcdraftpb.HardState{Term: 2}
-	sf := &storage.SnapshotFile{}
+	sf := &storage.Snapshot{}
 	ctrl := gomock.NewController(t)
 	stg := storagemock.NewMockStorage(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
@@ -291,14 +291,14 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when ost.wasExited = false",
 			ost: operatorsState{
 				hasExistingState: false,
-				sf:               &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.Snapshot{Snap: &etcdraftpb.Snapshot{}},
 			},
 		},
 		{
 			name: "it return error when puplish snap return error",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf: &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{
+				sf: &storage.Snapshot{Snap: &etcdraftpb.Snapshot{
 					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
 				}},
 			},
@@ -309,7 +309,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when puplish snap success",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf: &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{
+				sf: &storage.Snapshot{Snap: &etcdraftpb.Snapshot{
 					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
 				}},
 			},
@@ -319,7 +319,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when and not call publish snap",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf:               &storage.SnapshotFile{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.Snapshot{Snap: &etcdraftpb.Snapshot{}},
 			},
 			called: false,
 		},
@@ -328,7 +328,7 @@ func TestStateSetup(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			called := false
-			fn := func(*storage.SnapshotFile) error {
+			fn := func(*storage.Snapshot) error {
 				called = true
 				if tt.expectErr {
 					return fmt.Errorf("")
@@ -358,7 +358,7 @@ func TestForceNewCluster(t *testing.T) {
 		{ID: 4},
 		{ID: 5},
 	}
-	ost.sf = &storage.SnapshotFile{
+	ost.sf = &storage.Snapshot{
 		Snap: &etcdraftpb.Snapshot{Metadata: etcdraftpb.SnapshotMetadata{
 			Index: 2,
 			Term:  1,
@@ -481,7 +481,7 @@ func TestRestore(t *testing.T) {
 	shotter.
 		EXPECT().
 		ReadFromPath(gomock.Any()).
-		Return(&storage.SnapshotFile{Pool: &raftpb.Pool{}}, nil)
+		Return(&storage.Snapshot{Pool: &raftpb.Pool{}}, nil)
 
 	shotter.
 		EXPECT().

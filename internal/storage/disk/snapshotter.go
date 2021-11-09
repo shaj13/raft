@@ -84,15 +84,15 @@ func (s snapshotter) Writer(name string) (io.WriteCloser, func() (raftpb.Snapsho
 	return w, peek, nil
 }
 
-func (s snapshotter) Write(sf *storage.SnapshotFile) error {
+func (s snapshotter) Write(sf *storage.Snapshot) error {
 	return encodeSnapshot(s.path(*sf.Snap), sf)
 }
 
-func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.SnapshotFile, error) {
+func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.Snapshot, error) {
 	return decodeSnapshot(s.path(snap))
 }
 
-func (s snapshotter) ReadFromPath(path string) (*storage.SnapshotFile, error) {
+func (s snapshotter) ReadFromPath(path string) (*storage.Snapshot, error) {
 	return decodeSnapshot(path)
 }
 

@@ -31,7 +31,7 @@ func snapshotName(term, index uint64) string {
 	return fmt.Sprintf(format, term, index) + snapExt
 }
 
-func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.SnapshotFile, error) {
+func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage.Snapshot, error) {
 	files := map[string]struct{}{}
 	target := ""
 	ls, err := list(dir, snapExt)
@@ -69,7 +69,7 @@ func peekSnapshot(path string) (*etcdraftpb.Snapshot, error) {
 	return sf.Snap, nil
 }
 
-func encodeSnapshot(path string, s *storage.SnapshotFile) error {
+func encodeSnapshot(path string, s *storage.Snapshot) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func encodeSnapshot(path string, s *storage.SnapshotFile) error {
 	return fileutil.Fsync(f)
 }
 
-func decodeSnapshot(path string) (*storage.SnapshotFile, error) {
+func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func decodeSnapshot(path string) (*storage.SnapshotFile, error) {
 		f,
 	}
 
-	sf := new(storage.SnapshotFile)
+	sf := new(storage.Snapshot)
 	sf.Snap = &trailer.Snapshot
 	sf.Pool = &raftpb.Pool{Members: trailer.Members}
 	sf.Data = data
