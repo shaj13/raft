@@ -291,14 +291,14 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when ost.wasExited = false",
 			ost: operatorsState{
 				hasExistingState: false,
-				sf:               &storage.Snapshot{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.Snapshot{Raw: &etcdraftpb.Snapshot{}},
 			},
 		},
 		{
 			name: "it return error when puplish snap return error",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf: &storage.Snapshot{Snap: &etcdraftpb.Snapshot{
+				sf: &storage.Snapshot{Raw: &etcdraftpb.Snapshot{
 					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
 				}},
 			},
@@ -309,7 +309,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when puplish snap success",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf: &storage.Snapshot{Snap: &etcdraftpb.Snapshot{
+				sf: &storage.Snapshot{Raw: &etcdraftpb.Snapshot{
 					Metadata: etcdraftpb.SnapshotMetadata{Index: 1},
 				}},
 			},
@@ -319,7 +319,7 @@ func TestStateSetup(t *testing.T) {
 			name: "it return nil error when and not call publish snap",
 			ost: operatorsState{
 				hasExistingState: true,
-				sf:               &storage.Snapshot{Snap: &etcdraftpb.Snapshot{}},
+				sf:               &storage.Snapshot{Raw: &etcdraftpb.Snapshot{}},
 			},
 			called: false,
 		},
@@ -359,7 +359,7 @@ func TestForceNewCluster(t *testing.T) {
 		{ID: 5},
 	}
 	ost.sf = &storage.Snapshot{
-		Snap: &etcdraftpb.Snapshot{Metadata: etcdraftpb.SnapshotMetadata{
+		Raw: &etcdraftpb.Snapshot{Metadata: etcdraftpb.SnapshotMetadata{
 			Index: 2,
 			Term:  1,
 		}},

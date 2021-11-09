@@ -85,7 +85,7 @@ func (s snapshotter) Writer(name string) (io.WriteCloser, func() (raftpb.Snapsho
 }
 
 func (s snapshotter) Write(sf *storage.Snapshot) error {
-	return encodeSnapshot(s.path(*sf.Snap), sf)
+	return encodeSnapshot(s.path(*sf.Raw), sf)
 }
 
 func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.Snapshot, error) {

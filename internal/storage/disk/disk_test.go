@@ -20,8 +20,8 @@ func TestDiskWalInteraction(t *testing.T) {
 
 	sf, _ := snapshotTestFile()
 	hs := raftpb.HardState{
-		Term:   sf.Snap.Metadata.Term,
-		Commit: sf.Snap.Metadata.Index,
+		Term:   sf.Raw.Metadata.Term,
+		Commit: sf.Raw.Metadata.Index,
 	}
 
 	// create wal and append data using disk objec.
@@ -29,7 +29,7 @@ func TestDiskWalInteraction(t *testing.T) {
 	disk := newTestDisk("")
 	disk.wal = w
 
-	err := disk.SaveSnapshot(*sf.Snap)
+	err := disk.SaveSnapshot(*sf.Raw)
 	require.NoError(t, err)
 
 	err = disk.SaveEntries(hs, []raftpb.Entry{})
@@ -44,8 +44,8 @@ func TestDiskWalInteraction(t *testing.T) {
 	w, _ = wal.OpenForRead(nil, dir, walpb.Snapshot{})
 	_, gotHs, _, _ := w.ReadAll()
 
-	require.Equal(t, sf.Snap.Metadata.Index, snaps[1].Index)
-	require.Equal(t, sf.Snap.Metadata.Term, snaps[1].Term)
+	require.Equal(t, sf.Raw.Metadata.Index, snaps[1].Index)
+	require.Equal(t, sf.Raw.Metadata.Term, snaps[1].Term)
 	require.Equal(t, gotHs, hs)
 
 }

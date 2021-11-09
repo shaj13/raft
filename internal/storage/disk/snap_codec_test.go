@@ -25,7 +25,7 @@ func TestSnapshotCodec(t *testing.T) {
 
 	got, err := decodeSnapshot(path)
 	require.NoError(t, err)
-	require.Equal(t, expected.Snap, got.Snap)
+	require.Equal(t, expected.Raw, got.Raw)
 	require.Equal(t, expected.Pool, got.Pool)
 
 	gotData, err := ioutil.ReadAll(got.Data)
@@ -44,7 +44,7 @@ func TestPeekSnapshot(t *testing.T) {
 	// Round #2 it return snap object
 	snap, err = peekSnapshot("./testdata/valid.snap")
 	require.NoError(t, err)
-	require.Equal(t, expected.Snap, snap)
+	require.Equal(t, expected.Raw, snap)
 }
 
 func TestDecodeSnapErr(t *testing.T) {
@@ -98,13 +98,13 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	expected, _ := snapshotTestFile()
 	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{{Index: 3, Term: 3}})
 	require.NoError(t, err)
-	require.Equal(t, expected.Snap, sf.Snap)
+	require.Equal(t, expected.Raw, sf.Raw)
 }
 
 func snapshotTestFile() (storage.Snapshot, string) {
 	const data = "some app data"
 	return storage.Snapshot{
-		Snap: &etcdraftpb.Snapshot{
+		Raw: &etcdraftpb.Snapshot{
 			Metadata: etcdraftpb.SnapshotMetadata{
 				ConfState: etcdraftpb.ConfState{
 					Voters: []uint64{1, 2, 3},

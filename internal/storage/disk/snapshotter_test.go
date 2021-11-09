@@ -73,7 +73,7 @@ func TestSnapshoterWriter(t *testing.T) {
 
 func testSnap(index, term uint64) raftpb.Snapshot {
 	st, _ := snapshotTestFile()
-	st.Snap.Metadata.Index = index
-	st.Snap.Metadata.Term = term
-	return *st.Snap
+	st.Raw.Metadata.Index = index
+	st.Raw.Metadata.Term = term
+	return *st.Raw
 }

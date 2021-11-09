@@ -531,7 +531,7 @@ func TestPublishSnapshot(t *testing.T) {
 	}
 
 	sf := &storage.Snapshot{
-		Snap: snap,
+		Raw: snap,
 		Pool: new(raftpb.Pool),
 	}
 

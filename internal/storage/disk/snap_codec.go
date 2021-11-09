@@ -66,7 +66,7 @@ func peekSnapshot(path string) (*etcdraftpb.Snapshot, error) {
 
 	defer sf.Data.Close()
 
-	return sf.Snap, nil
+	return sf.Raw, nil
 }
 
 func encodeSnapshot(path string, s *storage.Snapshot) error {
@@ -90,7 +90,7 @@ func encodeSnapshot(path string, s *storage.Snapshot) error {
 	trailer.CRC = crc.Sum(nil)
 	trailer.Version = raftpb.V0
 	trailer.Members = s.Pool.Members
-	trailer.Snapshot = *s.Snap
+	trailer.Snapshot = *s.Raw
 
 	buf, err := trailer.Marshal()
 	if err != nil {
@@ -182,7 +182,7 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	}
 
 	sf := new(storage.Snapshot)
-	sf.Snap = &trailer.Snapshot
+	sf.Raw = &trailer.Snapshot
 	sf.Pool = &raftpb.Pool{Members: trailer.Members}
 	sf.Data = data
 

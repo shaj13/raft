@@ -132,7 +132,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	sf, err := decodeNewestAvailableSnapshot(d.snapdir, walSnaps)
 	if err == ErrNoSnapshot {
 		sf = new(storage.Snapshot)
-		sf.Snap = new(raftpb.Snapshot)
+		sf.Raw = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(
 			fmt.Errorf("raft/storage: load newest snapshot: %v", err),
@@ -140,8 +140,8 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	}
 
 	walsnap := walpb.Snapshot{
-		Index: sf.Snap.Metadata.Index,
-		Term:  sf.Snap.Metadata.Term,
+		Index: sf.Raw.Metadata.Index,
+		Term:  sf.Raw.Metadata.Term,
 	}
 
 	w, err := wal.Open(nil, d.waldir, walsnap)
