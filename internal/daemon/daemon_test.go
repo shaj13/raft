@@ -532,7 +532,6 @@ func TestPublishSnapshot(t *testing.T) {
 
 	sf := &storage.Snapshot{
 		Raw: snap,
-		Pool: new(raftpb.Pool),
 	}
 
 	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)

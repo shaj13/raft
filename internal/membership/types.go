@@ -43,12 +43,12 @@ type Config interface {
 type Pool interface {
 	NextID() uint64
 	Members() []Member
-	Get(id uint64) (Member, bool)
-	Add(m raftpb.Member) error
-	Update(m raftpb.Member) error
-	Remove(m raftpb.Member) error
+	Get(uint64) (Member, bool)
+	Add(raftpb.Member) error
+	Update(raftpb.Member) error
+	Remove(raftpb.Member) error
 	Snapshot() []raftpb.Member
-	Restore(pool raftpb.Pool)
-	RegisterTypeMatcher(fn func(m raftpb.Member) raftpb.MemberType)
-	TearDown(ctx context.Context) error
+	Restore([]raftpb.Member)
+	RegisterTypeMatcher(func(raftpb.Member) raftpb.MemberType)
+	TearDown(context.Context) error
 }

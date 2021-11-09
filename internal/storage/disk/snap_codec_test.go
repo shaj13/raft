@@ -26,7 +26,7 @@ func TestSnapshotCodec(t *testing.T) {
 	got, err := decodeSnapshot(path)
 	require.NoError(t, err)
 	require.Equal(t, expected.Raw, got.Raw)
-	require.Equal(t, expected.Pool, got.Pool)
+	require.Equal(t, expected.Members, got.Members)
 
 	gotData, err := ioutil.ReadAll(got.Data)
 	require.NoError(t, err)
@@ -113,12 +113,10 @@ func snapshotTestFile() (storage.Snapshot, string) {
 				Term:  1,
 			},
 		},
-		Pool: &raftpb.Pool{
-			Members: []raftpb.Member{
-				{
-					Address: ":50052",
-					ID:      11,
-				},
+		Members: []raftpb.Member{
+			{
+				Address: ":50052",
+				ID:      11,
 			},
 		},
 		Data: ioutil.NopCloser(strings.NewReader(data)),

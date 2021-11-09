@@ -481,7 +481,7 @@ func TestRestore(t *testing.T) {
 	shotter.
 		EXPECT().
 		ReadFromPath(gomock.Any()).
-		Return(&storage.Snapshot{Pool: &raftpb.Pool{}}, nil)
+		Return(&storage.Snapshot{}, nil)
 
 	shotter.
 		EXPECT().

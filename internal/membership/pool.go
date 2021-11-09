@@ -128,8 +128,8 @@ func (p *pool) Snapshot() []raftpb.Member {
 	return membs
 }
 
-func (p *pool) Restore(pool raftpb.Pool) {
-	for _, m := range pool.Members {
+func (p *pool) Restore(membs []raftpb.Member) {
+	for _, m := range membs {
 		if err := p.Add(m); err != nil {
 			log.Errorf("raft.membership: adding member %x: %v", m.ID, err)
 		}

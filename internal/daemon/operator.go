@@ -304,9 +304,7 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 
 	// override latest snapshot pool members.
 	if !raft.IsEmptySnap(*sf.Raw) {
-		sf.Pool = &raftpb.Pool{
-			Members: append([]raftpb.Member{local}, membs...),
-		}
+		sf.Members = append([]raftpb.Member{local}, membs...)
 
 		err := storage.Snapshotter().Write(sf)
 		if err != nil {
@@ -467,7 +465,7 @@ func (r restore) before(ost *operatorsState) (err error) {
 	}
 
 	// update snapshot file meta.
-	sf.Pool.Members = membs
+	sf.Members = membs
 	sf.Raw = &snap
 
 	// save new snapshot file to state dir.

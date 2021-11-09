@@ -10,9 +10,9 @@ import (
 //go:generate mockgen -package storagemock -source internal/storage/types.go -destination internal/mocks/storage/storage.go
 
 type Snapshot struct {
-	Raw  *etcdraftpb.Snapshot
-	Pool *raftpb.Pool
-	Data io.ReadCloser
+	Raw     *etcdraftpb.Snapshot
+	Members []raftpb.Member
+	Data    io.ReadCloser
 }
 
 type Snapshotter interface {

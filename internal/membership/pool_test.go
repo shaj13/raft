@@ -61,17 +61,15 @@ func TestPoolRemoveErr(t *testing.T) {
 func TestPoolRestore(t *testing.T) {
 	p := New(testConfig(t))
 	ids := make(map[uint64]struct{})
-	pool := &raftpb.Pool{
-		Members: []raftpb.Member{},
-	}
+	membs := make([]raftpb.Member, 5)
 
 	for i := 0; i < 5; i++ {
 		m := raftpb.Member{ID: uint64(i), Type: raftpb.LocalMember}
 		ids[uint64(i)] = struct{}{}
-		pool.Members = append(pool.Members, m)
+		membs[i] = m
 	}
 
-	p.Restore(*pool)
+	p.Restore(membs)
 
 	for id := range ids {
 		_, ok := p.Get(id)

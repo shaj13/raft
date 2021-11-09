@@ -89,7 +89,7 @@ func encodeSnapshot(path string, s *storage.Snapshot) error {
 	trailer := new(raftpb.SnapshotTrailer)
 	trailer.CRC = crc.Sum(nil)
 	trailer.Version = raftpb.V0
-	trailer.Members = s.Pool.Members
+	trailer.Members = s.Members
 	trailer.Snapshot = *s.Raw
 
 	buf, err := trailer.Marshal()
@@ -183,7 +183,7 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 
 	sf := new(storage.Snapshot)
 	sf.Raw = &trailer.Snapshot
-	sf.Pool = &raftpb.Pool{Members: trailer.Members}
+	sf.Members = trailer.Members
 	sf.Data = data
 
 	return sf, nil

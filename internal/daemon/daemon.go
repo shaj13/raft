@@ -417,11 +417,9 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	}
 
 	sf := storage.Snapshot{
-		Raw: &snap,
-		Pool: &raftpb.Pool{
-			Members: d.pool.Snapshot(),
-		},
-		Data: r,
+		Raw:     &snap,
+		Members: d.pool.Snapshot(),
+		Data:    r,
 	}
 
 	if err := d.storage.Snapshotter().Write(&sf); err != nil {
@@ -585,7 +583,7 @@ func (d *daemon) publishSnapshotFile(sf *storage.Snapshot) error {
 		return err
 	}
 
-	d.pool.Restore(*sf.Pool)
+	d.pool.Restore(sf.Members)
 
 	if err := d.fsm.Restore(sf.Data); err != nil {
 		return err
