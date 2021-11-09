@@ -45,7 +45,7 @@ message Pool {
 	repeated Member members = 1 [(gogoproto.nullable) = false];
 }
 
-message SnapshotHeader {
+message SnapshotTrailer {
 	// Version represents the snapshot file version.
 	enum Version {
 		// V0 is the initial version of the snapshot file.
@@ -55,4 +55,6 @@ message SnapshotHeader {
 	bytes  CRC  = 1;
 	// Version specifies the snapshot file version.
 	Version version = 2;
+	// members specifies the the cluster pool members.
+	repeated Member members = 3 [(gogoproto.nullable) = false];
 }
