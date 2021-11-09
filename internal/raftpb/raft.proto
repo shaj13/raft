@@ -3,6 +3,7 @@ syntax = "proto3";
 package raftpb;
 
 import "gogoproto/gogo.proto";
+import "go.etcd.io/etcd/raft/v3/raftpb";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;
@@ -57,4 +58,6 @@ message SnapshotTrailer {
 	Version version = 2;
 	// members specifies the the cluster pool members.
 	repeated Member members = 3 [(gogoproto.nullable) = false];
+	// snapshot specifies the the etcd raftpb snapshot.
+	raftpb.Snapshot snapshot = 4 [(gogoproto.nullable) = false];
 }
