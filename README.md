@@ -6,6 +6,7 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
+- [ ] fix snap codec should cretae file on tmp then move it back to its origname (force new cluster bug)
 
 
 ## Test cases 
