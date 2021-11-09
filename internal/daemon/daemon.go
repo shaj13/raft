@@ -717,6 +717,10 @@ func (d *daemon) send(msgs []etcdraftpb.Message) {
 			continue
 		}
 
+		if d.forceSnapshot(m) {
+			continue
+		}
+
 		if err := mem.Send(m); err != nil {
 			lg(m, err.Error())
 		}
@@ -826,6 +830,50 @@ func (d *daemon) confState(cs *etcdraftpb.ConfState) *etcdraftpb.ConfState {
 	}
 
 	return d.cState
+}
+
+func (d *daemon) forceSnapshot(msg etcdraftpb.Message) bool {
+	if msg.Type != etcdraftpb.MsgSnap {
+		return false
+	}
+
+	found := false
+	cs := msg.Snapshot.Metadata.ConfState
+	for _, set := range [][]uint64{
+		cs.Voters,
+		cs.Learners,
+		cs.VotersOutgoing,
+		// `LearnersNext` doesn't need to be checked. According to the rules, if a peer in
+		// `LearnersNext`, it has to be in `VotersOutgoing`.
+	} {
+
+		for _, id := range set {
+			if id == msg.To {
+				found = true
+				break
+			}
+		}
+
+		if found {
+			break
+		}
+	}
+
+	if found {
+		return false
+	}
+
+	log.Debugf("raft.daemon: force new snapshot %x it is not in the ConfState", msg.To)
+
+	// report snapshot failure, to re-send the new snapshot.
+	defer d.ReportSnapshot(msg.To, raft.SnapshotFailure)
+
+	_, err := d.CreateSnapshot()
+	if err != nil {
+		log.Warnf("raft.daemon: force new snapshot: %v", err)
+	}
+
+	return true
 }
 
 func nopClose(fn func()) func() error {

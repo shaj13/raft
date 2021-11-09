@@ -61,7 +61,7 @@ func main() {
 	}
 	fsm := new(stateMachine)
 	fsm.kv = map[string]string{}
-	node := raft.New(fsm, transport.GRPC, raft.WithStateDIR(dir))
+	node := raft.New(fsm, transport.GRPC, raft.WithStateDIR(dir), raft.WithSnapshotInterval(2))
 	go func() {
 		if join != "" {
 			return
@@ -148,11 +148,30 @@ func (s *stateMachine) Apply(data []byte) {
 }
 
 func (s *stateMachine) Snapshot() (io.ReadCloser, error) {
-	return nil, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	buf, err := json.Marshal(&s.kv)
+	if err != nil {
+		return nil, err
+	}
+	return io.NopCloser(strings.NewReader(string(buf))), nil
 }
 
-func (s *stateMachine) Restore(io.ReadCloser) error {
-	return nil
+func (s *stateMachine) Restore(r io.ReadCloser) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(buf, &s.kv)
+	if err != nil {
+		return err
+	}
+
+	return r.Close()
 }
 
 func (s *stateMachine) Reead(key string) string {
