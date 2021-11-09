@@ -14,6 +14,7 @@ import (
 )
 
 func TestDiskWalInteraction(t *testing.T) {
+
 	dir := createTestDir("wal", t)
 	defer os.RemoveAll(dir)
 
@@ -35,6 +36,7 @@ func TestDiskWalInteraction(t *testing.T) {
 	require.NoError(t, err)
 
 	// clsoe disk
+	close(disk.gc.done)
 	disk.Close()
 
 	// open wal for read and check data against waht saved.
@@ -109,11 +111,12 @@ func TestDiskExist(t *testing.T) {
 }
 
 func newTestDisk(dir string) *disk {
+	gc := newGC(context.TODO(), dir, dir, 100)
 	d := new(disk)
 	d.cfg = new(config)
 	d.snapdir = dir
 	d.waldir = dir
-	d.gc = newGC(context.TODO(), dir, dir, 100)
+	d.gc = gc
 	return d
 }
 

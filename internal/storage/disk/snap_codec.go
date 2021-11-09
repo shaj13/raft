@@ -24,7 +24,6 @@ var (
 	ErrEmptySnapshot  = errors.New("raft/storage: empty snapshot file")
 	ErrSnapshotFormat = errors.New("raft/storage: invalid snapshot file format")
 	ErrCRCMismatch    = errors.New("raft/storage: snapshot file corrupted, crc mismatch")
-	ErrClosedSnapshot = errors.New("raft/storage: read/write on closed snapshot")
 	ErrNoSnapshot     = errors.New("raft/storage: no available snapshot")
 )
 
@@ -133,7 +132,7 @@ func decodeSnapshot(path string) (*storage.SnapshotFile, error) {
 	bsize := make([]byte, 8)
 	_, err = f.ReadAt(bsize, stat.Size()-8)
 	if err == io.EOF {
-		return nil, ErrEmptySnapshot
+		return nil, ErrSnapshotFormat
 	}
 
 	if err != nil {

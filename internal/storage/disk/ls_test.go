@@ -59,7 +59,7 @@ func createTestFiles(dir string, files []string, tb testing.TB) {
 }
 
 func createTestDir(name string, tb testing.TB) string {
-	dir := filepath.Join(os.TempDir(), name)
+	dir := filepath.Join(tb.TempDir(), name)
 	if err := os.Mkdir(dir, 0700); err != nil {
 		tb.Fatal(err)
 	}
