@@ -1,11 +1,13 @@
 package disk
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/shaj13/raftkit/internal/storage"
+	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -26,8 +28,13 @@ func (s snapshotter) Reader(snap raftpb.Snapshot) (string, io.ReadCloser, error)
 		return "", nil, err
 	}
 
-	r := readerPool.Get().(*fileReader)
-	r.Reset(f)
+	r := struct {
+		io.Reader
+		io.Closer
+	}{
+		bufio.NewReader(f),
+		f,
+	}
 
 	return snapshotName(snap.Metadata.Term, snap.Metadata.Index), r, nil
 }
@@ -39,16 +46,38 @@ func (s snapshotter) Writer(name string) (io.WriteCloser, func() (raftpb.Snapsho
 		return nil, nil, err
 	}
 
-	w := writerPool.Get().(*fileWriter)
-	w.Reset(f, nil)
+	bw := bufio.NewWriter(f)
 
-	peek := func() (raftpb.Snapshot, error) {
-		w.FlushAndSync()
+	w := struct {
+		io.Writer
+		io.Closer
+	}{
+		bw,
+		f,
+	}
+
+	peek := func() (snap raftpb.Snapshot, err error) {
+		defer func() {
+			if err != nil {
+				os.Remove(path)
+			}
+		}()
+
+		err = bw.Flush()
+		if err != nil {
+			return
+		}
+
+		err = fileutil.Fsync(f)
+		if err != nil {
+			return
+		}
+
 		s, err := peekSnapshot(path)
 		if err != nil {
-			_ = os.Remove(path)
-			return raftpb.Snapshot{}, err
+			return
 		}
+
 		return *s, nil
 	}
 

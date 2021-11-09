@@ -107,54 +107,6 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	require.Equal(t, expected.Snap, sf.Snap)
 }
 
-func TestSnapshotFileReader(t *testing.T) {
-	f, err := os.Open("./testdata/empty.snap")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r := readerPool.Get().(*fileReader)
-	r.Reset(f)
-
-	err = r.Close()
-	require.NoError(t, err)
-
-	_, err = r.Read([]byte{})
-	require.Equal(t, ErrClosedSnapshot, err)
-
-	err = r.Close()
-	require.Equal(t, ErrClosedSnapshot, err)
-}
-
-func TestSnapshotFileWriter(t *testing.T) {
-	data := []byte("file data")
-	path := filepath.Join(os.TempDir(), "snapfilewriter")
-	defer os.Remove(path)
-
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	w := writerPool.Get().(*fileWriter)
-	w.Reset(f, nil)
-
-	_, err = w.Write(data)
-	require.NoError(t, err)
-
-	err = w.Close()
-	require.NoError(t, err)
-
-	_, err = w.Write(data)
-	require.Equal(t, ErrClosedSnapshot, err)
-
-	err = w.Close()
-	require.Equal(t, ErrClosedSnapshot, err)
-
-	got, _ := ioutil.ReadFile(path)
-	require.Equal(t, data, got)
-}
-
 func snapshotTestFile() (storage.SnapshotFile, string) {
 	const data = "some app data"
 	return storage.SnapshotFile{
@@ -177,4 +129,9 @@ func snapshotTestFile() (storage.SnapshotFile, string) {
 		},
 		Data: ioutil.NopCloser(strings.NewReader(data)),
 	}, data
+}
+
+func Test(t *testing.T) {
+	// sf, err := decodeSnapshot("/var/folders/fq/qvb256xs6jjgxr5rzkcfr_yjtyzdc8/T/1/snap/0000000000000003-000000000000000c.snap")
+	// t.Error(sf.Pool.Members, err)
 }
