@@ -75,5 +75,5 @@ func testSnap(index, term uint64) raftpb.Snapshot {
 	st, _ := snapshotTestFile()
 	st.Raw.Metadata.Index = index
 	st.Raw.Metadata.Term = term
-	return *st.Raw
+	return st.Raw
 }

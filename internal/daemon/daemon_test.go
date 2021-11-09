@@ -531,7 +531,7 @@ func TestPublishSnapshot(t *testing.T) {
 	}
 
 	sf := &storage.Snapshot{
-		Raw: snap,
+		Raw: *snap,
 	}
 
 	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)
@@ -556,6 +556,7 @@ func TestPublishSnapshot(t *testing.T) {
 
 	// round #2 it publish snapshot.
 	snap.Metadata.Index = 3
+	sf.Raw = *snap
 	err = daemon.publishSnapshot(*snap)
 	require.NoError(t, err)
 	require.Equal(t, snap.Metadata.Index, daemon.snapIndex.Get())

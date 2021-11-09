@@ -39,7 +39,6 @@ func TestPeekSnapshot(t *testing.T) {
 	// Round #1 it return error when file invalid
 	snap, err := peekSnapshot("")
 	require.Error(t, err)
-	require.Nil(t, snap)
 
 	// Round #2 it return snap object
 	snap, err = peekSnapshot("./testdata/valid.snap")
@@ -104,7 +103,7 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 func snapshotTestFile() (storage.Snapshot, string) {
 	const data = "some app data"
 	return storage.Snapshot{
-		Raw: &etcdraftpb.Snapshot{
+		Raw: etcdraftpb.Snapshot{
 			Metadata: etcdraftpb.SnapshotMetadata{
 				ConfState: etcdraftpb.ConfState{
 					Voters: []uint64{1, 2, 3},

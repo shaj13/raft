@@ -417,7 +417,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 	}
 
 	sf := storage.Snapshot{
-		Raw:     &snap,
+		Raw:     snap,
 		Members: d.pool.Snapshot(),
 		Data:    r,
 	}
@@ -577,9 +577,9 @@ func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 }
 
 func (d *daemon) publishSnapshotFile(sf *storage.Snapshot) error {
-	snap := *sf.Raw
+	snap := sf.Raw
 
-	if err := d.cache.ApplySnapshot(*sf.Raw); err != nil {
+	if err := d.cache.ApplySnapshot(snap); err != nil {
 		return err
 	}
 

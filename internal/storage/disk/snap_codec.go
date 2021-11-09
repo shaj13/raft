@@ -58,10 +58,10 @@ func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage
 	return decodeSnapshot(filepath.Join(dir, target))
 }
 
-func peekSnapshot(path string) (*etcdraftpb.Snapshot, error) {
+func peekSnapshot(path string) (etcdraftpb.Snapshot, error) {
 	sf, err := decodeSnapshot(path)
 	if err != nil {
-		return nil, err
+		return etcdraftpb.Snapshot{}, err
 	}
 
 	defer sf.Data.Close()
@@ -90,7 +90,7 @@ func encodeSnapshot(path string, s *storage.Snapshot) error {
 	trailer.CRC = crc.Sum(nil)
 	trailer.Version = raftpb.V0
 	trailer.Members = s.Members
-	trailer.Snapshot = *s.Raw
+	trailer.Snapshot = s.Raw
 
 	buf, err := trailer.Marshal()
 	if err != nil {
@@ -182,7 +182,7 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	}
 
 	sf := new(storage.Snapshot)
-	sf.Raw = &trailer.Snapshot
+	sf.Raw = trailer.Snapshot
 	sf.Members = trailer.Members
 	sf.Data = data
 

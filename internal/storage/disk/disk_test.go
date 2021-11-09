@@ -29,7 +29,7 @@ func TestDiskWalInteraction(t *testing.T) {
 	disk := newTestDisk("")
 	disk.wal = w
 
-	err := disk.SaveSnapshot(*sf.Raw)
+	err := disk.SaveSnapshot(sf.Raw)
 	require.NoError(t, err)
 
 	err = disk.SaveEntries(hs, []raftpb.Entry{})

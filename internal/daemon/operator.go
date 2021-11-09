@@ -225,7 +225,7 @@ func (s stateSetup) after(ost *operatorsState) (err error) {
 		return
 	}
 
-	if !raft.IsEmptySnap(*ost.sf.Raw) {
+	if !raft.IsEmptySnap(ost.sf.Raw) {
 		if err := s.publishSnapshotFile(ost.sf); err != nil {
 			return err
 		}
@@ -303,7 +303,7 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 	next := hs.Commit + 1
 
 	// override latest snapshot pool members.
-	if !raft.IsEmptySnap(*sf.Raw) {
+	if !raft.IsEmptySnap(sf.Raw) {
 		sf.Members = append([]raftpb.Member{local}, membs...)
 
 		err := storage.Snapshotter().Write(sf)
@@ -311,7 +311,7 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 			return err
 		}
 
-		sf, err = storage.Snapshotter().Read(*sf.Raw)
+		sf, err = storage.Snapshotter().Read(sf.Raw)
 		if err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func (r restore) before(ost *operatorsState) (err error) {
 
 	// update snapshot file meta.
 	sf.Members = membs
-	sf.Raw = &snap
+	sf.Raw = snap
 
 	// save new snapshot file to state dir.
 	if err := storage.Snapshotter().Write(sf); err != nil {

@@ -132,7 +132,6 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	sf, err := decodeNewestAvailableSnapshot(d.snapdir, walSnaps)
 	if err == ErrNoSnapshot {
 		sf = new(storage.Snapshot)
-		sf.Raw = new(raftpb.Snapshot)
 	} else if err != nil {
 		return fail(
 			fmt.Errorf("raft/storage: load newest snapshot: %v", err),
