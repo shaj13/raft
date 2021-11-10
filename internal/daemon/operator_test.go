@@ -422,7 +422,7 @@ func TestForceNewCluster(t *testing.T) {
 
 	shotter.
 		EXPECT().
-		Read(gomock.Any()).
+		Read(gomock.Any(), gomock.Any()).
 		Return(nil, nil)
 
 	ost.daemon.storage = stg

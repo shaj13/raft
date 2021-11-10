@@ -570,7 +570,8 @@ func (d *daemon) publishSnapshot(snap etcdraftpb.Snapshot) error {
 		return err
 	}
 
-	sf, err := d.storage.Snapshotter().Read(snap)
+	meta := snap.Metadata
+	sf, err := d.storage.Snapshotter().Read(meta.Term, meta.Index)
 	if err != nil {
 		return err
 	}

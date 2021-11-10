@@ -37,18 +37,18 @@ func (m *MockSnapshotter) EXPECT() *MockSnapshotterMockRecorder {
 }
 
 // Read mocks base method.
-func (m *MockSnapshotter) Read(arg0 raftpb.Snapshot) (*storage.Snapshot, error) {
+func (m *MockSnapshotter) Read(arg0, arg1 uint64) (*storage.Snapshot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", arg0)
+	ret := m.ctrl.Call(m, "Read", arg0, arg1)
 	ret0, _ := ret[0].(*storage.Snapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Read indicates an expected call of Read.
-func (mr *MockSnapshotterMockRecorder) Read(arg0 interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Read(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSnapshotter)(nil).Read), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSnapshotter)(nil).Read), arg0, arg1)
 }
 
 // ReadFrom mocks base method.
@@ -67,19 +67,18 @@ func (mr *MockSnapshotterMockRecorder) ReadFrom(arg0 interface{}) *gomock.Call {
 }
 
 // Reader mocks base method.
-func (m *MockSnapshotter) Reader(arg0 raftpb.Snapshot) (string, io.ReadCloser, error) {
+func (m *MockSnapshotter) Reader(arg0, arg1 uint64) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reader", arg0)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(io.ReadCloser)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "Reader", arg0, arg1)
+	ret0, _ := ret[0].(io.ReadCloser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Reader indicates an expected call of Reader.
-func (mr *MockSnapshotterMockRecorder) Reader(arg0 interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Reader(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockSnapshotter)(nil).Reader), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockSnapshotter)(nil).Reader), arg0, arg1)
 }
 
 // Write mocks base method.
@@ -97,19 +96,18 @@ func (mr *MockSnapshotterMockRecorder) Write(arg0 interface{}) *gomock.Call {
 }
 
 // Writer mocks base method.
-func (m *MockSnapshotter) Writer(arg0 string) (io.WriteCloser, func() (raftpb.Snapshot, error), error) {
+func (m *MockSnapshotter) Writer(arg0, arg1 uint64) (io.WriteCloser, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Writer", arg0)
+	ret := m.ctrl.Call(m, "Writer", arg0, arg1)
 	ret0, _ := ret[0].(io.WriteCloser)
-	ret1, _ := ret[1].(func() (raftpb.Snapshot, error))
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Writer indicates an expected call of Writer.
-func (mr *MockSnapshotterMockRecorder) Writer(arg0 interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Writer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockSnapshotter)(nil).Writer), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Writer", reflect.TypeOf((*MockSnapshotter)(nil).Writer), arg0, arg1)
 }
 
 // MockStorage is a mock of Storage interface.
@@ -136,9 +134,9 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // Boot mocks base method.
-func (m *MockStorage) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
+func (m *MockStorage) Boot(arg0 []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Boot", meta)
+	ret := m.ctrl.Call(m, "Boot", arg0)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(raftpb.HardState)
 	ret2, _ := ret[2].([]raftpb.Entry)
@@ -148,9 +146,9 @@ func (m *MockStorage) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entr
 }
 
 // Boot indicates an expected call of Boot.
-func (mr *MockStorageMockRecorder) Boot(meta interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) Boot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Boot", reflect.TypeOf((*MockStorage)(nil).Boot), meta)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Boot", reflect.TypeOf((*MockStorage)(nil).Boot), arg0)
 }
 
 // Close mocks base method.
@@ -182,31 +180,31 @@ func (mr *MockStorageMockRecorder) Exist() *gomock.Call {
 }
 
 // SaveEntries mocks base method.
-func (m *MockStorage) SaveEntries(st raftpb.HardState, entries []raftpb.Entry) error {
+func (m *MockStorage) SaveEntries(arg0 raftpb.HardState, arg1 []raftpb.Entry) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveEntries", st, entries)
+	ret := m.ctrl.Call(m, "SaveEntries", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveEntries indicates an expected call of SaveEntries.
-func (mr *MockStorageMockRecorder) SaveEntries(st, entries interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) SaveEntries(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveEntries", reflect.TypeOf((*MockStorage)(nil).SaveEntries), st, entries)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveEntries", reflect.TypeOf((*MockStorage)(nil).SaveEntries), arg0, arg1)
 }
 
 // SaveSnapshot mocks base method.
-func (m *MockStorage) SaveSnapshot(snap raftpb.Snapshot) error {
+func (m *MockStorage) SaveSnapshot(arg0 raftpb.Snapshot) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveSnapshot", snap)
+	ret := m.ctrl.Call(m, "SaveSnapshot", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveSnapshot indicates an expected call of SaveSnapshot.
-func (mr *MockStorageMockRecorder) SaveSnapshot(snap interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) SaveSnapshot(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSnapshot", reflect.TypeOf((*MockStorage)(nil).SaveSnapshot), snap)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSnapshot", reflect.TypeOf((*MockStorage)(nil).SaveSnapshot), arg0)
 }
 
 // Snapshotter mocks base method.

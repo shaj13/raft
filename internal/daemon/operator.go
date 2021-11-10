@@ -311,7 +311,8 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 			return err
 		}
 
-		sf, err = storage.Snapshotter().Read(sf.Raw)
+		meta := sf.Raw.Metadata
+		sf, err = storage.Snapshotter().Read(meta.Term, meta.Index)
 		if err != nil {
 			return err
 		}

@@ -538,7 +538,7 @@ func TestPublishSnapshot(t *testing.T) {
 
 	stg.EXPECT().SaveSnapshot(gomock.Any()).Return(nil)
 	stg.EXPECT().Snapshotter().Return(shotter)
-	shotter.EXPECT().Read(gomock.Any()).Return(sf, nil)
+	shotter.EXPECT().Read(gomock.Any(), gomock.Any()).Return(sf, nil)
 	pool.EXPECT().Restore(gomock.Any())
 	fsm.EXPECT().Restore(gomock.Any()).Return(nil)
 
