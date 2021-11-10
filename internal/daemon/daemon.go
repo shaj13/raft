@@ -416,13 +416,15 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		return snap, err
 	}
 
-	sf := storage.Snapshot{
-		Raw:     snap,
-		Members: d.pool.Snapshot(),
-		Data:    r,
+	ss := storage.Snapshot{
+		SnapshotState: raftpb.SnapshotState{
+			Raw:     snap,
+			Members: d.pool.Snapshot(),
+		},
+		Data: r,
 	}
 
-	if err := d.storage.Snapshotter().Write(&sf); err != nil {
+	if err := d.storage.Snapshotter().Write(&ss); err != nil {
 		return snap, err
 	}
 

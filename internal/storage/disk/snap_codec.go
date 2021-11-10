@@ -86,13 +86,10 @@ func encodeSnapshot(path string, s *storage.Snapshot) error {
 		return err
 	}
 
-	trailer := new(raftpb.SnapshotTrailer)
-	trailer.CRC = crc.Sum(nil)
-	trailer.Version = raftpb.V0
-	trailer.Members = s.Members
-	trailer.Snapshot = s.Raw
+	s.CRC = crc.Sum(nil)
+	s.Version = raftpb.V0
 
-	buf, err := trailer.Marshal()
+	buf, err := s.Marshal()
 	if err != nil {
 		return err
 	}
@@ -147,8 +144,8 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 		return nil, err
 	}
 
-	trailer := new(raftpb.SnapshotTrailer)
-	if err := trailer.Unmarshal(buf); err != nil {
+	state := new(raftpb.SnapshotState)
+	if err := state.Unmarshal(buf); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +161,7 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 		return nil, err
 	}
 
-	if !bytes.Equal(trailer.CRC, crc.Sum(nil)) {
+	if !bytes.Equal(state.CRC, crc.Sum(nil)) {
 		return nil, ErrCRCMismatch
 	}
 
@@ -181,10 +178,9 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 		f,
 	}
 
-	sf := new(storage.Snapshot)
-	sf.Raw = trailer.Snapshot
-	sf.Members = trailer.Members
-	sf.Data = data
+	s := new(storage.Snapshot)
+	s.SnapshotState = *state
+	s.Data = data
 
-	return sf, nil
+	return s, nil
 }

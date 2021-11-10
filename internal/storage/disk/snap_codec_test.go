@@ -103,19 +103,21 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 func snapshotTestFile() (storage.Snapshot, string) {
 	const data = "some app data"
 	return storage.Snapshot{
-		Raw: etcdraftpb.Snapshot{
-			Metadata: etcdraftpb.SnapshotMetadata{
-				ConfState: etcdraftpb.ConfState{
-					Voters: []uint64{1, 2, 3},
+		SnapshotState: raftpb.SnapshotState{
+			Raw: etcdraftpb.Snapshot{
+				Metadata: etcdraftpb.SnapshotMetadata{
+					ConfState: etcdraftpb.ConfState{
+						Voters: []uint64{1, 2, 3},
+					},
+					Index: 1,
+					Term:  1,
 				},
-				Index: 1,
-				Term:  1,
 			},
-		},
-		Members: []raftpb.Member{
-			{
-				Address: ":50052",
-				ID:      11,
+			Members: []raftpb.Member{
+				{
+					Address: ":50052",
+					ID:      11,
+				},
 			},
 		},
 		Data: ioutil.NopCloser(strings.NewReader(data)),
