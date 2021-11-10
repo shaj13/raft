@@ -69,13 +69,22 @@ func peekSnapshot(path string) (etcdraftpb.Snapshot, error) {
 	return sf.Raw, nil
 }
 
-func encodeSnapshot(path string, s *storage.Snapshot) error {
-	f, err := os.Create(path)
+func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
+	pathtmp := path + ".tmp"
+
+	f, err := os.Create(pathtmp)
 	if err != nil {
 		return err
 	}
 
-	defer f.Close()
+	defer func() {
+		f.Close()
+		if err != nil {
+			os.Remove(pathtmp)
+			return
+		}
+		err = os.Rename(pathtmp, path)
+	}()
 
 	bw := bufio.NewWriter(f)
 	crc := crc64.New(crcTable)

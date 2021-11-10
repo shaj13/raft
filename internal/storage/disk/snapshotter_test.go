@@ -1,79 +1,85 @@
 package disk
 
 import (
-	"path/filepath"
+	"io/ioutil"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/pkg/v3/fileutil"
-	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func TestSnapshoterReaderErr(t *testing.T) {
+func TestSnapshotterReaderWriter(t *testing.T) {
+	nils := "<nil>"
+	notExist := "/does-not-exist-1-2-3"
+	noFileDir := "no such file or directory"
+
+	callReader := func(s *snapshotter) error {
+		_, err := s.Reader(1, 1)
+		return err
+	}
+	callWriter := func(s *snapshotter) error {
+		_, err := s.Writer(0, 0)
+		return err
+	}
+
 	table := []struct {
-		name     string
+		path     string
 		contains string
-		snap     raftpb.Snapshot
+		call     func(*snapshotter) error
 	}{
 		{
-			name:     "it return error when snap msg empty",
-			contains: ErrEmptySnapshot.Error(),
-			snap:     raftpb.Snapshot{},
+			path:     notExist,
+			contains: noFileDir,
+			call:     callReader,
 		},
 		{
-			name:     "it return error when snap file does not exist",
-			contains: "no such file or directory",
-			snap:     testSnap(10000, 10000),
+			path:     "./testdata",
+			call:     callReader,
+			contains: nils,
+		},
+		{
+			path:     notExist,
+			contains: noFileDir,
+			call:     callWriter,
+		},
+		{
+			path:     t.TempDir(),
+			contains: nils,
+			call:     callWriter,
 		},
 	}
 
-	for _, tt := range table {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &snapshotter{snapdir: "./testdata/"}
-			_, _, err := s.Reader(tt.snap)
-			if err == nil {
-				t.Fatal("expected non nil error")
-			}
-			require.Contains(t, err.Error(), tt.contains)
-		})
+	for i, tt := range table {
+		s := new(snapshotter)
+		s.snapdir = tt.path
+		err := tt.call(s)
+		got := nils
+		if err != nil {
+			got = err.Error()
+		}
+		require.Contains(t, got, tt.contains, i)
 	}
 }
 
-func TestSnapshoterReader(t *testing.T) {
-	s := &snapshotter{snapdir: "./testdata/"}
-	name, r, err := s.Reader(testSnap(1, 1))
-	require.NoError(t, err)
-	require.Equal(t, snapshotName(1, 1), name)
-	require.NotNil(t, r)
-	r.Close()
-}
-
-func TestSnapshoterWriter(t *testing.T) {
-	file := "testsnapshoterwriter_invalid"
-	s := &snapshotter{snapdir: "/does_not_exist"}
-
-	// Round #1 check file error
-	_, _, err := s.Writer(file)
-	require.Contains(t, err.Error(), "no such file or directory")
-
-	// Round #2 check write and peek
-	s.snapdir = "./testdata"
-	w, peek, err := s.Writer(file)
+func TestSnapshotterReadWrite(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/" + snapshotName(1, 1)
+	buf, err := ioutil.ReadFile("./testdata/valid.snap")
 	require.NoError(t, err)
 
-	w.Write([]byte(""))
-	w.Close()
+	err = ioutil.WriteFile(path, buf, 0600)
+	require.NoError(t, err)
 
-	_, err = peek()
-	require.Error(t, err)
+	shotter := new(snapshotter)
+	shotter.snapdir = dir
 
-	exist := fileutil.Exist(filepath.Join(s.snapdir, file))
-	require.False(t, exist, "expect peek to remove file if there an error")
-}
+	snap, err := shotter.Read(1, 1)
+	require.NoError(t, err)
 
-func testSnap(index, term uint64) raftpb.Snapshot {
-	st, _ := snapshotTestFile()
-	st.Raw.Metadata.Index = index
-	st.Raw.Metadata.Term = term
-	return st.Raw
+	err = shotter.Write(snap)
+	require.NoError(t, err)
+
+	snap, err = shotter.ReadFrom(path)
+	require.NoError(t, err)
+	buf, _ = ioutil.ReadAll(snap.Data)
+	require.Equal(t, "some app data", string(buf))
 }

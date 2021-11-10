@@ -15,10 +15,10 @@ type Snapshot struct {
 }
 
 type Snapshotter interface {
-	Reader(etcdraftpb.Snapshot) (string, io.ReadCloser, error)
-	Writer(string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
+	Writer(uint64, uint64) (io.WriteCloser, error)
+	Reader(uint64, uint64) (io.ReadCloser, error)
 	Write(*Snapshot) error
-	Read(etcdraftpb.Snapshot) (*Snapshot, error)
+	Read(uint64, uint64) (*Snapshot, error)
 	ReadFrom(string) (*Snapshot, error)
 }
 
