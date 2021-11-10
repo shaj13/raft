@@ -80,18 +80,19 @@ func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Me
 	return id, pool.Members, nil
 }
 
-func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
-	_, err := c.requestProto(ctx, promoteURI, &m, nil)
+func (c *client) PromoteMember(ctx context.Context, msg raftpb.Member) error {
+	_, err := c.requestProto(ctx, promoteURI, &msg, nil)
 	return err
 }
 
-func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) {
-	_, err = c.requestProto(ctx, messageURI, &m, nil)
+func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error) {
+	_, err = c.requestProto(ctx, messageURI, &msg, nil)
 	return
 }
 
-func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error) {
-	name, r, err := c.shotter.Reader(m.Snapshot)
+func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err error) {
+	meta := msg.Snapshot.Metadata
+	r, err := c.shotter.Reader(meta.Term, meta.Index)
 	if err != nil {
 		return err
 	}
@@ -104,12 +105,14 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 		return err
 	}
 
-	req.Header.Add(snapshotHeader, name)
-	req.Header.Add(snapshotHeader, strconv.FormatUint(m.To, 10))
-	req.Header.Add(snapshotHeader, strconv.FormatUint(m.From, 10))
+	req.Header.Add(snapshotHeader, strconv.FormatUint(meta.Term, 10))
+	req.Header.Add(snapshotHeader, strconv.FormatUint(meta.Index, 10))
 
-	_, err = c.roundTrip(ctx, req, nil)
-	return
+	if _, err := c.roundTrip(ctx, req, nil); err != nil {
+		return err
+	}
+
+	return c.message(ctx, msg)
 }
 
 func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshaler, out pbutil.Unmarshaler) (*http.Response, error) {

@@ -114,8 +114,6 @@ func TestSnapshot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := new(bytes.Buffer)
 			snapData := "some snap data"
-			expName := "file.snap"
-			gotName := ""
 			ctrl := gomock.NewController(t)
 
 			rpcCtrl := transportmock.NewMockController(ctrl)
@@ -124,18 +122,12 @@ func TestSnapshot(t *testing.T) {
 			shotter := storagemock.NewMockSnapshotter(ctrl)
 			shotter.
 				EXPECT().
-				Reader(gomock.Any()).
-				Return(expName, ioutil.NopCloser(strings.NewReader(snapData)), nil)
+				Reader(gomock.Any(), gomock.Any()).
+				Return(ioutil.NopCloser(strings.NewReader(snapData)), nil)
 			shotter.
 				EXPECT().
-				Writer(gomock.Any()).
-				DoAndReturn(func(name string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error) {
-					gotName = name
-					peek := func() (etcdraftpb.Snapshot, error) {
-						return etcdraftpb.Snapshot{}, nil
-					}
-					return writeCloser{buf}, peek, nil
-				})
+				Writer(gomock.Any(), gomock.Any()).
+				Return(writeCloser{buf}, nil)
 
 			srv.ctrl = rpcCtrl
 			srv.snap = shotter
@@ -144,7 +136,6 @@ func TestSnapshot(t *testing.T) {
 			if tt.err != nil {
 				require.Contains(t, err.Error(), tt.err.Error())
 			} else {
-				require.Equal(t, expName, gotName)
 				require.Equal(t, snapData, buf.String())
 			}
 		})

@@ -46,25 +46,23 @@ func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
 
 func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	vals := r.Header.Values(snapshotHeader)
-	if len(vals) < 3 {
+	if len(vals) < 2 {
 		return http.StatusBadRequest, errors.New("raft/http: snapshot header missing")
 	}
 
-	snapname := vals[0]
-
-	to, err := strconv.ParseUint(vals[1], 0, 64)
+	term, err := strconv.ParseUint(vals[0], 0, 64)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
 
-	from, err := strconv.ParseUint(vals[2], 0, 64)
+	index, err := strconv.ParseUint(vals[1], 0, 64)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
 
-	log.Debugf("raft.http: downloading sanpshot %s file", snapname)
+	log.Debugf("raft.http: downloading sanpshot file [term: %d, index: %d]", term, index)
 
-	wr, peek, err := h.snap.Writer(snapname)
+	wr, err := h.snap.Writer(term, index)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -73,21 +71,6 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 
 	_, err = io.Copy(wr, r.Body)
 	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	snap, err := peek()
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	m := new(etcdraftpb.Message)
-	m.Type = etcdraftpb.MsgSnap
-	m.Snapshot = snap
-	m.From = from
-	m.To = to
-
-	if err := h.ctrl.Push(r.Context(), *m); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
