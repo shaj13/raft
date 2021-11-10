@@ -52,7 +52,7 @@ func (s snapshotter) Writer(term uint64, index uint64) (io.WriteCloser, error) {
 }
 
 func (s snapshotter) Write(sf *storage.Snapshot) error {
-	path := s.path(sf.Raw.Metadata.Term, sf.Raw.Metadata.Term)
+	path := s.path(sf.Raw.Metadata.Term, sf.Raw.Metadata.Index)
 	return encodeSnapshot(path, sf)
 }
 
