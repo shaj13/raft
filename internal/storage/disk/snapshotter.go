@@ -40,10 +40,7 @@ func (s snapshotter) Writer(term uint64, index uint64) (io.WriteCloser, error) {
 		return nil, err
 	}
 
-	w := struct {
-		io.Writer
-		io.Closer
-	}{
+	w := writer{
 		bufio.NewWriter(f),
 		f,
 	}

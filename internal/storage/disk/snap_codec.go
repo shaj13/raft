@@ -77,18 +77,27 @@ func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
 		return err
 	}
 
+	fw := writer{
+		bufio.NewWriter(f),
+		f,
+	}
+	crc := crc64.New(crcTable)
+	w := io.MultiWriter(crc, fw)
+
 	defer func() {
-		f.Close()
 		if err != nil {
+			f.Close()
 			os.Remove(pathtmp)
 			return
 		}
+
+		err = fw.Close()
+		if err != nil {
+			return
+		}
+
 		err = os.Rename(pathtmp, path)
 	}()
-
-	bw := bufio.NewWriter(f)
-	crc := crc64.New(crcTable)
-	w := io.MultiWriter(crc, bw)
 
 	_, err = io.Copy(w, s.Data)
 	if err != nil {
@@ -103,7 +112,7 @@ func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
 		return err
 	}
 
-	_, err = bw.Write(buf)
+	_, err = fw.Write(buf)
 	if err != nil {
 		return err
 	}
@@ -112,16 +121,8 @@ func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
 	bsize := make([]byte, 8)
 	binary.BigEndian.PutUint64(bsize, tsize)
 
-	_, err = bw.Write(bsize)
-	if err != nil {
-		return err
-	}
-
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-
-	return fileutil.Fsync(f)
+	_, err = fw.Write(bsize)
+	return
 }
 
 func decodeSnapshot(path string) (*storage.Snapshot, error) {
@@ -192,4 +193,25 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	s.Data = data
 
 	return s, nil
+}
+
+type writer struct {
+	*bufio.Writer
+	*os.File
+}
+
+func (w writer) Write(p []byte) (n int, err error) {
+	return w.Writer.Write(p)
+}
+
+func (w writer) Close() error {
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
+	if err := fileutil.Fsync(w.File); err != nil {
+		return err
+	}
+
+	return w.File.Close()
 }
