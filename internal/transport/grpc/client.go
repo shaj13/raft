@@ -61,13 +61,13 @@ func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
 	return err
 }
 
-func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
+func (c *client) Message(ctx context.Context, msg etcdraftpb.Message) error {
 	fn := c.message
-	if m.Type == etcdraftpb.MsgSnap {
+	if msg.Type == etcdraftpb.MsgSnap {
 		fn = c.snapshot
 	}
 
-	err := fn(ctx, m)
+	err := fn(ctx, msg)
 	if err == io.EOF {
 		return nil
 	}
@@ -118,8 +118,8 @@ func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) {
-	data, err := m.Marshal()
+func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error) {
+	data, err := msg.Marshal()
 	if err != nil {
 		return err
 	}
@@ -147,16 +147,16 @@ func (c *client) message(ctx context.Context, m etcdraftpb.Message) (err error) 
 	})
 }
 
-func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error) {
-	name, r, err := c.shotter.Reader(m.Snapshot)
+func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err error) {
+	meta := msg.Snapshot.Metadata
+	r, err := c.shotter.Reader(meta.Term, meta.Index)
 	if err != nil {
 		return err
 	}
 
 	md := metadata.Pairs(
-		snapshotHeader, name,
-		snapshotHeader, strconv.FormatUint(m.To, 10),
-		snapshotHeader, strconv.FormatUint(m.From, 10),
+		snapshotHeader, strconv.FormatUint(meta.Term, 10),
+		snapshotHeader, strconv.FormatUint(meta.Index, 10),
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
@@ -173,7 +173,13 @@ func (c *client) snapshot(ctx context.Context, m etcdraftpb.Message) (err error)
 	}()
 
 	enc := newEncoder(r)
-	return enc.Encode(func(c *pb.Chunk) error {
+	err = enc.Encode(func(c *pb.Chunk) error {
 		return stream.Send(c)
 	})
+
+	if err != nil {
+		return
+	}
+
+	return c.message(ctx, msg)
 }

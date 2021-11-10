@@ -93,25 +93,23 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 	}
 
 	vals := md.Get(snapshotHeader)
-	if len(vals) != 3 {
+	if len(vals) != 2 {
 		return errSnapHeader
 	}
 
-	snapname := vals[0]
-
-	to, err := strconv.ParseUint(vals[1], 0, 64)
+	term, err := strconv.ParseUint(vals[0], 0, 64)
 	if err != nil {
 		return err
 	}
 
-	from, err := strconv.ParseUint(vals[2], 0, 64)
+	index, err := strconv.ParseUint(vals[1], 0, 64)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("raft.grpc: downloading sanpshot %s file", snapname)
+	log.Debugf("raft.grpc: downloading sanpshot file [term: %d, index: %d]", term, index)
 
-	w, peek, err := h.snap.Writer(snapname)
+	w, err := h.snap.Writer(term, index)
 	if err != nil {
 		return err
 	}
@@ -132,21 +130,6 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 		if err := dec.Decode(c); err != nil {
 			return err
 		}
-	}
-
-	snap, err := peek()
-	if err != nil {
-		return err
-	}
-
-	m := new(etcdraftpb.Message)
-	m.Type = etcdraftpb.MsgSnap
-	m.Snapshot = snap
-	m.From = from
-	m.To = to
-
-	if err := h.ctrl.Push(ctx, *m); err != nil {
-		return err
 	}
 
 	return stream.SendAndClose(&emptypb.Empty{})
