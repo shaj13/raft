@@ -490,7 +490,7 @@ func TestRestore(t *testing.T) {
 
 	shotter.
 		EXPECT().
-		ReadFromPath(gomock.Any()).
+		ReadFrom(gomock.Any()).
 		Return(&storage.Snapshot{}, nil)
 
 	shotter.

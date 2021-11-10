@@ -17,16 +17,16 @@ type Snapshot struct {
 type Snapshotter interface {
 	Reader(etcdraftpb.Snapshot) (string, io.ReadCloser, error)
 	Writer(string) (io.WriteCloser, func() (etcdraftpb.Snapshot, error), error)
-	Write(sf *Snapshot) error
-	Read(snap etcdraftpb.Snapshot) (*Snapshot, error)
-	ReadFromPath(path string) (*Snapshot, error)
+	Write(*Snapshot) error
+	Read(etcdraftpb.Snapshot) (*Snapshot, error)
+	ReadFrom(string) (*Snapshot, error)
 }
 
 type Storage interface {
-	SaveSnapshot(snap etcdraftpb.Snapshot) error
-	SaveEntries(st etcdraftpb.HardState, entries []etcdraftpb.Entry) error
+	SaveSnapshot(etcdraftpb.Snapshot) error
+	SaveEntries(etcdraftpb.HardState, []etcdraftpb.Entry) error
 	Snapshotter() Snapshotter
-	Boot(meta []byte) ([]byte, etcdraftpb.HardState, []etcdraftpb.Entry, *Snapshot, error)
+	Boot([]byte) ([]byte, etcdraftpb.HardState, []etcdraftpb.Entry, *Snapshot, error)
 	Exist() bool
 	Close() error
 }

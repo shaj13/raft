@@ -37,33 +37,33 @@ func (m *MockSnapshotter) EXPECT() *MockSnapshotterMockRecorder {
 }
 
 // Read mocks base method.
-func (m *MockSnapshotter) Read(snap raftpb.Snapshot) (*storage.Snapshot, error) {
+func (m *MockSnapshotter) Read(arg0 raftpb.Snapshot) (*storage.Snapshot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", snap)
+	ret := m.ctrl.Call(m, "Read", arg0)
 	ret0, _ := ret[0].(*storage.Snapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Read indicates an expected call of Read.
-func (mr *MockSnapshotterMockRecorder) Read(snap interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Read(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSnapshotter)(nil).Read), snap)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockSnapshotter)(nil).Read), arg0)
 }
 
-// ReadFromPath mocks base method.
-func (m *MockSnapshotter) ReadFromPath(path string) (*storage.Snapshot, error) {
+// ReadFrom mocks base method.
+func (m *MockSnapshotter) ReadFrom(arg0 string) (*storage.Snapshot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadFromPath", path)
+	ret := m.ctrl.Call(m, "ReadFrom", arg0)
 	ret0, _ := ret[0].(*storage.Snapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadFromPath indicates an expected call of ReadFromPath.
-func (mr *MockSnapshotterMockRecorder) ReadFromPath(path interface{}) *gomock.Call {
+// ReadFrom indicates an expected call of ReadFrom.
+func (mr *MockSnapshotterMockRecorder) ReadFrom(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromPath", reflect.TypeOf((*MockSnapshotter)(nil).ReadFromPath), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFrom", reflect.TypeOf((*MockSnapshotter)(nil).ReadFrom), arg0)
 }
 
 // Reader mocks base method.
@@ -83,17 +83,17 @@ func (mr *MockSnapshotterMockRecorder) Reader(arg0 interface{}) *gomock.Call {
 }
 
 // Write mocks base method.
-func (m *MockSnapshotter) Write(sf *storage.Snapshot) error {
+func (m *MockSnapshotter) Write(arg0 *storage.Snapshot) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", sf)
+	ret := m.ctrl.Call(m, "Write", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Write indicates an expected call of Write.
-func (mr *MockSnapshotterMockRecorder) Write(sf interface{}) *gomock.Call {
+func (mr *MockSnapshotterMockRecorder) Write(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockSnapshotter)(nil).Write), sf)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockSnapshotter)(nil).Write), arg0)
 }
 
 // Writer mocks base method.

@@ -92,7 +92,7 @@ func (s snapshotter) Read(snap raftpb.Snapshot) (*storage.Snapshot, error) {
 	return decodeSnapshot(s.path(snap))
 }
 
-func (s snapshotter) ReadFromPath(path string) (*storage.Snapshot, error) {
+func (s snapshotter) ReadFrom(path string) (*storage.Snapshot, error) {
 	return decodeSnapshot(path)
 }
 

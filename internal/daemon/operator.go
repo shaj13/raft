@@ -404,7 +404,7 @@ func (r restore) before(ost *operatorsState) (err error) {
 	// update state to existed.
 	ost.hasExistingState = true
 
-	sf, err := storage.Snapshotter().ReadFromPath(r.path)
+	sf, err := storage.Snapshotter().ReadFrom(r.path)
 	if err != nil {
 		return err
 	}
