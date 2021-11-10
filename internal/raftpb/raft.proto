@@ -46,7 +46,7 @@ message Pool {
 	repeated Member members = 1 [(gogoproto.nullable) = false];
 }
 
-message SnapshotTrailer {
+message SnapshotState {
 	// Version represents the snapshot file version.
 	enum Version {
 		// V0 is the initial version of the snapshot file.
@@ -56,8 +56,8 @@ message SnapshotTrailer {
 	bytes  CRC  = 1;
 	// Version specifies the snapshot file version.
 	Version version = 2;
-	// members specifies the the cluster pool members.
+	// Members specifies the the cluster pool members.
 	repeated Member members = 3 [(gogoproto.nullable) = false];
-	// snapshot specifies the the etcd raftpb snapshot.
-	raftpb.Snapshot snapshot = 4 [(gogoproto.nullable) = false];
+	// Raw specifies the the etcd raftpb snapshot.
+	raftpb.Snapshot Raw = 4 [(gogoproto.nullable) = false];
 }
