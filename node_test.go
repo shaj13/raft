@@ -42,7 +42,7 @@ func TestNodePreConditions(t *testing.T) {
 		},
 		{
 			call: func(n *Node) error {
-				_, _, err := n.Snapshot()
+				_, err := n.Snapshot()
 				return err
 			},
 			expected: []func(c *Node) error{
@@ -217,7 +217,6 @@ func TestNodeLinearizableRead(t *testing.T) {
 }
 
 func TestNodeSnapshot(t *testing.T) {
-	expected := "snap-path"
 	ctrl := gomock.NewController(t)
 	daemon := daemonmock.NewMockDaemon(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
@@ -225,16 +224,14 @@ func TestNodeSnapshot(t *testing.T) {
 
 	daemon.EXPECT().CreateSnapshot().Return(etcdraftpb.Snapshot{}, nil)
 	stg.EXPECT().Snapshotter().Return(shotter)
-	shotter.EXPECT().Reader(gomock.Any()).Return(expected, nil, nil)
+	shotter.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	n := new(Node)
 	n.daemon = daemon
 	n.exec = testPreCond
 	n.storage = stg
-	got, _, err := n.Snapshot()
-
+	_, err := n.Snapshot()
 	require.NoError(t, err)
-	require.Equal(t, expected, got)
 }
 
 func TestNodeTransferLeadership(t *testing.T) {

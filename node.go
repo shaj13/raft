@@ -55,21 +55,22 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 	return n.daemon.LinearizableRead(ctx)
 }
 
-func (n *Node) Snapshot() (string, io.ReadCloser, error) {
+func (n *Node) Snapshot() (io.ReadCloser, error) {
 	err := n.preCond(
 		joined(),
 	)
 
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	snap, err := n.daemon.CreateSnapshot()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	return n.storage.Snapshotter().Reader(snap)
+	meta := snap.Metadata
+	return n.storage.Snapshotter().Reader(meta.Term, meta.Index)
 }
 
 func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
