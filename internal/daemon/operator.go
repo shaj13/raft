@@ -302,9 +302,10 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 	hs := ost.hst
 	next := hs.Commit + 1
 
-	// override latest snapshot pool members.
 	if !raft.IsEmptySnap(sf.Raw) {
-		sf.Members = append([]raftpb.Member{local}, membs...)
+		// reset latest snapshot pool members and conf state.
+		sf.Members = []raftpb.Member{local}
+		sf.Raw.Metadata.ConfState.Voters = []uint64{local.ID}
 
 		err := storage.Snapshotter().Write(sf)
 		if err != nil {
