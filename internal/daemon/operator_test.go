@@ -535,7 +535,7 @@ func TestRemovedMembers(t *testing.T) {
 		pool: pool,
 	}
 
-	pool.EXPECT().Add(gomock.Any()).Return(ErrStopped)
+	pool.EXPECT().Add(gomock.Eq(*mem)).Return(ErrStopped)
 	err := rm.after(ost)
 	require.Equal(t, ErrStopped, err)
 }
