@@ -8,7 +8,6 @@ import (
 
 	"github.com/shaj13/raftkit/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
-	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
@@ -73,16 +72,7 @@ func (d *disk) SaveSnapshot(snap raftpb.Snapshot) error {
 
 // SaveEntries saves a given entries into the WAL.
 func (d *disk) SaveEntries(st raftpb.HardState, ents []raftpb.Entry) error {
-	if err := d.wal.Save(st, ents); err != nil {
-		return err
-	}
-
-	// short cut, do not call sync
-	if raft.IsEmptyHardState(st) && len(ents) == 0 {
-		return nil
-	}
-
-	return d.wal.Sync()
+	return d.wal.Save(st, ents)
 }
 
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
