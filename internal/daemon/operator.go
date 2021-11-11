@@ -527,10 +527,10 @@ func (rm removedMembers) after(ost *operatorsState) (err error) {
 	for _, ent := range ost.ents {
 		if ent.Index <= ost.hst.Commit && ent.Type == etcdraftpb.EntryConfChange {
 			cc := new(etcdraftpb.ConfChange)
-			pbutil.MaybeUnmarshal(cc, ent.Data)
+			pbutil.MustUnmarshal(cc, ent.Data)
 			if cc.Type == etcdraftpb.ConfChangeRemoveNode {
 				mem := new(raftpb.Member)
-				pbutil.MustMarshal(mem)
+				pbutil.MustUnmarshal(mem, cc.Context)
 				if err := ost.daemon.pool.Add(*mem); err != nil {
 					return err
 				}
