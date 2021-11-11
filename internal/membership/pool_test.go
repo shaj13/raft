@@ -118,6 +118,7 @@ func TestPoolClose(t *testing.T) {
 	}
 	err := p.TearDown(context.TODO())
 	require.Equal(t, ErrRemovedMember, err)
+	require.Equal(t, len(p.membs), 0)
 }
 
 func testConfig(t *testing.T) *MockConfig {

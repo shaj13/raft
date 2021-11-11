@@ -1,6 +1,7 @@
 package rafttest_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,4 +42,52 @@ func TestSnapshotShare(t *testing.T) {
 }
 
 func TestForceNewCluster(t *testing.T) {
+	otr := newOrchestrator(t)
+	nodes := otr.create(2)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	leader := otr.leader()
+	follower := otr.follower()
+	followerID := follower.rawMembers[0].ID
+
+	// stop the first node and verify quorum loss.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := follower.raftnode.Shutdown(ctx)
+	require.NoError(t, err)
+
+	for i := 0; i < 5; i++ {
+		mem, _ := leader.raftnode.GetMemebr(followerID)
+		if !mem.IsActive() {
+			break
+		}
+
+		time.Sleep(time.Millisecond * 500)
+	}
+
+	err = leader.raftnode.RemoveMember(context.Background(), followerID)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "quorum lost")
+
+	// stop the leader and force new cluster.
+	err = leader.raftnode.Shutdown(ctx)
+	require.NoError(t, err)
+
+	raw := leader.rawMembers[0]
+	otr.nodes = nil
+	leader.startOpts = nil
+	leader.rawMembers = nil
+	leader.withRawMember(raw)
+	leader.withStartOptions(raft.WithForceNewCluster())
+
+	otr.start(leader)
+	otr.wait(leader)
+
+	err = leader.raftnode.Replicate(context.Background(), newBytesEntry(2, 2))
+	require.NoError(t, err)
+
+	v := leader.fsm.Read(2)
+	require.Equal(t, 2, v)
 }

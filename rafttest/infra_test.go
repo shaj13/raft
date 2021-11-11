@@ -218,15 +218,20 @@ func (o *orchestrator) start(nodes ...*node) *orchestrator {
 		membs := raft.WithMembers(n.rawMembers...)
 		n.startOpts = append(n.startOpts, membs)
 
-		ctx := raft.WithContext(ctxWithRawMember(n.rawMembers[0]))
-		state := raft.WithStateDIR(o.t.TempDir())
-		n.opts = append(n.opts, ctx, state)
+		if n.raftnode == nil {
+			ctx := raft.WithContext(ctxWithRawMember(n.rawMembers[0]))
+			state := raft.WithStateDIR(o.t.TempDir())
+			n.opts = append(n.opts, ctx, state)
 
-		n.raftnode = raft.New(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
+			n.raftnode = raft.New(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
+		}
+
 		go func(n *node) {
 			defer o.wg.Done()
-			if err := n.raftnode.Start(n.startOpts...); err != nil {
-				o.t.Errorf("orchestrator: node %d start returned: %v", n.rawMembers[0].ID, err)
+			id := n.rawMembers[0].ID
+			err := n.raftnode.Start(n.startOpts...)
+			if err != nil && err != raft.ErrNodeStopped {
+				o.t.Errorf("orchestrator: node %d start returned: %v", id, err)
 			}
 		}(n)
 	}
@@ -273,6 +278,22 @@ func (o *orchestrator) leader() *node {
 	}
 
 	o.t.Fatal("orchestrator: failed to find leader")
+	return new(node)
+}
+
+func (o *orchestrator) follower() *node {
+	for _, n := range o.nodes {
+		id := n.raftnode.Leader()
+		if id == raft.None {
+			continue
+		}
+
+		if n.raftnode.Whoami() != id {
+			return n
+		}
+	}
+
+	o.t.Fatal("orchestrator: failed to find first follower")
 	return new(node)
 }
 

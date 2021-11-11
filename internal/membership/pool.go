@@ -150,6 +150,7 @@ func (p *pool) TearDown(ctx context.Context) error {
 		}
 		eg.Go(fn(mem))
 	}
+	p.membs = make(map[uint64]Member)
 	return eg.Wait()
 }
 
