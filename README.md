@@ -6,6 +6,7 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
+- [ ] remove sync from disk
 
 
 ## Test cases 
