@@ -6,7 +6,7 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
-- [ ] force new new cluster broken 
+- [ ] change join api and remove pool pb
 
 
 ## Test cases 
