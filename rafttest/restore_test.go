@@ -2,6 +2,9 @@ package rafttest_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,17 +44,44 @@ func TestSnapshotShare(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSnapshotRestore(t *testing.T) {
+	path := t.TempDir() + "/restore.snap"
+	opt := raft.WithRestore(path)
+	fn := func() {
+		base := filepath.Dir(t.TempDir())
+
+		// copy one of nodes snapshots.
+		files, _ := filepath.Glob(base + "/*/snap/*.snap")
+		err := os.Rename(files[0], path)
+		require.NoError(t, err)
+
+		// remove old state (wal, etc) for all nodes.
+		files, _ = filepath.Glob(base + "/*")
+		for _, f := range files {
+			if strings.HasPrefix(path, f) {
+				continue
+			}
+			err = os.RemoveAll(f)
+			require.NoError(t, err)
+		}
+	}
+
+	testRestore(t, fn, opt, 10, 10)
+}
+
 func TestForceNewClusterWal(t *testing.T) {
 	// verify force new cluster from wal.
-	testForceNewCluster(t, 100, 10)
+	opt := raft.WithForceNewCluster()
+	testRestore(t, nil, opt, 100, 10)
 }
 
 func TestForceNewClusterSnapshot(t *testing.T) {
 	// verify force new cluster from wal and snapshot.
-	testForceNewCluster(t, 10, 15)
+	opt := raft.WithForceNewCluster()
+	testRestore(t, nil, opt, 10, 15)
 }
 
-func testForceNewCluster(t *testing.T, interval uint64, num int) {
+func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64, num int) {
 	otr := newOrchestrator(t)
 	nodes := otr.create(2)
 	for _, n := range nodes {
@@ -94,7 +124,10 @@ func testForceNewCluster(t *testing.T, interval uint64, num int) {
 	leader.startOpts = nil
 	leader.rawMembers = nil
 	leader.withRawMember(raw)
-	leader.withStartOptions(raft.WithForceNewCluster())
+	leader.withStartOptions(opt)
+	if cb != nil {
+		cb()
+	}
 
 	otr.start(leader)
 	otr.wait(leader)
