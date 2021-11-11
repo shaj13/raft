@@ -6,7 +6,6 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
-- [ ] change join api and remove pool pb
 
 
 ## Test cases 
