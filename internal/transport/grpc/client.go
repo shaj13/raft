@@ -3,8 +3,6 @@ package grpc
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"strconv"
 	"sync"
@@ -76,42 +74,11 @@ func (c *client) Message(ctx context.Context, msg etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	stream, err := pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
+	resp, err := pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 	if err != nil {
 		return 0, nil, err
 	}
-
-	membs := []raftpb.Member{}
-	for {
-		m, err := stream.Recv()
-
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return 0, nil, err
-		}
-
-		membs = append(membs, *m)
-	}
-
-	md, err := stream.Header()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	vals := md.Get(memberIDHeader)
-	if len(vals) != 1 {
-		return 0, nil, errors.New("raft/grpc: member id missing from metadata")
-	}
-
-	id, err := strconv.ParseUint(vals[0], 0, 64)
-	if err != nil {
-		return 0, nil, fmt.Errorf("raft/grpc: parse member id: %v", err)
-	}
-
-	return id, membs, nil
+	return resp.ID, resp.Members, nil
 }
 
 func (c *client) Close() error {

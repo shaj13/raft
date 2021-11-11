@@ -66,18 +66,13 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	pool := new(raftpb.Pool)
-	resp, err := c.requestProto(ctx, joinURI, &m, pool)
+	joinResp := new(raftpb.JoinResponse)
+	_, err := c.requestProto(ctx, joinURI, &m, joinResp)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	id, err := strconv.ParseUint(resp.Header.Get(memberIDHeader), 0, 64)
-	if err != nil {
-		return 0, nil, fmt.Errorf("raft/http: parse member id: %v", err)
-	}
-
-	return id, pool.Members, nil
+	return joinResp.ID, joinResp.Members, nil
 }
 
 func (c *client) PromoteMember(ctx context.Context, msg raftpb.Member) error {

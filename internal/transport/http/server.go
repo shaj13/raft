@@ -90,13 +90,12 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	w.Header().Set(memberIDHeader, strconv.FormatUint(id, 10))
-
-	pool := &raftpb.Pool{
+	resp := &raftpb.JoinResponse{
+		ID:      id,
 		Members: membs,
 	}
 
-	data, err := pool.Marshal()
+	data, err := resp.Marshal()
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

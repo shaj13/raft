@@ -135,7 +135,7 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 	return stream.SendAndClose(&emptypb.Empty{})
 }
 
-func (h *handler) Join(m *raftpb.Member, stream pb.Raft_JoinServer) (err error) {
+func (h *handler) Join(ctx context.Context, m *raftpb.Member) (resp *raftpb.JoinResponse, err error) {
 	defer func() {
 		if err != nil {
 			log.Warnf("raft.grpc: handle join request: %v", err)
@@ -144,21 +144,13 @@ func (h *handler) Join(m *raftpb.Member, stream pb.Raft_JoinServer) (err error) 
 
 	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := h.ctrl.Join(stream.Context(), m)
+	id, membs, err := h.ctrl.Join(ctx, m)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	md := metadata.Pairs(memberIDHeader, strconv.FormatUint(id, 10))
-	if err := stream.SendHeader(md); err != nil {
-		return err
-	}
-
-	for _, m := range membs {
-		if err := stream.Send(&m); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return &raftpb.JoinResponse{
+		ID:      id,
+		Members: membs,
+	}, nil
 }
