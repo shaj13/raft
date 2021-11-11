@@ -3,6 +3,7 @@ package rafttest_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -41,6 +42,13 @@ type loopback struct {
 	t    *testing.T
 	mu   sync.Mutex
 	cfgs map[string]loopbackCfg
+}
+
+func (l *loopback) get(addr string) loopbackCfg {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.cfgs[addr]
 }
 
 func (l *loopback) dialer(dc transport.DialerConfig) transport.Dial {
@@ -137,7 +145,8 @@ func newOrchestrator(t *testing.T) *orchestrator {
 	lb.register()
 
 	return &orchestrator{
-		t: t,
+		t:        t,
+		loopback: lb,
 	}
 }
 
@@ -165,9 +174,40 @@ func (n *node) withOptions(opts ...raft.Option) *node {
 }
 
 type orchestrator struct {
-	t     *testing.T
-	wg    sync.WaitGroup
-	nodes []*node
+	t        *testing.T
+	loopback *loopback
+	wg       sync.WaitGroup
+	nodes    []*node
+}
+
+func (o *orchestrator) create(n int) []*node {
+	nodes := make([]*node, n)
+
+	for i := 1; i <= n; i++ {
+		raw := raft.RawMember{
+			ID:      uint64(i),
+			Address: fmt.Sprintf(":%d", i),
+		}
+
+		node := newNode().withRawMember(raw).withStartOptions(raft.WithInitCluster())
+
+		// add other nodes raws.
+		for j := 1; j <= n; j++ {
+			if j == i {
+				continue
+			}
+
+			raw := raft.RawMember{
+				ID:      uint64(j),
+				Address: fmt.Sprintf(":%d", j),
+			}
+			node.withRawMember(raw)
+		}
+
+		nodes[i-1] = node
+	}
+
+	return nodes
 }
 
 func (o *orchestrator) start(nodes ...*node) *orchestrator {
@@ -237,8 +277,19 @@ func (o *orchestrator) leader() *node {
 }
 
 func (o *orchestrator) anyNode() *node {
-	i := rand.Intn(len(o.nodes) - 1)
+	i := rand.Intn(len(o.nodes))
 	return o.nodes[i]
+}
+
+func (o *orchestrator) produceData(n int) {
+	for i := 0; i <= n; i++ {
+		node := o.anyNode().raftnode
+		data := newBytesEntry(i, i)
+		err := node.Replicate(context.Background(), data)
+		if err != nil {
+			o.t.Error(err)
+		}
+	}
 }
 
 func newStateMachine() *stateMachine {
