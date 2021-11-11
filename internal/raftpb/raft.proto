@@ -41,9 +41,11 @@ enum MemberType {
 
 }
 
-// Pool specifies the the cluster pool members.
-message Pool {
-	repeated Member members = 1 [(gogoproto.nullable) = false];
+message JoinResponse {
+	// ID specifies the ID assigned to the new member..
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	// Members specifies the cluster pool members.
+	repeated Member members = 2 [(gogoproto.nullable) = false];
 }
 
 message SnapshotState {
@@ -56,7 +58,7 @@ message SnapshotState {
 	bytes  CRC  = 1;
 	// Version specifies the snapshot file version.
 	Version version = 2;
-	// Members specifies the the cluster pool members.
+	// Members specifies the cluster pool members.
 	repeated Member members = 3 [(gogoproto.nullable) = false];
 	// Raw specifies the the etcd raftpb snapshot.
 	raftpb.Snapshot Raw = 4 [(gogoproto.nullable) = false];
