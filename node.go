@@ -19,7 +19,11 @@ import (
 )
 
 // TODO: do we need to expose ?
-var errNotLeader = errors.New("raft: operation not permitted, node is not the leader")
+var (
+	// ErrNodeStopped is returned by the Node methods after a call to Shutdown or when it has not started.
+	ErrNodeStopped = daemon.ErrStopped
+	errNotLeader   = errors.New("raft: operation not permitted, node is not the leader")
+)
 
 type Node struct {
 	handler           transport.Handler
