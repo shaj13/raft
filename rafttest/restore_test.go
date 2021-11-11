@@ -41,11 +41,25 @@ func TestSnapshotShare(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestForceNewCluster(t *testing.T) {
+func TestForceNewClusterWal(t *testing.T) {
+	// verify force new cluster from wal.
+	testForceNewCluster(t, 100, 10)
+}
+
+func TestForceNewClusterSnapshot(t *testing.T) {
+	// verify force new cluster from wal and snapshot.
+	testForceNewCluster(t, 10, 15)
+}
+
+func testForceNewCluster(t *testing.T, interval uint64, num int) {
 	otr := newOrchestrator(t)
 	nodes := otr.create(2)
+	for _, n := range nodes {
+		n.withOptions(raft.WithSnapshotInterval(interval))
+	}
 	otr.start(nodes...)
 	otr.waitAll()
+	otr.produceData(num)
 
 	leader := otr.leader()
 	follower := otr.follower()
@@ -85,9 +99,11 @@ func TestForceNewCluster(t *testing.T) {
 	otr.start(leader)
 	otr.wait(leader)
 
-	err = leader.raftnode.Replicate(context.Background(), newBytesEntry(2, 2))
+	err = leader.raftnode.Replicate(context.Background(), newBytesEntry(num+1, num+1))
 	require.NoError(t, err)
 
-	v := leader.fsm.Read(2)
-	require.Equal(t, 2, v)
+	for i := num; i <= num+1; i++ {
+		v := leader.fsm.Read(i)
+		require.Equal(t, i, v)
+	}
 }

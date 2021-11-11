@@ -46,7 +46,6 @@ func New(cfg Config) Daemon {
 	d := &daemon{}
 	d.cfg = cfg
 	d.fsm = d.cfg.StateMachine()
-	d.cache = raft.NewMemoryStorage()
 	d.storage = cfg.Storage()
 	d.msgbus = msgbus.New()
 	d.pool = cfg.Pool()
@@ -449,6 +448,7 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
+	d.cache = raft.NewMemoryStorage()
 	sp := setup{addr: addr}
 	ssp := stateSetup{publishSnapshotFile: d.publishSnapshotFile}
 	rm := removedMembers{}
