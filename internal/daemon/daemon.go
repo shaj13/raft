@@ -458,6 +458,10 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 		return err
 	}
 
+	if d.node == nil {
+		return errors.New("raft: node not initialized, use raft.WithInitCluster() or raft.WithRestart()")
+	}
+
 	merge := func(cs ...chan struct{}) chan struct{} {
 		in := make(chan struct{})
 		go func() {

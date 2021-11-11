@@ -60,20 +60,26 @@ func TestStart(t *testing.T) {
 
 	defer d.Shutdown(ctx)
 
-	cfg.EXPECT().Context().Return(ctx)
-	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
-	cfg.EXPECT().TickInterval().Return(time.Second)
-	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond)
-	stg.EXPECT().Exist().Return(false)
-	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
-	pool.EXPECT().TearDown(gomock.Any())
-	stg.EXPECT().Boot(gomock.Any())
-	stg.EXPECT().Close()
-	node.EXPECT().Ready().Return(ready)
-	node.EXPECT().Stop()
-	node.EXPECT().Status().Return(raft.Status{})
+	cfg.EXPECT().Context().Return(ctx).MaxTimes(2)
+	cfg.EXPECT().RaftConfig().Return(&raft.Config{}).MaxTimes(2)
+	cfg.EXPECT().TickInterval().Return(time.Second).MaxTimes(2)
+	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond).MaxTimes(2)
+	stg.EXPECT().Exist().Return(false).MaxTimes(2)
+	pool.EXPECT().RegisterTypeMatcher(gomock.Any()).MaxTimes(2)
+	pool.EXPECT().TearDown(gomock.Any()).MaxTimes(2)
+	stg.EXPECT().Boot(gomock.Any()).MaxTimes(2)
+	stg.EXPECT().Close().MaxTimes(2)
+	node.EXPECT().Ready().Return(ready).MaxTimes(2)
+	node.EXPECT().Stop().MaxTimes(2)
+	node.EXPECT().Status().Return(raft.Status{}).MaxTimes(2)
 
+	d.node = nil
 	err := d.Start(":80")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "node not initialized")
+
+	d.node = node
+	err = d.Start(":80")
 	require.Equal(t, ErrStopped, err)
 }
 

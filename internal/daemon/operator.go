@@ -261,7 +261,7 @@ func (s setup) before(ost *operatorsState) (err error) {
 
 func (s setup) after(ost *operatorsState) (err error) {
 	if len(ost.local.Address) == 0 {
-		return errors.New("raft: no address set, use raft.WithAddress() or raft.WithMembers")
+		return errors.New("raft: no address set, use raft.WithAddress() or raft.WithMembers()")
 	}
 
 	meta := pbutil.MustMarshal(ost.local)
