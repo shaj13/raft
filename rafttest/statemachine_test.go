@@ -11,18 +11,32 @@ import (
 
 func newStateMachine() *stateMachine {
 	return &stateMachine{
-		kv: map[string]string{},
+		kv: map[int]int{},
 	}
 }
 
+func newBytesEntry(key, value int) []byte {
+	ent := &entry{
+		Key:   key,
+		Value: value,
+	}
+
+	buf, err := json.Marshal(ent)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf
+}
+
 type entry struct {
-	Key   string
-	Value string
+	Key   int
+	Value int
 }
 
 type stateMachine struct {
 	mu sync.Mutex
-	kv map[string]string
+	kv map[int]int
 }
 
 func (s *stateMachine) Apply(data []byte) {
@@ -64,7 +78,7 @@ func (s *stateMachine) Restore(r io.ReadCloser) error {
 	return r.Close()
 }
 
-func (s *stateMachine) Read(key string) string {
+func (s *stateMachine) Read(key int) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.kv[key]
