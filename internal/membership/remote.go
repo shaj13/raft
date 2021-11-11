@@ -30,6 +30,8 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 	mem.dial = cfg.Dial()
 	mem.msgc = make(chan etcdraftpb.Message, 4096)
 	mem.done = make(chan struct{})
+	mem.active = true
+	mem.activeSince = time.Now()
 	mem.raw.Store(m)
 	go mem.process(mem.ctx)
 
