@@ -338,7 +338,13 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 				continue
 			}
 
+			mem := new(raftpb.Member)
+			pbutil.MustUnmarshal(mem, cc.Context)
+
+			mem.Type = raftpb.RemovedMember
 			cc.Type = etcdraftpb.ConfChangeRemoveNode
+			cc.Context = pbutil.MustMarshal(mem)
+
 			e := etcdraftpb.Entry{
 				Type:  etcdraftpb.EntryConfChange,
 				Data:  pbutil.MustMarshal(cc),
