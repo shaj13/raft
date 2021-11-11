@@ -34,11 +34,9 @@ type Dial func(context.Context, string) (Client, error)
 type NewHandler func(HandlerConfig) Handler
 
 // Client provides access to the exported methods of an object across a network.
-//
-//go:generate mockgen -package mocks  -source internal/rpc/types.go -destination internal/mocks/rpc.go
 type Client interface {
 	Message(context.Context, etcdraftpb.Message) error
-	Join(context.Context, raftpb.Member) (uint64, []raftpb.Member, error)
+	Join(context.Context, raftpb.Member) (*raftpb.JoinResponse, error)
 	PromoteMember(ctx context.Context, m raftpb.Member) error
 	Close() error
 }
@@ -47,6 +45,6 @@ type Client interface {
 // and acts as a bridge between the RPC and raft daemon.
 type Controller interface {
 	Push(context.Context, etcdraftpb.Message) error
-	Join(context.Context, *raftpb.Member) (uint64, []raftpb.Member, error)
+	Join(context.Context, *raftpb.Member) (*raftpb.JoinResponse, error)
 	PromoteMember(ctx context.Context, m raftpb.Member) error
 }

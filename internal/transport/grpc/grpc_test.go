@@ -60,16 +60,17 @@ func TestJoin(t *testing.T) {
 	defer c.Close()
 
 	table := []struct {
-		name  string
-		id    uint64
-		membs []raftpb.Member
-		err   error
+		name string
+		resp *raftpb.JoinResponse
+		err  error
 	}{
 		{
-			name:  "it return id and pool when joined",
-			id:    11,
-			membs: []raftpb.Member{{ID: 12}},
-			err:   nil,
+			name: "it return join resp when joined",
+			resp: &raftpb.JoinResponse{
+				ID:      11,
+				Members: []raftpb.Member{{ID: 12}},
+			},
+			err: nil,
 		},
 		{
 			name: "it return error when server return error",
@@ -81,11 +82,10 @@ func TestJoin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			rpcCtrl := transportmock.NewMockController(ctrl)
-			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.id, tt.membs, tt.err)
+			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.resp, tt.err)
 			srv.ctrl = rpcCtrl
-			id, pool, err := c.Join(context.Background(), raftpb.Member{})
-			require.Equal(t, tt.id, id)
-			require.Equal(t, tt.membs, pool)
+			resp, err := c.Join(context.Background(), raftpb.Member{})
+			require.Equal(t, tt.resp, resp)
 			if tt.err != nil {
 				require.Contains(t, err.Error(), tt.err.Error())
 			}

@@ -144,13 +144,5 @@ func (h *handler) Join(ctx context.Context, m *raftpb.Member) (resp *raftpb.Join
 
 	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := h.ctrl.Join(ctx, m)
-	if err != nil {
-		return nil, err
-	}
-
-	return &raftpb.JoinResponse{
-		ID:      id,
-		Members: membs,
-	}, nil
+	return h.ctrl.Join(ctx, m)
 }

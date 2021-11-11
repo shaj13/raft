@@ -73,12 +73,8 @@ func (c *client) Message(ctx context.Context, msg etcdraftpb.Message) error {
 	return err
 }
 
-func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	resp, err := pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
-	if err != nil {
-		return 0, nil, err
-	}
-	return resp.ID, resp.Members, nil
+func (c *client) Join(ctx context.Context, m raftpb.Member) (*raftpb.JoinResponse, error) {
+	return pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 }
 
 func (c *client) Close() error {

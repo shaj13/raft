@@ -164,13 +164,12 @@ func (mr *MockClientMockRecorder) Close() *gomock.Call {
 }
 
 // Join mocks base method.
-func (m *MockClient) Join(arg0 context.Context, arg1 raftpb.Member) (uint64, []raftpb.Member, error) {
+func (m *MockClient) Join(arg0 context.Context, arg1 raftpb.Member) (*raftpb.JoinResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Join", arg0, arg1)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].([]raftpb.Member)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*raftpb.JoinResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Join indicates an expected call of Join.
@@ -231,13 +230,12 @@ func (m *MockController) EXPECT() *MockControllerMockRecorder {
 }
 
 // Join mocks base method.
-func (m *MockController) Join(arg0 context.Context, arg1 *raftpb.Member) (uint64, []raftpb.Member, error) {
+func (m *MockController) Join(arg0 context.Context, arg1 *raftpb.Member) (*raftpb.JoinResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Join", arg0, arg1)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].([]raftpb.Member)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret0, _ := ret[0].(*raftpb.JoinResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Join indicates an expected call of Join.

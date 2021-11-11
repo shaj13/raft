@@ -95,8 +95,13 @@ func (f forceJoin) before(ost *operatorsState) error {
 		return err
 	}
 
-	ost.local.ID, ost.membs, err = rpc.Join(ctx, *ost.local)
-	return err
+	resp, err := rpc.Join(ctx, *ost.local)
+	if err != nil {
+		return err
+	}
+
+	ost.local.ID, ost.membs = resp.ID, resp.Members
+	return nil
 }
 
 func (f forceJoin) after(ost *operatorsState) error {

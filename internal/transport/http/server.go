@@ -85,14 +85,9 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	log.Debugf("raft.http: new member asks to join the cluster on address %s", m.Address)
 
-	id, membs, err := h.ctrl.Join(r.Context(), m)
+	resp, err := h.ctrl.Join(r.Context(), m)
 	if err != nil {
 		return http.StatusInternalServerError, err
-	}
-
-	resp := &raftpb.JoinResponse{
-		ID:      id,
-		Members: membs,
 	}
 
 	data, err := resp.Marshal()

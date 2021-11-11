@@ -65,14 +65,10 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 	return err
 }
 
-func (c *client) Join(ctx context.Context, m raftpb.Member) (uint64, []raftpb.Member, error) {
-	joinResp := new(raftpb.JoinResponse)
-	_, err := c.requestProto(ctx, joinURI, &m, joinResp)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return joinResp.ID, joinResp.Members, nil
+func (c *client) Join(ctx context.Context, m raftpb.Member) (*raftpb.JoinResponse, error) {
+	resp := new(raftpb.JoinResponse)
+	_, err := c.requestProto(ctx, joinURI, &m, resp)
+	return resp, err
 }
 
 func (c *client) PromoteMember(ctx context.Context, msg raftpb.Member) error {

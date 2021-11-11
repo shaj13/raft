@@ -15,7 +15,7 @@ type controller struct {
 	pool   membership.Pool
 }
 
-func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raftpb.Member, error) {
+func (c *controller) Join(ctx context.Context, m *raftpb.Member) (*raftpb.JoinResponse, error) {
 	var err error
 
 	if _, ok := c.node.GetMemebr(m.ID); !ok {
@@ -25,11 +25,15 @@ func (c *controller) Join(ctx context.Context, m *raftpb.Member) (uint64, []raft
 	}
 
 	if err != nil {
-		return 0, []raftpb.Member{}, err
+		return nil, err
 	}
 
-	pool := c.pool.Snapshot()
-	return m.ID, pool, nil
+	resp := &raftpb.JoinResponse{
+		ID:      m.ID,
+		Members: c.pool.Snapshot(),
+	}
+
+	return resp, nil
 }
 
 func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {

@@ -85,9 +85,12 @@ func TestControllerJoin(t *testing.T) {
 	for _, tt := range table {
 		c := new(controller)
 		tt.expect(c)
-		id, _, err := c.Join(context.TODO(), tt.raw)
+		resp, err := c.Join(context.TODO(), tt.raw)
 		require.Equal(t, tt.err, err)
-		require.Equal(t, tt.id, id)
+		if tt.err == nil {
+			require.NotNil(t, resp)
+			require.Equal(t, tt.id, resp.ID)
+		}
 	}
 
 }

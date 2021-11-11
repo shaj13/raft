@@ -176,9 +176,9 @@ func TestFallback(t *testing.T) {
 
 func TestForceJoin(t *testing.T) {
 	nodeRestarted := false
-	localID := uint64(1)
-	membs := []raftpb.Member{
-		{ID: 2},
+	resp := &raftpb.JoinResponse{
+		ID:      1,
+		Members: []raftpb.Member{{ID: 2}},
 	}
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
@@ -204,11 +204,11 @@ func TestForceJoin(t *testing.T) {
 	client.
 		EXPECT().
 		Join(gomock.Any(), gomock.Eq(*ost.local)).
-		Return(localID, membs, nil)
+		Return(resp, nil)
 
 	pool.
 		EXPECT().
-		Add(gomock.Eq(membs[0])).
+		Add(gomock.Eq(resp.Members[0])).
 		Return(nil)
 
 	defer mockRestartNode(&nodeRestarted)()
@@ -216,8 +216,8 @@ func TestForceJoin(t *testing.T) {
 	// it call join and set ost.
 	err := ForceJoin("", 0).before(ost)
 	require.NoError(t, err)
-	require.Equal(t, localID, ost.local.ID)
-	require.Equal(t, membs, ost.membs)
+	require.Equal(t, resp.ID, ost.local.ID)
+	require.Equal(t, resp.Members, ost.membs)
 
 	// it call pool add.
 	err = ForceJoin("", 0).after(ost)
