@@ -448,6 +448,8 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 // Start daemon.
 func (d *daemon) Start(addr string, oprs ...Operator) error {
+	// create memory storage at first place so the operators append hs/ents
+	// and to avoid using the same storage on different start invocations.
 	d.cache = raft.NewMemoryStorage()
 	sp := setup{addr: addr}
 	ssp := stateSetup{publishSnapshotFile: d.publishSnapshotFile}
