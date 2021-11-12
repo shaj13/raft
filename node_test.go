@@ -36,7 +36,6 @@ func TestNodePreConditions(t *testing.T) {
 			expected: []func(c *Node) error{
 				joined(),
 				noLeader(),
-				notType(0, 0),
 				available(),
 			},
 		},

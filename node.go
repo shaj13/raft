@@ -51,7 +51,6 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 	err := n.preCond(
 		joined(),
 		noLeader(),
-		notType(n.Whoami(), VoterMember),
 		available(),
 	)
 
