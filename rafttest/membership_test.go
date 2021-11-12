@@ -99,7 +99,7 @@ func TestLearnerMember(t *testing.T) {
 	otr.start(learner)
 	otr.wait(learner)
 
-	// check learner cannt replicate or mange cluster.
+	// check learner cannt participate.
 	err := learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "is a learner not a voter")
@@ -110,4 +110,36 @@ func TestLearnerMember(t *testing.T) {
 
 	err = otr.leader().raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
 	require.NoError(t, err)
+}
+
+func TestPromoteMember(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(2)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	raw := raft.RawMember{
+		ID:      3,
+		Address: ":3",
+		Type:    raft.LearnerMember,
+	}
+
+	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(":1", time.Second))
+	otr.start(learner)
+	otr.wait(learner)
+
+	// check learner cannt participate.
+	err := learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "is a learner not a voter")
+
+	// promote learner,
+	err = otr.follower().raftnode.PromoteMember(context.Background(), learner.rawMember().ID)
+	require.NoError(t, err)
+
+	// check learner can participate after the promotion.
+	err = learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
+	require.Error(t, err)
 }

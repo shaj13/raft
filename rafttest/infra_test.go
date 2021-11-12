@@ -312,7 +312,9 @@ func (o *orchestrator) follower() *node {
 			continue
 		}
 
-		if n.raftnode.Whoami() != id {
+		fid := n.raftnode.Whoami()
+		mem, _ := n.raftnode.GetMemebr(fid)
+		if fid != id && mem.Type() == raft.VoterMember {
 			return n
 		}
 	}
