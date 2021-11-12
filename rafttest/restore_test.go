@@ -16,6 +16,7 @@ import (
 func TestSnapshotShare(t *testing.T) {
 	numOfEnt := 5
 	otr := newOrchestrator(t)
+	defer otr.teardown()
 
 	node := otr.create(1)[0]
 	node.withOptions(raft.WithSnapshotInterval(uint64(numOfEnt)))
@@ -83,6 +84,8 @@ func TestForceNewClusterSnapshot(t *testing.T) {
 
 func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64, num int) {
 	otr := newOrchestrator(t)
+	defer otr.teardown()
+
 	nodes := otr.create(2)
 	for _, n := range nodes {
 		n.withOptions(raft.WithSnapshotInterval(interval))

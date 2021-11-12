@@ -185,7 +185,6 @@ func (n *node) withOptions(opts ...raft.Option) *node {
 type orchestrator struct {
 	t        *testing.T
 	loopback *loopback
-	wg       sync.WaitGroup
 	nodes    []*node
 }
 
@@ -222,7 +221,6 @@ func (o *orchestrator) create(n int) []*node {
 func (o *orchestrator) start(nodes ...*node) *orchestrator {
 	o.nodes = append(o.nodes, nodes...)
 	for _, n := range nodes {
-		o.wg.Add(1)
 
 		membs := raft.WithMembers(n.rawMembers...)
 		n.startOpts = append(n.startOpts, membs)
@@ -236,7 +234,6 @@ func (o *orchestrator) start(nodes ...*node) *orchestrator {
 		}
 
 		go func(n *node) {
-			defer o.wg.Done()
 			id := n.rawMembers[0].ID
 			err := n.raftnode.Start(n.startOpts...)
 			if err != nil && err != raft.ErrNodeStopped {
@@ -245,6 +242,23 @@ func (o *orchestrator) start(nodes ...*node) *orchestrator {
 		}(n)
 	}
 	return o
+}
+
+func (o *orchestrator) teardown() {
+	wg := sync.WaitGroup{}
+	for _, n := range o.nodes {
+		wg.Add(1)
+		go func(n *node) {
+			defer wg.Done()
+			err := n.raftnode.Shutdown(canceledctx)
+			if err != nil {
+				o.t.Error(err)
+			}
+		}(n)
+	}
+
+	wg.Wait()
+	o.nodes = make([]*node, 0)
 }
 
 func (o *orchestrator) waitAll() *orchestrator {

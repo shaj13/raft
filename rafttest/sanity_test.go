@@ -10,6 +10,7 @@ import (
 func TestSanityCheck(t *testing.T) {
 	numOfEnt := 100
 	otr := newOrchestrator(t)
+	defer otr.teardown()
 
 	nodes := otr.create(5)
 	otr.start(nodes...)
