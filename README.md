@@ -6,12 +6,10 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
-- [ ] remove sync from disk
 
 
 ## Test cases 
-- [ ] create 1 mem + add data + snapshot + join new meem + drop mem = force new cluster
-- [ ] create 1 mem +  join new meem + drop mem = force new cluster
+- [ ] transfer leadership 
 - [ ] sanity check staging member 
 - [ ] remove nodes + restart
 - [ ] demote voter 
