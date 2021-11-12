@@ -99,6 +99,7 @@ func TestLearnerMember(t *testing.T) {
 	otr.start(learner)
 	otr.wait(learner)
 
+	// check learner cannt replicate or mange cluster.
 	err := learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "is a learner not a voter")
