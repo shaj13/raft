@@ -50,3 +50,29 @@ func TestDisableForwarding(t *testing.T) {
 	err = otr.leader().raftnode.Replicate(ctx, newBytesEntry(1, 1))
 	require.NoError(t, err)
 }
+
+func TestRestart(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	node := otr.create(1)[0]
+	otr.start(node)
+	otr.wait(node)
+
+	err := node.raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
+	require.NoError(t, err)
+
+	v := node.fsm.Read(1)
+	require.Equal(t, 1, v)
+
+	otr.teardown()
+
+	node.startOpts = nil
+	node.withStartOptions(raft.WithRestart())
+
+	otr.start(node)
+	otr.wait(node)
+
+	v = node.fsm.Read(1)
+	require.Equal(t, 1, v)
+}
