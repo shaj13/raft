@@ -9,7 +9,6 @@
 
 
 ## Test cases 
-- [ ] transfer leadership 
 - [ ] sanity check staging member 
 - [ ] test shutdown gracfull and non gracefull (sanity check)
 
