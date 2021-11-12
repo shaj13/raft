@@ -102,4 +102,11 @@ func TestLearnerMember(t *testing.T) {
 	err := learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "is a learner not a voter")
+
+	// check learner does not impact cluster availability
+	err = learner.raftnode.Shutdown(canceledctx)
+	require.NoError(t, err)
+
+	err = otr.leader().raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
+	require.NoError(t, err)
 }
