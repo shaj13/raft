@@ -96,10 +96,7 @@ func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64,
 	followerID := follower.rawMembers[0].ID
 
 	// stop the first node and verify quorum loss.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := follower.raftnode.Shutdown(ctx)
+	err := follower.raftnode.Shutdown(canceledctx)
 	require.NoError(t, err)
 
 	for i := 0; i < 5; i++ {
@@ -116,7 +113,7 @@ func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64,
 	require.Contains(t, err.Error(), "quorum lost")
 
 	// stop the leader and force new cluster.
-	err = leader.raftnode.Shutdown(ctx)
+	err = leader.raftnode.Shutdown(canceledctx)
 	require.NoError(t, err)
 
 	raw := leader.rawMembers[0]

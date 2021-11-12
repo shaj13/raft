@@ -20,6 +20,15 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
+// canceledctx is a reusable canceled context.
+var canceledctx context.Context
+
+func init() {
+	var cancel context.CancelFunc
+	canceledctx, cancel = context.WithCancel(context.Background())
+	cancel()
+}
+
 type rawMemberkey struct{}
 
 func ctxWithRawMember(raw raft.RawMember) context.Context {
