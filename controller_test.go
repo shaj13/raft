@@ -25,14 +25,14 @@ func TestControllerPush(t *testing.T) {
 func TestControllerPromoteMember(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(raft.Status{}, errNotLeader).AnyTimes()
+	daemon.EXPECT().Status().Return(raft.Status{}, ErrNotLeader).AnyTimes()
 	n := new(Node)
 	n.daemon = daemon
 	n.exec = testPreCond
 	c := new(controller)
 	c.node = n
 	err := c.PromoteMember(context.TODO(), RawMember{})
-	require.Equal(t, errNotLeader, err)
+	require.Equal(t, ErrNotLeader, err)
 }
 
 func TestControllerJoin(t *testing.T) {
@@ -49,7 +49,7 @@ func TestControllerJoin(t *testing.T) {
 				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
 				daemon := daemonmock.NewMockDaemon(ctrl)
 				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).Return(errNotLeader)
+				daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).Return(ErrNotLeader)
 				n := new(Node)
 				n.exec = testPreCond
 				n.daemon = daemon
@@ -57,7 +57,7 @@ func TestControllerJoin(t *testing.T) {
 				c.node = n
 			},
 			raw: &RawMember{ID: 10},
-			err: errNotLeader,
+			err: ErrNotLeader,
 		},
 		{
 			expect: func(c *controller) {

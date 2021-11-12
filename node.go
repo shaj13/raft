@@ -20,9 +20,12 @@ import (
 
 // TODO: do we need to expose ?
 var (
-	// ErrNodeStopped is returned by the Node methods after a call to Shutdown or when it has not started.
+	// ErrNodeStopped is returned by the Node methods after a call to
+	// Shutdown or when it has not started.
 	ErrNodeStopped = daemon.ErrStopped
-	errNotLeader   = errors.New("raft: operation not permitted, node is not the leader")
+	// ErrNotLeader is returned when an operation can't be completed on a
+	// follower or candidate node
+	ErrNotLeader = errors.New("raft: node is not the leader")
 )
 
 type Node struct {
@@ -416,7 +419,7 @@ func addressInUse(mid uint64, addr string) func(c *Node) error {
 func notLeader() func(c *Node) error {
 	return func(c *Node) error {
 		if c.Whoami() != c.Leader() {
-			return errNotLeader
+			return ErrNotLeader
 		}
 		return nil
 	}
@@ -452,7 +455,7 @@ func noLeader() func(c *Node) error {
 func disableForwarding() func(c *Node) error {
 	return func(c *Node) error {
 		if c.Leader() != c.Whoami() && c.disableForwarding {
-			return errNotLeader
+			return ErrNotLeader
 		}
 		return nil
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	raft "github.com/shaj13/raftkit"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,4 +27,26 @@ func TestSanityCheck(t *testing.T) {
 		v := node.fsm.Read(i)
 		require.Equal(t, i, v)
 	}
+}
+
+func TestDisableForwarding(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(2)
+
+	for _, n := range nodes {
+		n.withOptions(raft.WithDisableProposalForwarding())
+	}
+
+	otr.start(nodes...)
+	otr.waitAll()
+
+	ctx := context.Background()
+
+	err := otr.follower().raftnode.Replicate(ctx, []byte{})
+	require.Equal(t, raft.ErrNotLeader, err)
+
+	err = otr.leader().raftnode.Replicate(ctx, newBytesEntry(1, 1))
+	require.NoError(t, err)
 }

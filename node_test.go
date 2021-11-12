@@ -171,8 +171,8 @@ func TestNodePreCond(t *testing.T) {
 		err error
 	}{
 		{
-			fn:  func(n *Node) error { return errNotLeader },
-			err: errNotLeader,
+			fn:  func(n *Node) error { return ErrNotLeader },
+			err: ErrNotLeader,
 		},
 		{
 			fn:  func(n *Node) error { return nil },
@@ -448,10 +448,10 @@ func TestNodePromoteMember(t *testing.T) {
 
 	// round #2 it return error when dial return error
 	n.dial = func(c context.Context, s string) (transport.Client, error) {
-		return nil, errNotLeader
+		return nil, ErrNotLeader
 	}
 	err = n.promoteMember(ctx, 1, false)
-	require.Equal(t, errNotLeader, err)
+	require.Equal(t, ErrNotLeader, err)
 
 	// round #3 it forward promote request.
 	n.dial = func(c context.Context, s string) (transport.Client, error) {
@@ -537,7 +537,7 @@ func TestPreConditions(t *testing.T) {
 		},
 		{
 			fn:       disableForwarding(),
-			contains: errNotLeader.Error(),
+			contains: ErrNotLeader.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
 				daemon := daemonmock.NewMockDaemon(ctrl)
@@ -616,7 +616,7 @@ func TestPreConditions(t *testing.T) {
 		},
 		{
 			fn:       notLeader(),
-			contains: errNotLeader.Error(),
+			contains: ErrNotLeader.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
 				daemon := daemonmock.NewMockDaemon(ctrl)
