@@ -58,13 +58,7 @@ func TestRestart(t *testing.T) {
 	node := otr.create(1)[0]
 	otr.start(node)
 	otr.wait(node)
-
-	err := node.raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
-	require.NoError(t, err)
-
-	v := node.fsm.Read(1)
-	require.Equal(t, 1, v)
-
+	otr.produceData(1)
 	otr.teardown()
 
 	node.startOpts = nil
@@ -73,6 +67,6 @@ func TestRestart(t *testing.T) {
 	otr.start(node)
 	otr.wait(node)
 
-	v = node.fsm.Read(1)
+	v := node.fsm.Read(1)
 	require.Equal(t, 1, v)
 }
