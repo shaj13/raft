@@ -14,7 +14,6 @@
 - [ ] remove nodes + restart
 - [ ] demote voter 
 - [ ] promote member + on non leader 
-- [ ] disable forwarding 
 - [ ] test shutdown gracfull and non gracefull (sanity check)
 
 
