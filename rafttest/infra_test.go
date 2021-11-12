@@ -218,7 +218,7 @@ func (o *orchestrator) create(n int) []*node {
 	return nodes
 }
 
-func (o *orchestrator) start(nodes ...*node) *orchestrator {
+func (o *orchestrator) start(nodes ...*node) {
 	o.nodes = append(o.nodes, nodes...)
 	for _, n := range nodes {
 
@@ -241,7 +241,6 @@ func (o *orchestrator) start(nodes ...*node) *orchestrator {
 			}
 		}(n)
 	}
-	return o
 }
 
 func (o *orchestrator) teardown() {
@@ -261,7 +260,7 @@ func (o *orchestrator) teardown() {
 	o.nodes = make([]*node, 0)
 }
 
-func (o *orchestrator) waitAll() *orchestrator {
+func (o *orchestrator) waitAll() {
 	wg := sync.WaitGroup{}
 	for _, n := range o.nodes {
 		wg.Add(1)
@@ -272,20 +271,18 @@ func (o *orchestrator) waitAll() *orchestrator {
 	}
 
 	wg.Wait()
-	return o
 }
 
-func (o *orchestrator) wait(node *node) *orchestrator {
+func (o *orchestrator) wait(node *node) {
 	for i := 0; i < 30; i++ {
 		if node.raftnode.Leader() != raft.None {
-			return o
+			return
 		}
 
 		time.Sleep(time.Millisecond * 500)
 	}
 
 	o.t.Errorf("orchestrator: failed to wait for node to start %d", node.rawMembers[0].ID)
-	return o
 }
 
 func (o *orchestrator) leader() *node {
