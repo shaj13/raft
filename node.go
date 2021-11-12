@@ -111,9 +111,10 @@ func (n *Node) StepDown(ctx context.Context) error {
 
 	// we can do the following, because member's active since is given from the current node clock.
 	longest := time.Now().Add(math.MaxInt64)
+	id := n.Whoami()
 	cond := func(m Member) bool {
 		since := m.ActiveSince()
-		ok := m.IsActive() && m.Type() == VoterMember && since.Before(longest)
+		ok := m.IsActive() && m.Type() == VoterMember && since.Before(longest) && id != m.ID()
 		if ok {
 			longest = since
 			return true

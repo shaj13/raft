@@ -166,3 +166,19 @@ func TestDemoteMember(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "is a learner not a voter")
 }
+
+func TestLeaderStepDown(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(3)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	leader := otr.leader()
+	err := leader.raftnode.StepDown(context.Background())
+	require.NoError(t, err)
+
+	newLeader := otr.leader()
+	require.NotEqual(t, leader.rawMember().ID, newLeader.rawMember().ID)
+}

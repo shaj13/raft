@@ -253,16 +253,18 @@ func TestNodeStepDown(t *testing.T) {
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
 	m2 := membershipmock.NewMockMember(ctrl)
+	m3 := membershipmock.NewMockMember(ctrl)
 
-	for i, m := range []*membershipmock.MockMember{m1, m2} {
-		m.EXPECT().ID().Return(uint64(i))
+	for i, m := range []*membershipmock.MockMember{m1, m2, m3} {
+		m.EXPECT().ID().Return(uint64(i)).AnyTimes()
 		m.EXPECT().Type().Return(VoterMember)
 		m.EXPECT().IsActive().Return(true)
 		m.EXPECT().ActiveSince().Return(time.Now().Add(time.Second * time.Duration(i)))
 	}
 
 	pool.EXPECT().Members().Return([]membership.Member{m1, m2})
-	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(uint64(0)))
+	daemon.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
+	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(uint64(1)))
 
 	n := new(Node)
 	n.exec = testPreCond
