@@ -182,3 +182,22 @@ func TestLeaderStepDown(t *testing.T) {
 	newLeader := otr.leader()
 	require.NotEqual(t, leader.rawMember().ID, newLeader.rawMember().ID)
 }
+
+func TestTransferLeadership(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(3)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	leader := otr.leader()
+	followerID := otr.follower().rawMember().ID
+
+	err := leader.raftnode.TransferLeadership(context.Background(), followerID)
+	require.NoError(t, err)
+
+	leaderID := otr.leader().rawMember().ID
+	require.NotEqual(t, leader.rawMember().ID, leaderID)
+	require.Equal(t, followerID, leaderID)
+}
