@@ -143,3 +143,26 @@ func TestPromoteMember(t *testing.T) {
 	err = learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
 	require.Error(t, err)
 }
+
+func TestDemoteMember(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.create(2)
+
+	nodes := otr.create(2)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	follower := otr.follower()
+
+	// check follower can participate before the demoteion.
+	err := follower.raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
+	require.NoError(t, err)
+
+	err = follower.raftnode.DemoteMember(context.Background(), follower.rawMember().ID)
+	require.NoError(t, err)
+
+	// check follower cannt participate after the demoteion.
+	err = follower.raftnode.Replicate(context.Background(), newBytesEntry(1, 1))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "is a learner not a voter")
+}
