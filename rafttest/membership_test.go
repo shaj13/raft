@@ -80,3 +80,26 @@ func TestRemoveMember(t *testing.T) {
 	v := leader.fsm.Read(1)
 	require.Equal(t, 1, v)
 }
+
+func TestLearnerMember(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(2)
+	otr.start(nodes...)
+	otr.waitAll()
+
+	raw := raft.RawMember{
+		ID:      3,
+		Address: ":3",
+		Type:    raft.LearnerMember,
+	}
+
+	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(":2", time.Second))
+	otr.start(learner)
+	otr.wait(learner)
+
+	err := learner.raftnode.Replicate(canceledctx, newBytesEntry(1, 1))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "is a learner not a voter")
+}
