@@ -254,7 +254,7 @@ func (o *orchestrator) teardown() {
 		go func(n *node) {
 			defer wg.Done()
 			err := n.raftnode.Shutdown(canceledctx)
-			if err != nil {
+			if err != nil && err != raft.ErrNodeStopped {
 				o.t.Error(err)
 			}
 		}(n)
