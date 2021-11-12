@@ -167,6 +167,10 @@ type node struct {
 	fsm        *stateMachine
 }
 
+func (n *node) rawMember() raft.RawMember {
+	return n.rawMembers[0]
+}
+
 func (n *node) withRawMember(raw raft.RawMember) *node {
 	n.rawMembers = append(n.rawMembers, raw)
 	return n
@@ -226,7 +230,7 @@ func (o *orchestrator) start(nodes ...*node) {
 		n.startOpts = append(n.startOpts, membs)
 
 		if n.raftnode == nil {
-			ctx := raft.WithContext(ctxWithRawMember(n.rawMembers[0]))
+			ctx := raft.WithContext(ctxWithRawMember(n.rawMember()))
 			state := raft.WithStateDIR(o.t.TempDir())
 			n.opts = append(n.opts, ctx, state)
 
@@ -234,7 +238,7 @@ func (o *orchestrator) start(nodes ...*node) {
 		}
 
 		go func(n *node) {
-			id := n.rawMembers[0].ID
+			id := n.rawMember().ID
 			err := n.raftnode.Start(n.startOpts...)
 			if err != nil && err != raft.ErrNodeStopped {
 				o.t.Errorf("orchestrator: node %d start returned: %v", id, err)
@@ -282,7 +286,7 @@ func (o *orchestrator) wait(node *node) {
 		time.Sleep(time.Millisecond * 500)
 	}
 
-	o.t.Errorf("orchestrator: failed to wait for node to start %d", node.rawMembers[0].ID)
+	o.t.Errorf("orchestrator: failed to wait for node to start %d", node.rawMember().ID)
 }
 
 func (o *orchestrator) leader() *node {

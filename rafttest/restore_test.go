@@ -96,7 +96,7 @@ func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64,
 
 	leader := otr.leader()
 	follower := otr.follower()
-	followerID := follower.rawMembers[0].ID
+	followerID := follower.rawMember().ID
 
 	// stop the first node and verify quorum loss.
 	err := follower.raftnode.Shutdown(canceledctx)
@@ -119,7 +119,7 @@ func testRestore(t *testing.T, cb func(), opt raft.StartOption, interval uint64,
 	err = leader.raftnode.Shutdown(canceledctx)
 	require.NoError(t, err)
 
-	raw := leader.rawMembers[0]
+	raw := leader.rawMember()
 	otr.nodes = nil
 	leader.startOpts = nil
 	leader.rawMembers = nil
