@@ -15,6 +15,7 @@
 - [ ] demote voter 
 - [ ] promote member + on non leader 
 - [ ] test shutdown gracfull and non gracefull (sanity check)
+- [ ] learner member does not effect quorom
 
 
 
