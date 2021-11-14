@@ -47,6 +47,7 @@ func (ng *NodeGroup) Add(id uint64, n *Node) bool {
 }
 
 func (ng *NodeGroup) Remove(id uint64) bool {
+	ng.router.remove(id)
 	return true
 }
 
