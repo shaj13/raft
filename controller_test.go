@@ -7,6 +7,7 @@ import (
 	"github.com/golang/mock/gomock"
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
+	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -93,4 +94,39 @@ func TestControllerJoin(t *testing.T) {
 		}
 	}
 
+}
+
+func TestRouterMethodsErr(t *testing.T) {
+	ctx := context.TODO()
+	noGroup := uint64(0)
+
+	table := []func(r *router) error{
+		func(r *router) error {
+			return r.PromoteMember(ctx, noGroup, raftpb.Member{})
+		},
+		func(r *router) error {
+			_, err := r.Join(ctx, noGroup, nil)
+			return err
+		},
+		func(r *router) error {
+			return r.Push(ctx, noGroup, etcdraftpb.Message{})
+		},
+	}
+
+	for _, tt := range table {
+		r := new(router)
+		err := tt(r)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown group")
+	}
+}
+
+func TestRouteRregister(t *testing.T) {
+	gid := uint64(100)
+	ctrl := new(controller)
+	r := new(router)
+	r.ctrls = map[uint64]*controller{}
+	r.register(gid, ctrl)
+	got, _ := r.get(gid)
+	require.Equal(t, ctrl, got)
 }
