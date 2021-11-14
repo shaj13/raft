@@ -8,6 +8,7 @@ import (
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -48,16 +49,22 @@ func (c *controller) PromoteMember(ctx context.Context, gid uint64, m raftpb.Mem
 
 type router struct {
 	mu    sync.Mutex
-	ctrls map[uint64]*controller
+	ctrls map[uint64]transport.Controller
 }
 
-func (r *router) register(gid uint64, ctrl *controller) {
+func (r *router) add(gid uint64, ctrl transport.Controller) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.ctrls[gid] = ctrl
 }
 
-func (r *router) get(gid uint64) (*controller, error) {
+func (r *router) remove(gid uint64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.ctrls, gid)
+}
+
+func (r *router) get(gid uint64) (transport.Controller, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	ctrl, ok := r.ctrls[gid]

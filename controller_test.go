@@ -8,6 +8,7 @@ import (
 	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -121,12 +122,16 @@ func TestRouterMethodsErr(t *testing.T) {
 	}
 }
 
-func TestRouteRregister(t *testing.T) {
+func TestRouterAddRemove(t *testing.T) {
 	gid := uint64(100)
 	ctrl := new(controller)
 	r := new(router)
-	r.ctrls = map[uint64]*controller{}
-	r.register(gid, ctrl)
+	r.ctrls = map[uint64]transport.Controller{}
+	r.add(gid, ctrl)
 	got, _ := r.get(gid)
 	require.Equal(t, ctrl, got)
+
+	r.remove(gid)
+	_, err := r.get(gid)
+	require.Error(t, err)
 }

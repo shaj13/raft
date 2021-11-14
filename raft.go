@@ -28,7 +28,7 @@ func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
 	node.daemon = cfg.daemon
 	node.storage = cfg.storage
 	node.dial = cfg.dial
-	node.disableForwarding = cfg.rcfg.DisableProposalForwarding
+	node.cfg = cfg
 	node.handler = newHandler(cfg)
 
 	cfg.controller.(*controller).node = node

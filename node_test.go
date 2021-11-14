@@ -534,6 +534,7 @@ func TestPreConditions(t *testing.T) {
 				daemon := daemonmock.NewMockDaemon(ctrl)
 				daemon.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
 				n.daemon = daemon
+				n.cfg = newConfig()
 			},
 		},
 		{
@@ -548,7 +549,7 @@ func TestPreConditions(t *testing.T) {
 					},
 				}, nil).MaxTimes(2)
 				n.daemon = daemon
-				n.disableForwarding = true
+				n.cfg = newConfig(WithDisableProposalForwarding())
 			},
 		},
 		{

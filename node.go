@@ -28,13 +28,39 @@ var (
 	ErrNotLeader = errors.New("raft: node is not the leader")
 )
 
+type NodeGroup struct {
+	handler transport.Handler
+	router  *router
+}
+
+func (ng *NodeGroup) Handler() etransport.Handler {
+	return ng.handler
+}
+
+func (ng *NodeGroup) Start() error {
+	return ErrNodeStopped
+}
+
+func (ng *NodeGroup) Add(id uint64, n *Node) bool {
+	ng.router.add(id, n.cfg.controller)
+	return true
+}
+
+func (ng *NodeGroup) Remove(id uint64) bool {
+	return true
+}
+
+func (ng *NodeGroup) Close() error {
+	return nil
+}
+
 type Node struct {
-	handler           transport.Handler
-	dial              transport.Dial
-	pool              membership.Pool
-	storage           storage.Storage
-	daemon            daemon.Daemon
-	disableForwarding bool
+	handler transport.Handler
+	dial    transport.Dial
+	pool    membership.Pool
+	storage storage.Storage
+	daemon  daemon.Daemon
+	cfg     *config
 	// exec pre conditions, its used by tests.
 	exec func(fns ...func(c *Node) error) error
 }
@@ -454,7 +480,8 @@ func noLeader() func(c *Node) error {
 
 func disableForwarding() func(c *Node) error {
 	return func(c *Node) error {
-		if c.Leader() != c.Whoami() && c.disableForwarding {
+		disable := c.cfg.rcfg.DisableProposalForwarding
+		if c.Leader() != c.Whoami() && disable {
 			return ErrNotLeader
 		}
 		return nil
