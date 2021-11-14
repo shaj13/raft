@@ -52,6 +52,20 @@ func (mr *MockHandlerConfigMockRecorder) Controller() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockHandlerConfig)(nil).Controller))
 }
 
+// GroupID mocks base method.
+func (m *MockHandlerConfig) GroupID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GroupID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GroupID indicates an expected call of GroupID.
+func (mr *MockHandlerConfigMockRecorder) GroupID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockHandlerConfig)(nil).GroupID))
+}
+
 // Snapshotter mocks base method.
 func (m *MockHandlerConfig) Snapshotter() storage.Snapshotter {
 	m.ctrl.T.Helper()
@@ -87,6 +101,20 @@ func NewMockDialerConfig(ctrl *gomock.Controller) *MockDialerConfig {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDialerConfig) EXPECT() *MockDialerConfigMockRecorder {
 	return m.recorder
+}
+
+// GroupID mocks base method.
+func (m *MockDialerConfig) GroupID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GroupID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GroupID indicates an expected call of GroupID.
+func (mr *MockDialerConfigMockRecorder) GroupID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockDialerConfig)(nil).GroupID))
 }
 
 // Snapshotter mocks base method.
@@ -230,44 +258,44 @@ func (m *MockController) EXPECT() *MockControllerMockRecorder {
 }
 
 // Join mocks base method.
-func (m *MockController) Join(arg0 context.Context, arg1 *raftpb.Member) (*raftpb.JoinResponse, error) {
+func (m *MockController) Join(arg0 context.Context, arg1 uint64, arg2 *raftpb.Member) (*raftpb.JoinResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Join", arg0, arg1)
+	ret := m.ctrl.Call(m, "Join", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*raftpb.JoinResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Join indicates an expected call of Join.
-func (mr *MockControllerMockRecorder) Join(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockControllerMockRecorder) Join(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Join", reflect.TypeOf((*MockController)(nil).Join), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Join", reflect.TypeOf((*MockController)(nil).Join), arg0, arg1, arg2)
 }
 
 // PromoteMember mocks base method.
-func (m_2 *MockController) PromoteMember(ctx context.Context, m raftpb.Member) error {
-	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "PromoteMember", ctx, m)
+func (m *MockController) PromoteMember(arg0 context.Context, arg1 uint64, arg2 raftpb.Member) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PromoteMember", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // PromoteMember indicates an expected call of PromoteMember.
-func (mr *MockControllerMockRecorder) PromoteMember(ctx, m interface{}) *gomock.Call {
+func (mr *MockControllerMockRecorder) PromoteMember(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromoteMember", reflect.TypeOf((*MockController)(nil).PromoteMember), ctx, m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromoteMember", reflect.TypeOf((*MockController)(nil).PromoteMember), arg0, arg1, arg2)
 }
 
 // Push mocks base method.
-func (m *MockController) Push(arg0 context.Context, arg1 raftpb0.Message) error {
+func (m *MockController) Push(arg0 context.Context, arg1 uint64, arg2 raftpb0.Message) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Push", arg0, arg1)
+	ret := m.ctrl.Call(m, "Push", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Push indicates an expected call of Push.
-func (mr *MockControllerMockRecorder) Push(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockControllerMockRecorder) Push(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Push", reflect.TypeOf((*MockController)(nil).Push), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Push", reflect.TypeOf((*MockController)(nil).Push), arg0, arg1, arg2)
 }

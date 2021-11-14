@@ -19,6 +19,7 @@ type HandlerConfig interface {
 // DialerConfig define common configuration used by the dial function.
 type DialerConfig interface {
 	Snapshotter() storage.Snapshotter
+	GroupID() uint64
 }
 
 // Handler responds to an RPC request.
@@ -44,7 +45,7 @@ type Client interface {
 // Controller implements operations defined by raft raftpb.
 // and acts as a bridge between the RPC and raft daemon.
 type Controller interface {
-	Push(context.Context, etcdraftpb.Message) error
-	Join(context.Context, *raftpb.Member) (*raftpb.JoinResponse, error)
-	PromoteMember(ctx context.Context, m raftpb.Member) error
+	Push(context.Context, uint64, etcdraftpb.Message) error
+	Join(context.Context, uint64, *raftpb.Member) (*raftpb.JoinResponse, error)
+	PromoteMember(context.Context, uint64, raftpb.Member) error
 }

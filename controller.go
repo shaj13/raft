@@ -15,7 +15,7 @@ type controller struct {
 	pool   membership.Pool
 }
 
-func (c *controller) Join(ctx context.Context, m *raftpb.Member) (*raftpb.JoinResponse, error) {
+func (c *controller) Join(ctx context.Context, gid uint64, m *raftpb.Member) (*raftpb.JoinResponse, error) {
 	var err error
 
 	if _, ok := c.node.GetMemebr(m.ID); !ok {
@@ -36,10 +36,10 @@ func (c *controller) Join(ctx context.Context, m *raftpb.Member) (*raftpb.JoinRe
 	return resp, nil
 }
 
-func (c *controller) Push(ctx context.Context, m etcdraftpb.Message) error {
+func (c *controller) Push(ctx context.Context, gid uint64, m etcdraftpb.Message) error {
 	return c.daemon.Push(m)
 }
 
-func (c *controller) PromoteMember(ctx context.Context, m raftpb.Member) error {
+func (c *controller) PromoteMember(ctx context.Context, gid uint64, m raftpb.Member) error {
 	return c.node.promoteMember(ctx, m.ID, true)
 }

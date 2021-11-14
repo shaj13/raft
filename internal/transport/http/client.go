@@ -19,6 +19,7 @@ import (
 
 const (
 	snapshotHeader = "X-Raft-Snapshot"
+	groupIDHeader  = "X-Raft-Group-ID"
 	memberIDHeader = "X-Raft-Member-ID"
 	messageURI     = "/message"
 	snapshotURI    = "/snapshot"
@@ -36,6 +37,7 @@ func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transpo
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			return &client{
 				transport: tr,
+				cfg:       dc,
 				url:       join(addr, basePath),
 				shotter:   dc.Snapshotter(),
 			}, nil
@@ -45,6 +47,7 @@ func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transpo
 
 type client struct {
 	transport func(context.Context) http.RoundTripper
+	cfg       transport.DialerConfig
 	url       string
 	shotter   storage.Snapshotter
 }
@@ -127,8 +130,10 @@ func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshal
 }
 
 func (c *client) roundTrip(ctx context.Context, req *http.Request, out pbutil.Unmarshaler) (*http.Response, error) {
-	tr := c.transport(ctx)
-	res, err := tr.RoundTrip(req)
+	gid := strconv.FormatUint(c.cfg.GroupID(), 10)
+	req.Header.Set(groupIDHeader, gid)
+
+	res, err := c.transport(ctx).RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,8 @@ type handler struct {
 }
 
 func (h *handler) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
-	err := h.ctrl.PromoteMember(ctx, *m)
+	gid := groupID(ctx)
+	err := h.ctrl.PromoteMember(ctx, gid, *m)
 	return &emptypb.Empty{}, err
 }
 
@@ -67,12 +68,14 @@ func (h *handler) Message(stream pb.Raft_MessageServer) (err error) {
 		}
 	}
 
+	ctx := stream.Context()
+	gid := groupID(ctx)
 	m := new(etcdraftpb.Message)
 	if err := m.Unmarshal(buf.Bytes()); err != nil {
 		return err
 	}
 
-	if err := h.ctrl.Push(stream.Context(), *m); err != nil {
+	if err := h.ctrl.Push(ctx, gid, *m); err != nil {
 		return err
 	}
 
@@ -142,7 +145,18 @@ func (h *handler) Join(ctx context.Context, m *raftpb.Member) (resp *raftpb.Join
 		}
 	}()
 
+	gid := groupID(ctx)
 	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
-	return h.ctrl.Join(ctx, m)
+	return h.ctrl.Join(ctx, gid, m)
+}
+
+func groupID(ctx context.Context) uint64 {
+	md, _ := metadata.FromIncomingContext(ctx)
+	vals := md.Get(groupIDHeader)
+	if len(vals) == 0 {
+		return 0
+	}
+	gid, _ := strconv.ParseUint(vals[0], 0, 64)
+	return gid
 }

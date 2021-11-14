@@ -18,7 +18,7 @@ func TestControllerPush(t *testing.T) {
 	daemon.EXPECT().Push(gomock.Any()).Return(nil)
 	c := new(controller)
 	c.daemon = daemon
-	err := c.Push(context.TODO(), etcdraftpb.Message{})
+	err := c.Push(context.TODO(), 0, etcdraftpb.Message{})
 	require.NoError(t, err)
 }
 
@@ -31,7 +31,7 @@ func TestControllerPromoteMember(t *testing.T) {
 	n.exec = testPreCond
 	c := new(controller)
 	c.node = n
-	err := c.PromoteMember(context.TODO(), RawMember{})
+	err := c.PromoteMember(context.TODO(), 0, RawMember{})
 	require.Equal(t, ErrNotLeader, err)
 }
 
@@ -85,7 +85,7 @@ func TestControllerJoin(t *testing.T) {
 	for _, tt := range table {
 		c := new(controller)
 		tt.expect(c)
-		resp, err := c.Join(context.TODO(), tt.raw)
+		resp, err := c.Join(context.TODO(), 0, tt.raw)
 		require.Equal(t, tt.err, err)
 		if tt.err == nil {
 			require.NotNil(t, resp)

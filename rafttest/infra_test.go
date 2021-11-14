@@ -128,15 +128,15 @@ func (l *loopbackClient) Message(ctx context.Context, msg etcdraftpb.Message) er
 		}
 	}
 
-	return l.to.Controller().Push(ctx, msg)
+	return l.to.Controller().Push(ctx, l.to.GroupID(), msg)
 }
 
 func (l *loopbackClient) Join(ctx context.Context, mem raftpb.Member) (*raftpb.JoinResponse, error) {
-	return l.to.Controller().Join(ctx, &mem)
+	return l.to.Controller().Join(ctx, l.to.GroupID(), &mem)
 }
 
 func (l *loopbackClient) PromoteMember(ctx context.Context, mem raftpb.Member) error {
-	return l.to.Controller().PromoteMember(ctx, mem)
+	return l.to.Controller().PromoteMember(ctx, l.to.GroupID(), mem)
 }
 
 func (l *loopbackClient) Close() error {

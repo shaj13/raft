@@ -32,12 +32,13 @@ type handler struct {
 }
 
 func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
+	gid := groupID(r)
 	msg := new(etcdraftpb.Message)
 	if code, err := decode(r.Body, msg); err != nil {
 		return code, err
 	}
 
-	if err := h.ctrl.Push(r.Context(), *msg); err != nil {
+	if err := h.ctrl.Push(r.Context(), gid, *msg); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
@@ -45,6 +46,10 @@ func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
 }
 
 func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
+	// TODO: move snapshotter to controler to avoid deps with storage.
+	gid := groupID(r)
+	_ = gid
+
 	vals := r.Header.Values(snapshotHeader)
 	if len(vals) < 2 {
 		return http.StatusBadRequest, errors.New("raft/http: snapshot header missing")
@@ -78,6 +83,7 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 }
 
 func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
+	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
 		return code, err
@@ -85,7 +91,7 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 
 	log.Debugf("raft.http: new member asks to join the cluster on address %s", m.Address)
 
-	resp, err := h.ctrl.Join(r.Context(), m)
+	resp, err := h.ctrl.Join(r.Context(), gid, m)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -101,12 +107,13 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 }
 
 func (h *handler) promoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
+	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
 		return code, err
 	}
 
-	if err := h.ctrl.PromoteMember(r.Context(), *m); err != nil {
+	if err := h.ctrl.PromoteMember(r.Context(), gid, *m); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
@@ -157,4 +164,10 @@ func decode(r io.Reader, u pbutil.Unmarshaler) (int, error) {
 	}
 
 	return 0, nil
+}
+
+func groupID(r *http.Request) uint64 {
+	str := r.Header.Get(groupIDHeader)
+	gid, _ := strconv.ParseUint(str, 0, 64)
+	return gid
 }

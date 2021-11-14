@@ -21,6 +21,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+const testGroupID = uint64(1)
+
 func TestMessage(t *testing.T) {
 	ln, c, srv := testClientServer(t)
 	defer ln.Close()
@@ -44,7 +46,7 @@ func TestMessage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			rpcCtrl := transportmock.NewMockController(ctrl)
-			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
+			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Eq(testGroupID), gomock.Any()).Return(tt.err)
 			srv.ctrl = rpcCtrl
 			err := c.Message(context.Background(), etcdraftpb.Message{})
 			if tt.err != nil {
@@ -82,7 +84,7 @@ func TestJoin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			rpcCtrl := transportmock.NewMockController(ctrl)
-			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Any()).Return(tt.resp, tt.err)
+			rpcCtrl.EXPECT().Join(gomock.Any(), gomock.Eq(testGroupID), gomock.Any()).Return(tt.resp, tt.err)
 			srv.ctrl = rpcCtrl
 			resp, err := c.Join(context.Background(), raftpb.Member{})
 			require.Equal(t, tt.resp, resp)
@@ -119,7 +121,7 @@ func TestSnapshot(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			rpcCtrl := transportmock.NewMockController(ctrl)
-			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Any()).Return(tt.err)
+			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Eq(testGroupID), gomock.Any()).Return(tt.err)
 
 			shotter := storagemock.NewMockSnapshotter(ctrl)
 			shotter.
@@ -167,7 +169,7 @@ func TestPromoteMember(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			rpcCtrl := transportmock.NewMockController(ctrl)
-			rpcCtrl.EXPECT().PromoteMember(gomock.Any(), gomock.Any()).Return(tt.err)
+			rpcCtrl.EXPECT().PromoteMember(gomock.Any(), gomock.Eq(testGroupID), gomock.Any()).Return(tt.err)
 			srv.ctrl = rpcCtrl
 			err := c.PromoteMember(context.Background(), raftpb.Member{})
 			if tt.err != nil {
@@ -205,6 +207,7 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 	ctrl := gomock.NewController(tb)
 	cfg := transportmock.NewMockDialerConfig(ctrl)
 	cfg.EXPECT().Snapshotter().Return(nil)
+	cfg.EXPECT().GroupID().Return(testGroupID).AnyTimes()
 
 	c, err := Dialer(dopts, copts)(cfg)(ctx, "")
 	if err != nil {

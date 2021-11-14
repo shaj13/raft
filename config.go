@@ -416,6 +416,7 @@ type config struct {
 	statedir         string
 	maxSnapshotFiles int
 	snapInterval     uint64
+	groupID          uint64
 	controller       transport.Controller
 	storage          storage.Storage
 	pool             membership.Pool
@@ -426,6 +427,10 @@ type config struct {
 
 func (c *config) Context() context.Context {
 	return c.ctx
+}
+
+func (c *config) GroupID() uint64 {
+	return c.groupID
 }
 
 func (c *config) TickInterval() time.Duration {

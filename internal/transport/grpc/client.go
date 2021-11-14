@@ -27,6 +27,7 @@ var bufferPool = sync.Pool{
 const (
 	snapshotHeader = "X-Raft-Snapshot"
 	memberIDHeader = "X-Raft-Member-ID"
+	groupIDHeader  = "X-Raft-Group-ID"
 )
 
 // Dialer return's grpc dialer.
@@ -41,6 +42,7 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 			return &client{
 				conn:    conn,
 				copts:   copts,
+				cfg:     dc,
 				shotter: dc.Snapshotter(),
 			}, nil
 		}
@@ -51,10 +53,12 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 type client struct {
 	conn    *grpc.ClientConn
 	copts   func(context.Context) []grpc.CallOption
+	cfg     transport.DialerConfig
 	shotter storage.Snapshotter
 }
 
 func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
+	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
 	_, err := pb.NewRaftClient(c.conn).PromoteMember(ctx, &m, c.copts(ctx)...)
 	return err
 }
@@ -74,6 +78,7 @@ func (c *client) Message(ctx context.Context, msg etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (*raftpb.JoinResponse, error) {
+	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
 	return pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 }
 
@@ -82,6 +87,8 @@ func (c *client) Close() error {
 }
 
 func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error) {
+	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
+
 	data, err := msg.Marshal()
 	if err != nil {
 		return err
@@ -120,6 +127,7 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 	md := metadata.Pairs(
 		snapshotHeader, strconv.FormatUint(meta.Term, 10),
 		snapshotHeader, strconv.FormatUint(meta.Index, 10),
+		groupIDHeader, strconv.FormatUint(c.cfg.GroupID(), 10),
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
@@ -145,4 +153,9 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 	}
 
 	return c.message(ctx, msg)
+}
+
+func ctxWithGroupID(ctx context.Context, gid uint64) context.Context {
+	str := strconv.FormatUint(gid, 10)
+	return metadata.AppendToOutgoingContext(ctx, groupIDHeader, str)
 }
