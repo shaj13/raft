@@ -26,7 +26,6 @@ func init() {
 		mux.stop = make(chan struct{})
 		mux.messagec = make(chan *message)
 		go mux.Start()
-
 		return mux.add(1, rn)
 	}
 }
@@ -72,6 +71,7 @@ func (m *mux) Start() {
 	readycs := map[uint64]chan raft.Ready{}
 	advcs := map[uint64]raft.Ready{}
 	leads := map[uint64]uint64{}
+	nodeID := raft.None
 
 	for {
 		if len(advcs) == 0 {
@@ -103,10 +103,16 @@ func (m *mux) Start() {
 		case msg := <-m.messagec:
 			switch msg.op {
 			case add:
-				readyc := make(chan raft.Ready)
-				nodes[msg.gid] = msg.value.(*raft.RawNode)
+				node := msg.value.(*raft.RawNode)
+				id := node.BasicStatus().ID
+				if id != nodeID && nodeID != raft.None {
+					log.Panic("raft: all node group must have the same id !!")
+				}
+				readyc := make(chan raft.Ready, 128)
+				nodes[msg.gid] = node
 				readycs[msg.gid] = readyc
 				msg.value = readyc
+				nodeID = id
 			case remove:
 				delete(nodes, msg.gid)
 				delete(advcs, msg.gid)
