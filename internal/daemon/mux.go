@@ -24,7 +24,7 @@ func init() {
 		mux := new(mux)
 		mux.done = make(chan struct{})
 		mux.stop = make(chan struct{})
-		mux.messagec = make(chan *muxMessage)
+		mux.messagec = make(chan *message)
 		go mux.Start()
 
 		return mux.add(1, rn)
@@ -32,18 +32,18 @@ func init() {
 }
 
 const (
-	addNode muxMessageType = iota
-	removeNode
-	invokeNode
-	advanceNode
+	add operation = iota
+	remove
+	call
+	advance
 	// TODO(Sanad):  need to fan in/out heratbeat.
 )
 
-type muxMessageType uint
-type invokeFunc func(rn *raft.RawNode) error
+type operation uint
+type callFunc func(rn *raft.RawNode) error
 
-type muxMessage struct {
-	mtype muxMessageType
+type message struct {
+	op operation
 	// gid specifies group id.
 	gid uint64
 	// value specifies the request/response content.
@@ -53,7 +53,7 @@ type muxMessage struct {
 }
 
 type mux struct {
-	messagec chan *muxMessage
+	messagec chan *message
 	stop     chan struct{}
 	done     chan struct{}
 }
@@ -101,20 +101,20 @@ func (m *mux) Start() {
 		}
 		select {
 		case msg := <-m.messagec:
-			switch msg.mtype {
-			case addNode:
+			switch msg.op {
+			case add:
 				readyc := make(chan raft.Ready)
 				nodes[msg.gid] = msg.value.(*raft.RawNode)
 				readycs[msg.gid] = readyc
 				msg.value = readyc
-			case removeNode:
+			case remove:
 				delete(nodes, msg.gid)
 				delete(advcs, msg.gid)
-			case invokeNode:
+			case call:
 				node := nodes[msg.gid]
-				err := msg.value.(invokeFunc)(node)
+				err := msg.value.(callFunc)(node)
 				msg.value = err
-			case advanceNode:
+			case advance:
 				if node, ok := nodes[msg.gid]; ok {
 					rd := advcs[msg.gid]
 					node.Advance(rd)
@@ -131,8 +131,8 @@ func (m *mux) Start() {
 }
 
 func (m *mux) add(gid uint64, rn *raft.RawNode) raft.Node {
-	msg := &muxMessage{
-		mtype: addNode,
+	msg := &message{
+		op:    add,
 		gid:   gid,
 		value: rn,
 	}
@@ -147,17 +147,17 @@ func (m *mux) add(gid uint64, rn *raft.RawNode) raft.Node {
 }
 
 func (m *mux) remove(gid uint64) {
-	msg := &muxMessage{
-		mtype: removeNode,
-		gid:   gid,
+	msg := &message{
+		op:  remove,
+		gid: gid,
 	}
 
 	_ = m.push(context.Background(), msg)
 }
 
-func (m *mux) invoke(ctx context.Context, gid uint64, fn invokeFunc) error {
-	msg := &muxMessage{
-		mtype: invokeNode,
+func (m *mux) call(ctx context.Context, gid uint64, fn callFunc) error {
+	msg := &message{
+		op:    call,
 		gid:   gid,
 		value: fn,
 	}
@@ -173,7 +173,7 @@ func (m *mux) invoke(ctx context.Context, gid uint64, fn invokeFunc) error {
 	return nil
 }
 
-func (m *mux) push(ctx context.Context, msg *muxMessage) error {
+func (m *mux) push(ctx context.Context, msg *message) error {
 	msg.done = make(chan struct{})
 
 	select {
@@ -195,40 +195,40 @@ func (m *mux) push(ctx context.Context, msg *muxMessage) error {
 }
 
 func (m *mux) tick(gid uint64) {
-	_ = m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		rn.Tick()
 		return nil
 	})
 }
 
 func (m *mux) campaign(ctx context.Context, gid uint64) error {
-	return m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		return rn.Campaign()
 	})
 }
 
 func (m *mux) propose(ctx context.Context, gid uint64, data []byte) error {
-	return m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		return rn.Propose(data)
 	})
 }
 
 func (m *mux) proposeConfChange(ctx context.Context, gid uint64, cc etcdraftpb.ConfChangeI) error {
-	return m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		return rn.ProposeConfChange(cc)
 	})
 }
 
 func (m *mux) step(ctx context.Context, gid uint64, msg etcdraftpb.Message) error {
-	return m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		return rn.Step(msg)
 	})
 }
 
 func (m *mux) advance(gid uint64) {
-	msg := &muxMessage{
-		mtype: advanceNode,
-		gid:   gid,
+	msg := &message{
+		op:  advance,
+		gid: gid,
 	}
 
 	_ = m.push(context.Background(), msg)
@@ -236,7 +236,7 @@ func (m *mux) advance(gid uint64) {
 
 func (m *mux) applyConfChange(gid uint64, cc etcdraftpb.ConfChangeI) *etcdraftpb.ConfState {
 	cs := new(etcdraftpb.ConfState)
-	_ = m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		cs = rn.ApplyConfChange(cc)
 		return nil
 	})
@@ -245,7 +245,7 @@ func (m *mux) applyConfChange(gid uint64, cc etcdraftpb.ConfChangeI) *etcdraftpb
 }
 
 func (m *mux) transferLeadership(ctx context.Context, gid, _, transferee uint64) {
-	_ = m.invoke(ctx, gid, func(rn *raft.RawNode) error {
+	_ = m.call(ctx, gid, func(rn *raft.RawNode) error {
 		rn.TransferLeader(transferee)
 		return nil
 	})
@@ -253,14 +253,14 @@ func (m *mux) transferLeadership(ctx context.Context, gid, _, transferee uint64)
 }
 
 func (m *mux) readIndex(ctx context.Context, gid uint64, rctx []byte) error {
-	return m.invoke(ctx, gid, func(rn *raft.RawNode) error {
+	return m.call(ctx, gid, func(rn *raft.RawNode) error {
 		rn.ReadIndex(rctx)
 		return nil
 	})
 }
 
 func (m *mux) status(gid uint64) (st raft.Status) {
-	_ = m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		st = rn.Status()
 		return nil
 	})
@@ -268,19 +268,17 @@ func (m *mux) status(gid uint64) (st raft.Status) {
 }
 
 func (m *mux) reportUnreachable(gid, id uint64) {
-	_ = m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		rn.ReportUnreachable(id)
 		return nil
 	})
-	return
 }
 
 func (m *mux) reportSnapshot(gid, id uint64, status raft.SnapshotStatus) {
-	_ = m.invoke(context.Background(), gid, func(rn *raft.RawNode) error {
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
 		rn.ReportSnapshot(id, status)
 		return nil
 	})
-	return
 }
 
 type muxNode struct {
@@ -344,3 +342,13 @@ func (m *muxNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 func (m *muxNode) Stop() {
 	m.mux.remove(m.gid)
 }
+
+//  get node ids
+// for _, v := range []map[uint64]struct{}{
+// 	s.Config.Voters.IDs(),
+// 	s.Config.Learners,
+// } {
+// 	for id := range v {
+// 		fmt.Println(id)
+// 	}
+// }
