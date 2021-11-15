@@ -75,26 +75,26 @@ func (m *mux) Start() {
 
 	for {
 		if len(advcs) == 0 {
-			for id, n := range nodes {
-				lead := leads[id]
+			for gid, n := range nodes {
+				lead := leads[gid]
 				st := n.BasicStatus()
 				if lead != st.Lead {
 					if st.Lead != 0 {
 						if lead == 0 {
-							log.Infof("raft.node: %x elected leader %x at term %d", st.ID, st.Lead, st.Term)
+							log.Infof("raft.node: %x elected leader %x for group %x at term %d", st.ID, st.Lead, gid, st.Term)
 						} else {
-							log.Infof("raft.node: %x changed leader from %x to %x at term %d", st.ID, lead, st.Lead, st.Term)
+							log.Infof("raft.node: %x changed group %x leader from %x to %x at term %d", st.ID, gid, lead, st.Lead, st.Term)
 						}
 					} else {
-						log.Infof("raft.node: %x lost leader %x at term %d", st.ID, st.Lead, st.Term)
+						log.Infof("raft.node: %x lost group %x leader(%x) at term %d", st.ID, gid, st.Lead, st.Term)
 					}
-					leads[id] = st.Lead
+					leads[gid] = st.Lead
 				}
 
 				if n.HasReady() {
 					rd := n.Ready()
-					c := readycs[id]
-					advcs[id] = rd
+					c := readycs[gid]
+					advcs[gid] = rd
 					c <- rd
 				}
 			}
