@@ -26,7 +26,7 @@ func init() {
 		mux.stop = make(chan struct{})
 		mux.messagec = make(chan *message)
 		go mux.Start()
-		return mux.add(1, rn)
+		return mux.add(1, rn, c)
 	}
 }
 
@@ -35,6 +35,7 @@ const (
 	remove
 	call
 	advance
+	// tick
 	// TODO(Sanad):  need to fan in/out heratbeat.
 )
 
@@ -49,6 +50,13 @@ type message struct {
 	value interface{}
 	// done notify the caller that mux has proccess the msg.
 	done chan struct{}
+}
+
+type nodeState struct {
+	rn     *raft.RawNode
+	cfg    *raft.Config
+	lead   uint64
+	readyc chan raft.Ready
 }
 
 type mux struct {
@@ -67,35 +75,31 @@ func (m *mux) Stop() {
 func (m *mux) Start() {
 
 	defer close(m.done)
-	nodes := map[uint64]*raft.RawNode{}
-	readycs := map[uint64]chan raft.Ready{}
+	nodes := map[uint64]*nodeState{}
 	advcs := map[uint64]raft.Ready{}
-	leads := map[uint64]uint64{}
 	nodeID := raft.None
 
 	for {
 		if len(advcs) == 0 {
 			for gid, n := range nodes {
-				lead := leads[gid]
-				st := n.BasicStatus()
-				if lead != st.Lead {
+				st := n.rn.BasicStatus()
+				if n.lead != st.Lead {
 					if st.Lead != 0 {
-						if lead == 0 {
+						if n.lead == 0 {
 							log.Infof("raft.node: %x elected leader %x for group %x at term %d", st.ID, st.Lead, gid, st.Term)
 						} else {
-							log.Infof("raft.node: %x changed group %x leader from %x to %x at term %d", st.ID, gid, lead, st.Lead, st.Term)
+							log.Infof("raft.node: %x changed group %x leader from %x to %x at term %d", st.ID, gid, n.lead, st.Lead, st.Term)
 						}
 					} else {
 						log.Infof("raft.node: %x lost group %x leader(%x) at term %d", st.ID, gid, st.Lead, st.Term)
 					}
-					leads[gid] = st.Lead
+					n.lead = st.Lead
 				}
 
-				if n.HasReady() {
-					rd := n.Ready()
-					c := readycs[gid]
+				if n.rn.HasReady() {
+					rd := n.rn.Ready()
 					advcs[gid] = rd
-					c <- rd
+					n.readyc <- rd
 				}
 			}
 		}
@@ -103,27 +107,26 @@ func (m *mux) Start() {
 		case msg := <-m.messagec:
 			switch msg.op {
 			case add:
-				node := msg.value.(*raft.RawNode)
-				id := node.BasicStatus().ID
+				node := msg.value.(*nodeState)
+				id := node.cfg.ID
 				if id != nodeID && nodeID != raft.None {
 					log.Panic("raft: all node group must have the same id !!")
 				}
-				readyc := make(chan raft.Ready, 128)
+				if nodeID == raft.None {
+					nodeID = id
+				}
 				nodes[msg.gid] = node
-				readycs[msg.gid] = readyc
-				msg.value = readyc
-				nodeID = id
 			case remove:
 				delete(nodes, msg.gid)
 				delete(advcs, msg.gid)
 			case call:
 				node := nodes[msg.gid]
-				err := msg.value.(callFunc)(node)
+				err := msg.value.(callFunc)(node.rn)
 				msg.value = err
 			case advance:
 				if node, ok := nodes[msg.gid]; ok {
 					rd := advcs[msg.gid]
-					node.Advance(rd)
+					node.rn.Advance(rd)
 					delete(advcs, msg.gid)
 				}
 			}
@@ -136,11 +139,17 @@ func (m *mux) Start() {
 	}
 }
 
-func (m *mux) add(gid uint64, rn *raft.RawNode) raft.Node {
+func (m *mux) add(gid uint64, rn *raft.RawNode, cfg *raft.Config) raft.Node {
+	node := &nodeState{
+		rn:     rn,
+		cfg:    cfg,
+		readyc: make(chan raft.Ready, 128),
+	}
+
 	msg := &message{
 		op:    add,
 		gid:   gid,
-		value: rn,
+		value: node,
 	}
 
 	_ = m.push(context.Background(), msg)
@@ -148,7 +157,7 @@ func (m *mux) add(gid uint64, rn *raft.RawNode) raft.Node {
 	return &muxNode{
 		gid:    gid,
 		mux:    m,
-		readyc: msg.value.(chan raft.Ready),
+		readyc: node.readyc,
 	}
 }
 
