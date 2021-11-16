@@ -69,6 +69,9 @@ type nodeState struct {
 	readyc chan raft.Ready
 }
 
+// mux represents a multi node state that is participating in multiple consensus groups,
+// a mux is more efficient than a collection of nodes.
+// the name mux stands for "multiplexer". Like the standard "http.ServeMux".
 type mux struct {
 	operationc chan *operation
 	stop       chan struct{}
