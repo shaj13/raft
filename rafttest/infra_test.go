@@ -44,7 +44,7 @@ func newLoopback(t *testing.T) *loopback {
 
 type loopbackCfg interface {
 	Context() context.Context
-	transport.HandlerConfig
+	transport.Config
 }
 
 type loopback struct {
@@ -60,7 +60,7 @@ func (l *loopback) get(addr string) loopbackCfg {
 	return l.cfgs[addr]
 }
 
-func (l *loopback) dialer(dc transport.DialerConfig) transport.Dial {
+func (l *loopback) dialer(dc transport.Config) transport.Dial {
 	cfg, ok := dc.(loopbackCfg)
 	if !ok {
 		l.t.Fatal("transport.DialerConfig does not implement loopback transport cfg")
@@ -89,7 +89,7 @@ func (l *loopback) dialer(dc transport.DialerConfig) transport.Dial {
 }
 
 func (l *loopback) register() {
-	fn := func(transport.HandlerConfig) (h transport.Handler) {
+	fn := func(transport.Config) (h transport.Handler) {
 		return
 	}
 
@@ -103,13 +103,14 @@ type loopbackClient struct {
 
 func (l *loopbackClient) Message(ctx context.Context, msg etcdraftpb.Message) error {
 	if msg.Type == etcdraftpb.MsgSnap {
+		gid := l.to.GroupID()
 		meta := msg.Snapshot.Metadata
-		r, err := l.from.Snapshotter().Reader(meta.Term, meta.Index)
+		r, err := l.from.Controller().SnapshotReader(gid, meta.Term, meta.Index)
 		if err != nil {
 			return err
 		}
 
-		w, err := l.to.Snapshotter().Writer(meta.Term, meta.Index)
+		w, err := l.to.Controller().SnapshotWriter(gid, meta.Term, meta.Index)
 		if err != nil {
 			return err
 		}

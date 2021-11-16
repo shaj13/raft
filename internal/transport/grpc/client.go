@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -32,7 +31,7 @@ const (
 
 // Dialer return's grpc dialer.
 func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) transport.Dialer {
-	return func(dc transport.DialerConfig) transport.Dial {
+	return func(cfg transport.Config) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			conn, err := grpc.DialContext(ctx, addr, dopts(ctx)...)
 			if err != nil {
@@ -40,10 +39,10 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 			}
 
 			return &client{
-				conn:    conn,
-				copts:   copts,
-				cfg:     dc,
-				shotter: dc.Snapshotter(),
+				conn:  conn,
+				copts: copts,
+				gid:   cfg.GroupID(),
+				ctrl:  cfg.Controller(),
 			}, nil
 		}
 	}
@@ -51,14 +50,14 @@ func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Co
 
 // Client implements transport.Client.
 type client struct {
-	conn    *grpc.ClientConn
-	copts   func(context.Context) []grpc.CallOption
-	cfg     transport.DialerConfig
-	shotter storage.Snapshotter
+	conn  *grpc.ClientConn
+	copts func(context.Context) []grpc.CallOption
+	gid   uint64
+	ctrl  transport.Controller
 }
 
 func (c *client) PromoteMember(ctx context.Context, m raftpb.Member) error {
-	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
+	ctx = ctxWithGroupID(ctx, c.gid)
 	_, err := pb.NewRaftClient(c.conn).PromoteMember(ctx, &m, c.copts(ctx)...)
 	return err
 }
@@ -78,7 +77,7 @@ func (c *client) Message(ctx context.Context, msg etcdraftpb.Message) error {
 }
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (*raftpb.JoinResponse, error) {
-	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
+	ctx = ctxWithGroupID(ctx, c.gid)
 	return pb.NewRaftClient(c.conn).Join(ctx, &m, c.copts(ctx)...)
 }
 
@@ -87,7 +86,7 @@ func (c *client) Close() error {
 }
 
 func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error) {
-	ctx = ctxWithGroupID(ctx, c.cfg.GroupID())
+	ctx = ctxWithGroupID(ctx, c.gid)
 
 	data, err := msg.Marshal()
 	if err != nil {
@@ -119,7 +118,7 @@ func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error
 
 func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err error) {
 	meta := msg.Snapshot.Metadata
-	r, err := c.shotter.Reader(meta.Term, meta.Index)
+	r, err := c.ctrl.SnapshotReader(c.gid, meta.Term, meta.Index)
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 	md := metadata.Pairs(
 		snapshotHeader, strconv.FormatUint(meta.Term, 10),
 		snapshotHeader, strconv.FormatUint(meta.Index, 10),
-		groupIDHeader, strconv.FormatUint(c.cfg.GroupID(), 10),
+		groupIDHeader, strconv.FormatUint(c.gid, 10),
 	)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 

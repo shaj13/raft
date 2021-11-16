@@ -41,7 +41,7 @@ func TestSnapshotShare(t *testing.T) {
 
 	// verify node 1 snapshot copied to node 2.
 	cfg := otr.loopback.get(raw.Address)
-	_, err := cfg.Snapshotter().Read(2, 9)
+	_, err := cfg.Controller().SnapshotReader(0, 2, 9)
 	require.NoError(t, err)
 }
 

@@ -10,7 +10,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -23,16 +22,14 @@ var errSnapHeader = errors.New("raft/grpc: snapshot header missing from grpc met
 // NewHandler return an GRPC transport Handler.
 //
 // NewHandler compatible with transport.NewHandler.
-func NewHandler(cfg transport.HandlerConfig) transport.Handler {
+func NewHandler(cfg transport.Config) transport.Handler {
 	return &handler{
 		ctrl: cfg.Controller(),
-		snap: cfg.Snapshotter(),
 	}
 }
 
 type handler struct {
 	ctrl transport.Controller
-	snap storage.Snapshotter
 }
 
 func (h *handler) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
@@ -90,6 +87,7 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 	}()
 
 	ctx := stream.Context()
+	gid := groupID(ctx)
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return errSnapHeader
@@ -112,7 +110,7 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 
 	log.Debugf("raft.grpc: downloading sanpshot file [term: %d, index: %d]", term, index)
 
-	w, err := h.snap.Writer(term, index)
+	w, err := h.ctrl.SnapshotWriter(gid, term, index)
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -33,13 +32,13 @@ var bufferPool = sync.Pool{
 
 // Dialer return's grpc dialer.
 func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transport.Dialer {
-	return func(dc transport.DialerConfig) transport.Dial {
+	return func(cfg transport.Config) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			return &client{
 				transport: tr,
-				cfg:       dc,
+				gid:       cfg.GroupID(),
 				url:       join(addr, basePath),
-				shotter:   dc.Snapshotter(),
+				ctrl:      cfg.Controller(),
 			}, nil
 		}
 	}
@@ -47,9 +46,9 @@ func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transpo
 
 type client struct {
 	transport func(context.Context) http.RoundTripper
-	cfg       transport.DialerConfig
+	gid       uint64
 	url       string
-	shotter   storage.Snapshotter
+	ctrl      transport.Controller
 }
 
 func (c *client) Close() (err error) { return }
@@ -86,7 +85,7 @@ func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error
 
 func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err error) {
 	meta := msg.Snapshot.Metadata
-	r, err := c.shotter.Reader(meta.Term, meta.Index)
+	r, err := c.ctrl.SnapshotReader(c.gid, meta.Term, meta.Index)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshal
 }
 
 func (c *client) roundTrip(ctx context.Context, req *http.Request, out pbutil.Unmarshaler) (*http.Response, error) {
-	gid := strconv.FormatUint(c.cfg.GroupID(), 10)
+	gid := strconv.FormatUint(c.gid, 10)
 	req.Header.Set(groupIDHeader, gid)
 
 	res, err := c.transport(ctx).RoundTrip(req)

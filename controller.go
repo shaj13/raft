@@ -3,19 +3,22 @@ package raft
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
 	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 type controller struct {
-	node   *Node
-	daemon daemon.Daemon
-	pool   membership.Pool
+	node    *Node
+	daemon  daemon.Daemon
+	pool    membership.Pool
+	storage storage.Storage
 }
 
 func (c *controller) Join(ctx context.Context, gid uint64, m *raftpb.Member) (*raftpb.JoinResponse, error) {
@@ -45,6 +48,14 @@ func (c *controller) Push(ctx context.Context, gid uint64, m etcdraftpb.Message)
 
 func (c *controller) PromoteMember(ctx context.Context, gid uint64, m raftpb.Member) error {
 	return c.node.promoteMember(ctx, m.ID, true)
+}
+
+func (c *controller) SnapshotWriter(gid, term, index uint64) (io.WriteCloser, error) {
+	return c.storage.Snapshotter().Writer(term, index)
+}
+
+func (c *controller) SnapshotReader(gid, term uint64, index uint64) (io.ReadCloser, error) {
+	return c.storage.Snapshotter().Reader(term, index)
 }
 
 type router struct {
@@ -96,4 +107,21 @@ func (r *router) PromoteMember(ctx context.Context, gid uint64, m raftpb.Member)
 		return err
 	}
 	return ctrl.PromoteMember(ctx, gid, m)
+}
+
+func (r *router) SnapshotWriter(gid, term, index uint64) (io.WriteCloser, error) {
+	ctrl, err := r.get(gid)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctrl.SnapshotWriter(gid, term, index)
+}
+
+func (r *router) SnapshotReader(gid, term, index uint64) (io.ReadCloser, error) {
+	ctrl, err := r.get(gid)
+	if err != nil {
+		return nil, err
+	}
+	return ctrl.SnapshotReader(gid, term, index)
 }

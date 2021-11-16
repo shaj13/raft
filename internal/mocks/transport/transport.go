@@ -6,40 +6,40 @@ package transportmock
 
 import (
 	context "context"
+	io "io"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
 	raftpb "github.com/shaj13/raftkit/internal/raftpb"
-	storage "github.com/shaj13/raftkit/internal/storage"
 	transport "github.com/shaj13/raftkit/internal/transport"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// MockHandlerConfig is a mock of HandlerConfig interface.
-type MockHandlerConfig struct {
+// MockConfig is a mock of Config interface.
+type MockConfig struct {
 	ctrl     *gomock.Controller
-	recorder *MockHandlerConfigMockRecorder
+	recorder *MockConfigMockRecorder
 }
 
-// MockHandlerConfigMockRecorder is the mock recorder for MockHandlerConfig.
-type MockHandlerConfigMockRecorder struct {
-	mock *MockHandlerConfig
+// MockConfigMockRecorder is the mock recorder for MockConfig.
+type MockConfigMockRecorder struct {
+	mock *MockConfig
 }
 
-// NewMockHandlerConfig creates a new mock instance.
-func NewMockHandlerConfig(ctrl *gomock.Controller) *MockHandlerConfig {
-	mock := &MockHandlerConfig{ctrl: ctrl}
-	mock.recorder = &MockHandlerConfigMockRecorder{mock}
+// NewMockConfig creates a new mock instance.
+func NewMockConfig(ctrl *gomock.Controller) *MockConfig {
+	mock := &MockConfig{ctrl: ctrl}
+	mock.recorder = &MockConfigMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockHandlerConfig) EXPECT() *MockHandlerConfigMockRecorder {
+func (m *MockConfig) EXPECT() *MockConfigMockRecorder {
 	return m.recorder
 }
 
 // Controller mocks base method.
-func (m *MockHandlerConfig) Controller() transport.Controller {
+func (m *MockConfig) Controller() transport.Controller {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Controller")
 	ret0, _ := ret[0].(transport.Controller)
@@ -47,13 +47,13 @@ func (m *MockHandlerConfig) Controller() transport.Controller {
 }
 
 // Controller indicates an expected call of Controller.
-func (mr *MockHandlerConfigMockRecorder) Controller() *gomock.Call {
+func (mr *MockConfigMockRecorder) Controller() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockHandlerConfig)(nil).Controller))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controller", reflect.TypeOf((*MockConfig)(nil).Controller))
 }
 
 // GroupID mocks base method.
-func (m *MockHandlerConfig) GroupID() uint64 {
+func (m *MockConfig) GroupID() uint64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GroupID")
 	ret0, _ := ret[0].(uint64)
@@ -61,74 +61,9 @@ func (m *MockHandlerConfig) GroupID() uint64 {
 }
 
 // GroupID indicates an expected call of GroupID.
-func (mr *MockHandlerConfigMockRecorder) GroupID() *gomock.Call {
+func (mr *MockConfigMockRecorder) GroupID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockHandlerConfig)(nil).GroupID))
-}
-
-// Snapshotter mocks base method.
-func (m *MockHandlerConfig) Snapshotter() storage.Snapshotter {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Snapshotter")
-	ret0, _ := ret[0].(storage.Snapshotter)
-	return ret0
-}
-
-// Snapshotter indicates an expected call of Snapshotter.
-func (mr *MockHandlerConfigMockRecorder) Snapshotter() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockHandlerConfig)(nil).Snapshotter))
-}
-
-// MockDialerConfig is a mock of DialerConfig interface.
-type MockDialerConfig struct {
-	ctrl     *gomock.Controller
-	recorder *MockDialerConfigMockRecorder
-}
-
-// MockDialerConfigMockRecorder is the mock recorder for MockDialerConfig.
-type MockDialerConfigMockRecorder struct {
-	mock *MockDialerConfig
-}
-
-// NewMockDialerConfig creates a new mock instance.
-func NewMockDialerConfig(ctrl *gomock.Controller) *MockDialerConfig {
-	mock := &MockDialerConfig{ctrl: ctrl}
-	mock.recorder = &MockDialerConfigMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDialerConfig) EXPECT() *MockDialerConfigMockRecorder {
-	return m.recorder
-}
-
-// GroupID mocks base method.
-func (m *MockDialerConfig) GroupID() uint64 {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GroupID")
-	ret0, _ := ret[0].(uint64)
-	return ret0
-}
-
-// GroupID indicates an expected call of GroupID.
-func (mr *MockDialerConfigMockRecorder) GroupID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockDialerConfig)(nil).GroupID))
-}
-
-// Snapshotter mocks base method.
-func (m *MockDialerConfig) Snapshotter() storage.Snapshotter {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Snapshotter")
-	ret0, _ := ret[0].(storage.Snapshotter)
-	return ret0
-}
-
-// Snapshotter indicates an expected call of Snapshotter.
-func (mr *MockDialerConfigMockRecorder) Snapshotter() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshotter", reflect.TypeOf((*MockDialerConfig)(nil).Snapshotter))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockConfig)(nil).GroupID))
 }
 
 // MockHandler is a mock of Handler interface.
@@ -298,4 +233,34 @@ func (m *MockController) Push(arg0 context.Context, arg1 uint64, arg2 raftpb0.Me
 func (mr *MockControllerMockRecorder) Push(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Push", reflect.TypeOf((*MockController)(nil).Push), arg0, arg1, arg2)
+}
+
+// SnapshotReader mocks base method.
+func (m *MockController) SnapshotReader(arg0, arg1, arg2 uint64) (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotReader", arg0, arg1, arg2)
+	ret0, _ := ret[0].(io.ReadCloser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotReader indicates an expected call of SnapshotReader.
+func (mr *MockControllerMockRecorder) SnapshotReader(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotReader", reflect.TypeOf((*MockController)(nil).SnapshotReader), arg0, arg1, arg2)
+}
+
+// SnapshotWriter mocks base method.
+func (m *MockController) SnapshotWriter(arg0, arg1, arg2 uint64) (io.WriteCloser, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotWriter", arg0, arg1, arg2)
+	ret0, _ := ret[0].(io.WriteCloser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotWriter indicates an expected call of SnapshotWriter.
+func (mr *MockControllerMockRecorder) SnapshotWriter(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotWriter", reflect.TypeOf((*MockController)(nil).SnapshotWriter), arg0, arg1, arg2)
 }

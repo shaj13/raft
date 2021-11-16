@@ -9,7 +9,6 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -17,10 +16,9 @@ import (
 
 // NewHandlerFunc retur'ns func that create an http transport handler.
 func NewHandlerFunc(basePath string) transport.NewHandler {
-	return func(cfg transport.HandlerConfig) transport.Handler {
+	return func(cfg transport.Config) transport.Handler {
 		s := &handler{
 			ctrl: cfg.Controller(),
-			snap: cfg.Snapshotter(),
 		}
 		return mux(s, basePath)
 	}
@@ -28,7 +26,6 @@ func NewHandlerFunc(basePath string) transport.NewHandler {
 
 type handler struct {
 	ctrl transport.Controller
-	snap storage.Snapshotter
 }
 
 func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -46,9 +43,7 @@ func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
 }
 
 func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
-	// TODO: move snapshotter to controler to avoid deps with storage.
 	gid := groupID(r)
-	_ = gid
 
 	vals := r.Header.Values(snapshotHeader)
 	if len(vals) < 2 {
@@ -67,7 +62,7 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 
 	log.Debugf("raft.http: downloading sanpshot file [term: %d, index: %d]", term, index)
 
-	wr, err := h.snap.Writer(term, index)
+	wr, err := h.ctrl.SnapshotWriter(gid, term, index)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

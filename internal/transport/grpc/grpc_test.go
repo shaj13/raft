@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
@@ -122,20 +121,17 @@ func TestSnapshot(t *testing.T) {
 
 			rpcCtrl := transportmock.NewMockController(ctrl)
 			rpcCtrl.EXPECT().Push(gomock.Any(), gomock.Eq(testGroupID), gomock.Any()).Return(tt.err)
-
-			shotter := storagemock.NewMockSnapshotter(ctrl)
-			shotter.
+			rpcCtrl.
 				EXPECT().
-				Reader(gomock.Any(), gomock.Any()).
+				SnapshotReader(gomock.Eq(testGroupID), gomock.Any(), gomock.Any()).
 				Return(ioutil.NopCloser(strings.NewReader(snapData)), nil)
-			shotter.
+			rpcCtrl.
 				EXPECT().
-				Writer(gomock.Any(), gomock.Any()).
+				SnapshotWriter(gomock.Eq(testGroupID), gomock.Any(), gomock.Any()).
 				Return(writeCloser{buf}, nil)
 
 			srv.ctrl = rpcCtrl
-			srv.snap = shotter
-			c.shotter = shotter
+			c.ctrl = rpcCtrl
 			err := c.snapshot(context.Background(), etcdraftpb.Message{})
 			if tt.err != nil {
 				require.Contains(t, err.Error(), tt.err.Error())
@@ -205,9 +201,9 @@ func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 
 	ctx := context.TODO()
 	ctrl := gomock.NewController(tb)
-	cfg := transportmock.NewMockDialerConfig(ctrl)
-	cfg.EXPECT().Snapshotter().Return(nil)
+	cfg := transportmock.NewMockConfig(ctrl)
 	cfg.EXPECT().GroupID().Return(testGroupID).AnyTimes()
+	cfg.EXPECT().Controller()
 
 	c, err := Dialer(dopts, copts)(cfg)(ctx, "")
 	if err != nil {

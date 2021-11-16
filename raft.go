@@ -34,6 +34,7 @@ func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
 	cfg.controller.(*controller).node = node
 	cfg.controller.(*controller).daemon = cfg.daemon
 	cfg.controller.(*controller).pool = cfg.pool
+	cfg.controller.(*controller).storage = cfg.storage
 
 	return node
 }
