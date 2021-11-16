@@ -19,6 +19,15 @@ const (
 	advance
 )
 
+// NewMux return's a new mux objet.
+func NewMux() Mux {
+	return &mux{
+		operationc: make(chan *operation),
+		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
+	}
+}
+
 // operationType specifies the type of operation that multiplexer need to performs.
 type operationType uint
 
