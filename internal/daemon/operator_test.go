@@ -103,6 +103,7 @@ func TestJoin(t *testing.T) {
 }
 
 func TestInitCluster(t *testing.T) {
+	nodeStarted := false
 	ost := new(operatorsState)
 	ost.daemon = new(daemon)
 	ost.hasExistingState = true
@@ -112,19 +113,12 @@ func TestInitCluster(t *testing.T) {
 	require.Contains(t, err.Error(), "already exist")
 
 	var peers []raft.Peer
-	temp := startNode
-	defer func() {
-		startNode = temp
-	}()
-
-	startNode = func(c *raft.Config, p []raft.Peer) raft.Node {
-		peers = p
-		return nil
-	}
-
+	boot := mockBootstrap(&nodeStarted, &peers)
+	initc := initCluster{bootstrap: boot}
 	_ = Members(raftpb.Member{ID: 1}, raftpb.Member{ID: 2}).before(ost)
-	err = InitCluster().after(ost)
+	err = initc.after(ost)
 	require.NoError(t, err)
+	require.True(t, nodeStarted)
 	require.Equal(t, 2, len(peers))
 	require.Equal(t, uint64(1), peers[0].ID)
 	require.Equal(t, uint64(2), peers[1].ID)
@@ -135,13 +129,13 @@ func TestRestart(t *testing.T) {
 	ost := new(operatorsState)
 	ost.daemon = new(daemon)
 
-	defer mockRestartNode(&nodeRestarted)()
-
 	err := Restart().before(ost)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "state not found")
 
-	err = Restart().after(ost)
+	boot := mockBootstrap(&nodeRestarted, nil)
+	r := restart{bootstrap: boot}
+	err = r.after(ost)
 	require.NoError(t, err)
 	require.True(t, nodeRestarted)
 }
@@ -175,7 +169,6 @@ func TestFallback(t *testing.T) {
 }
 
 func TestForceJoin(t *testing.T) {
-	nodeRestarted := false
 	resp := &raftpb.JoinResponse{
 		ID:      1,
 		Members: []raftpb.Member{{ID: 2}},
@@ -209,9 +202,7 @@ func TestForceJoin(t *testing.T) {
 	pool.
 		EXPECT().
 		Add(gomock.Eq(resp.Members[0])).
-		Return(nil)
-
-	defer mockRestartNode(&nodeRestarted)()
+		Return(ErrNoLeader)
 
 	// it call join and set ost.
 	err := ForceJoin("", 0).before(ost)
@@ -221,8 +212,7 @@ func TestForceJoin(t *testing.T) {
 
 	// it call pool add.
 	err = ForceJoin("", 0).after(ost)
-	require.NoError(t, err)
-	require.True(t, nodeRestarted)
+	require.Error(t, err)
 }
 
 func TestSetup(t *testing.T) {
@@ -540,17 +530,14 @@ func TestRemovedMembers(t *testing.T) {
 	require.Equal(t, ErrStopped, err)
 }
 
-func mockRestartNode(called *bool) func() {
-	temp := restartNode
-	fn := func() {
-		restartNode = temp
-	}
-
-	restartNode = func(c *raft.Config) raft.Node {
+func mockBootstrap(called *bool, peers *[]raft.Peer) bootstrapFunc {
+	return func(_ Config, got []raft.Peer) raft.Node {
 		*called = true
+		if peers != nil {
+			*peers = got
+		}
 		return nil
 	}
-	return fn
 }
 
 type noFallbackTest struct {

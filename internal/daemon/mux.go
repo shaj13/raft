@@ -8,28 +8,6 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-func init() {
-	startNode = func(c *raft.Config, peers []raft.Peer) raft.Node {
-		if len(peers) == 0 {
-			panic("no peers given; use RestartNode instead")
-		}
-
-		rn, err := raft.NewRawNode(c)
-		if err != nil {
-			panic(err)
-		}
-
-		rn.Bootstrap(peers)
-
-		mux := new(mux)
-		mux.done = make(chan struct{})
-		mux.stop = make(chan struct{})
-		mux.operationc = make(chan *operation)
-		go mux.Start()
-		return mux.add(1, rn, c)
-	}
-}
-
 const (
 	// add nodeState into the multiplexer.
 	add operationType = iota

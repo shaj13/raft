@@ -16,13 +16,6 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// node operations funcs.
-// abstracted for testing purposes.
-var (
-	startNode   = raft.StartNode
-	restartNode = raft.RestartNode
-)
-
 // order define a weight to operators to obtain the execution order.
 var order = map[string]int{
 	new(setup).String():           0,
@@ -37,6 +30,10 @@ var order = map[string]int{
 	new(fallback).String():        4,
 	new(removedMembers).String():  5,
 }
+
+// bootstrapFunc declare function signature for initializes and return
+// a raft.Node ready for use.
+type bootstrapFunc func(cfg Config, peers []raft.Peer) raft.Node
 
 // Members return's operator that add the given members to the raft node.
 func Members(membs ...raftpb.Member) Operator {
@@ -58,7 +55,9 @@ func ForceJoin(addr string, timeout time.Duration) Operator {
 
 // InitCluster return's operator that initialize a new cluster and create first raft node..
 func InitCluster() Operator {
-	return initCluster{}
+	return initCluster{
+		bootstrap: bootstrap,
+	}
 }
 
 // ForceNewCluster return's operator that initialize a new cluster from state dir.
@@ -73,7 +72,9 @@ func Restore(path string) Operator {
 
 // Restart return's operator that restart raft node from state dir.
 func Restart() Operator {
-	return restart{}
+	return restart{
+		bootstrap: bootstrap,
+	}
 }
 
 // Fallback return's operator that can be used if other operators do not succeed.
@@ -111,7 +112,8 @@ func (f forceJoin) after(ost *operatorsState) error {
 		}
 	}
 
-	return restart{}.after(ost)
+	r := restart{bootstrap: bootstrap}
+	return r.after(ost)
 }
 
 func (f forceJoin) String() string {
@@ -133,7 +135,9 @@ func (j join) String() string {
 	return "Join"
 }
 
-type initCluster struct{}
+type initCluster struct {
+	bootstrap bootstrapFunc
+}
 
 func (c initCluster) before(ost *operatorsState) error {
 	if ost.hasExistingState {
@@ -154,7 +158,7 @@ func (c initCluster) after(ost *operatorsState) error {
 		}
 	}
 
-	ost.daemon.node = startNode(ost.cfg, peers)
+	ost.daemon.node = c.bootstrap(ost.daemon.cfg, peers)
 	return nil
 }
 
@@ -162,7 +166,9 @@ func (c initCluster) String() string {
 	return "InitCluster"
 }
 
-type restart struct{}
+type restart struct {
+	bootstrap bootstrapFunc
+}
 
 func (r restart) before(ost *operatorsState) error {
 	if !ost.hasExistingState {
@@ -172,7 +178,7 @@ func (r restart) before(ost *operatorsState) error {
 }
 
 func (r restart) after(ost *operatorsState) error {
-	ost.daemon.node = restartNode(ost.cfg)
+	ost.daemon.node = r.bootstrap(ost.daemon.cfg, nil)
 	return nil
 }
 
@@ -582,6 +588,8 @@ func invoke(d *daemon, oprs ...Operator) (*operatorsState, error) {
 	return ost, nil
 }
 
+// bootstrap implements bootstrapFunc and return's
+// an raft.Node ready for use.
 func bootstrap(cfg Config, peers []raft.Peer) raft.Node {
 	mux := cfg.Mux()
 	rcfg := cfg.RaftConfig()
