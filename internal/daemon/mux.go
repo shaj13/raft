@@ -24,32 +24,44 @@ func init() {
 		mux := new(mux)
 		mux.done = make(chan struct{})
 		mux.stop = make(chan struct{})
-		mux.messagec = make(chan *message)
+		mux.operationc = make(chan *operation)
 		go mux.Start()
 		return mux.add(1, rn, c)
 	}
 }
 
 const (
-	add operation = iota
+	// add nodeState into the multiplexer.
+	add operationType = iota
+	// remove nodeState from the multiplexer.
 	remove
+	// call a method on raft raw node.
 	call
+	// advance raft raw node.
 	advance
 )
 
-type operation uint
+// operationType specifies the type of operation that multiplexer need to performs.
+type operationType uint
+
+// callFunc is the type of the function called by multiplexer to call the desired raw node method.
 type callFunc func(rn *raft.RawNode) error
 
-type message struct {
-	op operation
+// operation define the method by which a multiplexer performs the requested function.
+type operation struct {
+	// ot specifies the operation type.
+	ot operationType
 	// gid specifies group id.
 	gid uint64
-	// value specifies the request/response content.
+	// value specifies the operation request/reply content.
 	value interface{}
-	// done notify the caller that mux has proccess the msg.
+	// done notify the caller that mux has process the op.
 	done chan struct{}
 }
 
+// nodeState represents the internal state of a RawNode object. All variables here
+// are accessible only from the mux.start goroutine so they can be accessed without
+// synchronization.
 type nodeState struct {
 	rn     *raft.RawNode
 	cfg    *raft.Config
@@ -58,9 +70,9 @@ type nodeState struct {
 }
 
 type mux struct {
-	messagec chan *message
-	stop     chan struct{}
-	done     chan struct{}
+	operationc chan *operation
+	stop       chan struct{}
+	done       chan struct{}
 }
 
 func (m *mux) Stop() {
@@ -105,36 +117,36 @@ func (m *mux) Start() {
 		var node *nodeState
 
 		select {
-		case msg := <-m.messagec:
-			node = nodes[msg.gid]
-			if node == nil && msg.op != add {
-				log.Warnf("raft: unknown group %x", msg.gid)
-				close(msg.done)
+		case op := <-m.operationc:
+			node = nodes[op.gid]
+			if node == nil && op.ot != add {
+				log.Warnf("raft: unknown group %x", op.gid)
+				close(op.done)
 				continue
 			}
 
-			switch msg.op {
+			switch op.ot {
 			case add:
-				node = msg.value.(*nodeState)
+				node = op.value.(*nodeState)
 				id := node.cfg.ID
 				if id != nodeID && nodeID != raft.None {
 					log.Panic("raft: all node group must have the same id !!")
 				}
-				nodes[msg.gid] = node
+				nodes[op.gid] = node
 				nodeID = id
 			case remove:
-				delete(nodes, msg.gid)
-				delete(advcs, msg.gid)
+				delete(nodes, op.gid)
+				delete(advcs, op.gid)
 			case call:
-				err := msg.value.(callFunc)(node.rn)
-				msg.value = err
+				err := op.value.(callFunc)(node.rn)
+				op.value = err
 			case advance:
-				rd := advcs[msg.gid]
+				rd := advcs[op.gid]
 				node.rn.Advance(rd)
-				delete(advcs, msg.gid)
+				delete(advcs, op.gid)
 			}
 
-			close(msg.done)
+			close(op.done)
 
 		case <-m.stop:
 			return
@@ -149,13 +161,13 @@ func (m *mux) add(gid uint64, rn *raft.RawNode, cfg *raft.Config) raft.Node {
 		readyc: make(chan raft.Ready, 128),
 	}
 
-	msg := &message{
-		op:    add,
+	op := &operation{
+		ot:    add,
 		gid:   gid,
 		value: node,
 	}
 
-	_ = m.push(context.Background(), msg)
+	_ = m.push(context.Background(), op)
 
 	return &muxNode{
 		gid:    gid,
@@ -165,41 +177,41 @@ func (m *mux) add(gid uint64, rn *raft.RawNode, cfg *raft.Config) raft.Node {
 }
 
 func (m *mux) remove(gid uint64) {
-	msg := &message{
-		op:  remove,
+	op := &operation{
+		ot:  remove,
 		gid: gid,
 	}
 
-	_ = m.push(context.Background(), msg)
+	_ = m.push(context.Background(), op)
 }
 
 func (m *mux) call(ctx context.Context, gid uint64, fn callFunc) error {
-	msg := &message{
-		op:    call,
+	op := &operation{
+		ot:    call,
 		gid:   gid,
 		value: fn,
 	}
 
-	if err := m.push(context.Background(), msg); err != nil {
+	if err := m.push(context.Background(), op); err != nil {
 		return err
 	}
 
-	if err, ok := msg.value.(error); ok {
+	if err, ok := op.value.(error); ok {
 		return err
 	}
 
 	return nil
 }
 
-func (m *mux) push(ctx context.Context, msg *message) error {
-	msg.done = make(chan struct{})
+func (m *mux) push(ctx context.Context, op *operation) error {
+	op.done = make(chan struct{})
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-m.done:
 		return ErrStopped
-	case m.messagec <- msg:
+	case m.operationc <- op:
 	}
 
 	select {
@@ -207,7 +219,7 @@ func (m *mux) push(ctx context.Context, msg *message) error {
 		return ctx.Err()
 	case <-m.done:
 		return ErrStopped
-	case <-msg.done:
+	case <-op.done:
 		return nil
 	}
 }
@@ -244,12 +256,12 @@ func (m *mux) step(ctx context.Context, gid uint64, msg etcdraftpb.Message) erro
 }
 
 func (m *mux) advance(gid uint64) {
-	msg := &message{
-		op:  advance,
+	op := &operation{
+		ot:  advance,
 		gid: gid,
 	}
 
-	_ = m.push(context.Background(), msg)
+	_ = m.push(context.Background(), op)
 }
 
 func (m *mux) applyConfChange(gid uint64, cc etcdraftpb.ConfChangeI) *etcdraftpb.ConfState {
