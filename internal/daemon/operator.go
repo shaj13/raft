@@ -595,11 +595,11 @@ func bootstrap(cfg Config, peers []raft.Peer) raft.Node {
 	rcfg := cfg.RaftConfig()
 	gid := cfg.GroupID()
 
-	if mux == nil && len(peers) > 0 {
+	if mux == nil && len(peers) == 0 {
 		return raft.RestartNode(rcfg)
 	}
 
-	if mux == nil && len(peers) > 1 {
+	if mux == nil && len(peers) > 0 {
 		return raft.StartNode(rcfg, peers)
 	}
 

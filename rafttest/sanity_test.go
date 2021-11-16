@@ -70,13 +70,3 @@ func TestRestart(t *testing.T) {
 	v := node.fsm.Read(1)
 	require.Equal(t, 1, v)
 }
-
-func Test(t *testing.T) {
-	otr := newOrchestrator(t)
-	defer otr.teardown()
-
-	nodes := otr.create(1)
-
-	otr.start(nodes...)
-	otr.waitAll()
-}
