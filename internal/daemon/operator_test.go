@@ -530,6 +530,42 @@ func TestRemovedMembers(t *testing.T) {
 	require.Equal(t, ErrStopped, err)
 }
 
+func TestBootstrap(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	stg := raft.NewMemoryStorage()
+	rcfg := &raft.Config{
+		ID:              1,
+		Storage:         stg,
+		ElectionTick:    2,
+		MaxInflightMsgs: 256,
+		HeartbeatTick:   1,
+	}
+
+	fn := func(mux Mux) Config {
+		cfg := NewMockConfig(ctrl)
+		cfg.EXPECT().RaftConfig().Return(rcfg)
+		cfg.EXPECT().GroupID()
+		cfg.EXPECT().Mux().Return(mux)
+		return cfg
+	}
+
+	// it should start/restart raft node.
+	node := bootstrap(fn(nil), nil)
+	node.Stop()
+	_, ok := node.(*muxNode)
+	require.False(t, ok)
+
+	mux := NewMux()
+	go mux.Start()
+
+	// it should start raft node by using mux
+	peers := []raft.Peer{{ID: 1}}
+	node = bootstrap(fn(mux), peers)
+	node.Stop()
+	_, ok = node.(*muxNode)
+	require.True(t, ok)
+}
+
 func mockBootstrap(called *bool, peers *[]raft.Peer) bootstrapFunc {
 	return func(_ Config, got []raft.Peer) raft.Node {
 		*called = true
