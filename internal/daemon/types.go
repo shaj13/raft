@@ -25,6 +25,7 @@ type Operator interface {
 
 // Config define common configuration used by the daemon.
 type Config interface {
+	Mux() Mux
 	RaftConfig() *raft.Config
 	SnapInterval() uint64
 	Pool() membership.Pool
@@ -34,6 +35,7 @@ type Config interface {
 	StateMachine() StateMachine
 	Context() context.Context
 	DrainTimeout() time.Duration
+	GroupID() uint64
 }
 
 // StateMachine define an interface that must be implemented by
@@ -48,6 +50,12 @@ type StateMachine interface {
 
 	// Restore is used to restore state machine from a snapshot.
 	Restore(io.ReadCloser) error
+}
+
+type Mux interface {
+	Start()
+	Stop()
+	add(gid uint64, rn *raft.RawNode, cfg *raft.Config) raft.Node
 }
 
 type operatorsState struct {

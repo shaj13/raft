@@ -147,6 +147,34 @@ func (mr *MockConfigMockRecorder) DrainTimeout() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrainTimeout", reflect.TypeOf((*MockConfig)(nil).DrainTimeout))
 }
 
+// GroupID mocks base method.
+func (m *MockConfig) GroupID() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GroupID")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// GroupID indicates an expected call of GroupID.
+func (mr *MockConfigMockRecorder) GroupID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockConfig)(nil).GroupID))
+}
+
+// Mux mocks base method.
+func (m *MockConfig) Mux() Mux {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Mux")
+	ret0, _ := ret[0].(Mux)
+	return ret0
+}
+
+// Mux indicates an expected call of Mux.
+func (mr *MockConfigMockRecorder) Mux() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Mux", reflect.TypeOf((*MockConfig)(nil).Mux))
+}
+
 // Pool mocks base method.
 func (m *MockConfig) Pool() membership.Pool {
 	m.ctrl.T.Helper()
@@ -293,4 +321,65 @@ func (m *MockStateMachine) Snapshot() (io.ReadCloser, error) {
 func (mr *MockStateMachineMockRecorder) Snapshot() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshot", reflect.TypeOf((*MockStateMachine)(nil).Snapshot))
+}
+
+// MockMux is a mock of Mux interface.
+type MockMux struct {
+	ctrl     *gomock.Controller
+	recorder *MockMuxMockRecorder
+}
+
+// MockMuxMockRecorder is the mock recorder for MockMux.
+type MockMuxMockRecorder struct {
+	mock *MockMux
+}
+
+// NewMockMux creates a new mock instance.
+func NewMockMux(ctrl *gomock.Controller) *MockMux {
+	mock := &MockMux{ctrl: ctrl}
+	mock.recorder = &MockMuxMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMux) EXPECT() *MockMuxMockRecorder {
+	return m.recorder
+}
+
+// Start mocks base method.
+func (m *MockMux) Start() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start")
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockMuxMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockMux)(nil).Start))
+}
+
+// Stop mocks base method.
+func (m *MockMux) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockMuxMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockMux)(nil).Stop))
+}
+
+// add mocks base method.
+func (m *MockMux) add(gid uint64, rn *v3.RawNode, cfg *v3.Config) v3.Node {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "add", gid, rn, cfg)
+	ret0, _ := ret[0].(v3.Node)
+	return ret0
+}
+
+// add indicates an expected call of add.
+func (mr *MockMuxMockRecorder) add(gid, rn, cfg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "add", reflect.TypeOf((*MockMux)(nil).add), gid, rn, cfg)
 }

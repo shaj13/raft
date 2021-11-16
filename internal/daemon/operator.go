@@ -581,3 +581,30 @@ func invoke(d *daemon, oprs ...Operator) (*operatorsState, error) {
 
 	return ost, nil
 }
+
+func bootstrap(cfg Config, peers []raft.Peer) raft.Node {
+	mux := cfg.Mux()
+	rcfg := cfg.RaftConfig()
+	gid := cfg.GroupID()
+
+	if mux == nil && len(peers) > 0 {
+		return raft.RestartNode(rcfg)
+	}
+
+	if mux == nil && len(peers) > 1 {
+		return raft.StartNode(rcfg, peers)
+	}
+
+	rn, err := raft.NewRawNode(rcfg)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(peers) > 0 {
+		if err := rn.Bootstrap(peers); err != nil {
+			panic(err)
+		}
+	}
+
+	return mux.add(gid, rn, rcfg)
+}
