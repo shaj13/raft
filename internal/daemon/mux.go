@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/shaj13/raftkit/internal/log"
 	"go.etcd.io/etcd/raft/v3"
@@ -36,8 +35,6 @@ const (
 	remove
 	call
 	advance
-	tick
-	// TODO(Sanad):  need to fan in/out heratbeat.
 )
 
 type operation uint
@@ -56,7 +53,6 @@ type message struct {
 type nodeState struct {
 	rn     *raft.RawNode
 	cfg    *raft.Config
-	gid    uint64
 	lead   uint64
 	readyc chan raft.Ready
 }
@@ -80,8 +76,6 @@ func (m *mux) Start() {
 	nodes := map[uint64]*nodeState{}
 	advcs := map[uint64]raft.Ready{}
 	nodeID := raft.None
-	heartbeat := 0
-	ticks := 0
 
 	for {
 		if len(advcs) == 0 {
@@ -95,7 +89,7 @@ func (m *mux) Start() {
 							log.Infof("raft.node: %x changed group %x leader from %x to %x at term %d", st.ID, gid, n.lead, st.Lead, st.Term)
 						}
 					} else {
-						log.Infof("raft.node: %x lost group %x leader(%x) at term %d", st.ID, gid, st.Lead, st.Term)
+						log.Infof("raft.node: %x lost group %x leader(%x) at term %d", st.ID, gid, n.lead, st.Term)
 					}
 					n.lead = st.Lead
 				}
@@ -126,11 +120,8 @@ func (m *mux) Start() {
 				if id != nodeID && nodeID != raft.None {
 					log.Panic("raft: all node group must have the same id !!")
 				}
-				if nodeID == raft.None {
-					nodeID = id
-					heartbeat = node.cfg.HeartbeatTick
-				}
 				nodes[msg.gid] = node
+				nodeID = id
 			case remove:
 				delete(nodes, msg.gid)
 				delete(advcs, msg.gid)
@@ -141,51 +132,6 @@ func (m *mux) Start() {
 				rd := advcs[msg.gid]
 				node.rn.Advance(rd)
 				delete(advcs, msg.gid)
-			case tick:
-				node.rn.Tick()
-				if node.cfg.ID == nodeID {
-					ticks++
-				}
-
-				// send coalesced heartbeat for all nodes the follow this node.
-				if ticks >= heartbeat {
-					ticks = 0
-					for _, node := range nodes {
-						// the node does not lead the group.
-						if node.lead != nodeID {
-							continue
-						}
-
-						cfg := node.rn.Status().Config
-						msgs := []etcdraftpb.Message{}
-						for _, v := range []map[uint64]struct{}{
-							cfg.Voters.IDs(),
-							cfg.Learners,
-						} {
-							for id := range v {
-								// don't heartbeat yourself.
-								if id == nodeID {
-									continue
-								}
-
-								mh := etcdraftpb.Message{
-									From: nodeID,
-									To:   id,
-									Type: etcdraftpb.MsgHeartbeat,
-								}
-
-								fmt.Println("send MsgHeartbeat to -> ", mh.To)
-								msgs = append(msgs, mh)
-							}
-						}
-
-						if len(msgs) > 0 {
-							node.readyc <- raft.Ready{
-								Messages: msgs,
-							}
-						}
-					}
-				}
 			}
 
 			close(msg.done)
@@ -267,12 +213,10 @@ func (m *mux) push(ctx context.Context, msg *message) error {
 }
 
 func (m *mux) tick(gid uint64) {
-	msg := &message{
-		op:  tick,
-		gid: gid,
-	}
-
-	_ = m.push(context.Background(), msg)
+	_ = m.call(context.Background(), gid, func(rn *raft.RawNode) error {
+		rn.Tick()
+		return nil
+	})
 }
 
 func (m *mux) campaign(ctx context.Context, gid uint64) error {
