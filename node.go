@@ -28,7 +28,25 @@ var (
 	ErrNotLeader = errors.New("raft: node is not the leader")
 )
 
+func NewNodeGroup(proto etransport.Proto) *NodeGroup {
+	cfg := newConfig()
+	nh, _ := transport.Proto(proto).Get()
+	mux := daemon.NewMux()
+
+	router := &router{
+		ctrls: make(map[uint64]transport.Controller),
+	}
+	cfg.controller = router
+
+	return &NodeGroup{
+		mux:     mux,
+		handler: nh(cfg),
+		router:  router,
+	}
+}
+
 type NodeGroup struct {
+	mux     daemon.Mux
 	handler transport.Handler
 	router  *router
 }
@@ -37,22 +55,27 @@ func (ng *NodeGroup) Handler() etransport.Handler {
 	return ng.handler
 }
 
-func (ng *NodeGroup) Start() error {
-	return ErrNodeStopped
+func (ng *NodeGroup) Start() {
+	ng.mux.Start()
 }
 
 func (ng *NodeGroup) Add(id uint64, n *Node) bool {
+	if _, err := n.daemon.Status(); err == nil {
+		return false
+	}
+	n.cfg.groupID = id
+	n.cfg.mux = ng.mux
+	n.handler = ng.handler
 	ng.router.add(id, n.cfg.controller)
 	return true
 }
 
-func (ng *NodeGroup) Remove(id uint64) bool {
+func (ng *NodeGroup) Remove(id uint64) {
 	ng.router.remove(id)
-	return true
 }
 
-func (ng *NodeGroup) Close() error {
-	return nil
+func (ng *NodeGroup) Stop() {
+	ng.mux.Stop()
 }
 
 type Node struct {
