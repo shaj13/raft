@@ -422,6 +422,7 @@ type config struct {
 	pool             membership.Pool
 	dial             transport.Dial
 	daemon           daemon.Daemon
+	mux              daemon.Mux
 	fsm              StateMachine
 }
 
@@ -487,6 +488,10 @@ func (c *config) Reporter() membership.Reporter {
 
 func (c *config) StateMachine() daemon.StateMachine {
 	return c.fsm
+}
+
+func (c *config) Mux() daemon.Mux {
+	return c.mux
 }
 
 func newConfig(opts ...Option) *config {
