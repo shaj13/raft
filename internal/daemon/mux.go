@@ -19,7 +19,7 @@ const (
 	advance
 )
 
-// NewMux return's a new mux objet.
+// NewMux return's a new mux.
 func NewMux() Mux {
 	return &mux{
 		operationc: make(chan *operation),
