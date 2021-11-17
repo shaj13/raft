@@ -5,7 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/pkg/v3/pbutil"
+	"go.etcd.io/etcd/raft/v3"
+	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 const testGroupID = uint64(1)
@@ -84,4 +88,41 @@ func TestMuxPush(t *testing.T) {
 	}()
 	err = mux.push(context.TODO(), op)
 	require.Equal(t, ErrStopped, err)
+}
+
+func TestMux(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mux := NewMux()
+	stg := raft.NewMemoryStorage()
+	rcfg := &raft.Config{
+		ID:              1,
+		Storage:         stg,
+		ElectionTick:    2,
+		MaxInflightMsgs: 256,
+		HeartbeatTick:   1,
+	}
+
+	cfg := NewMockConfig(ctrl)
+	cfg.EXPECT().RaftConfig().Return(rcfg)
+	cfg.EXPECT().GroupID()
+	cfg.EXPECT().Mux().Return(mux)
+
+	go mux.Start()
+	defer mux.Stop()
+
+	peers := []raft.Peer{{ID: 1}}
+	node := bootstrap(cfg, peers)
+
+	rd := <-node.Ready()
+	ent := rd.CommittedEntries[0]
+	stg.Append(rd.Entries)
+	cc := new(etcdraftpb.ConfChange)
+	pbutil.MustUnmarshal(cc, ent.Data)
+	node.ApplyConfChange(cc)
+	node.Advance()
+	for i := 0; i <= 3; i++ {
+		node.Tick()
+	}
+
+	require.Equal(t, node.Status().Lead, rcfg.ID)
 }
