@@ -126,3 +126,138 @@ func TestMux(t *testing.T) {
 
 	require.Equal(t, node.Status().Lead, rcfg.ID)
 }
+
+func TestHeartbeatsSuppress(t *testing.T) {
+	key := "ctx data"
+	rd := raft.Ready{
+		Messages: []etcdraftpb.Message{
+			{
+				Type: etcdraftpb.MsgHeartbeat,
+			},
+			{
+				Type: etcdraftpb.MsgHeartbeatResp,
+			},
+			{
+				Type:    etcdraftpb.MsgHeartbeatResp,
+				Context: []byte(key),
+			},
+			{
+				Type: etcdraftpb.MsgApp,
+			},
+		},
+	}
+
+	hb := newHeartbeats()
+	hb.suppress(&rd)
+	_, ok := hb.pending[key]
+	require.Equal(t, 1, len(rd.Messages))
+	require.Equal(t, rd.Messages[0].Type, etcdraftpb.MsgApp)
+	require.True(t, ok)
+}
+
+func TestHeartbeatsCoalesced(t *testing.T) {
+	peers := []raft.Peer{
+		{ID: 1},
+		{ID: 2},
+	}
+
+	nodes := map[uint64]*nodeState{
+		1: testNodeState(t, peers),
+		2: testNodeState(t, peers),
+	}
+
+	hb := newHeartbeats()
+	hb.suppressed = true
+	hb.pending["test"] = struct{}{}
+	hb.id = 1
+
+	hb.coalesced(nodes)
+
+	got := []etcdraftpb.Message{}
+
+	for _, n := range nodes {
+		select {
+		case rd := <-n.readyc:
+			got = append(got, rd.Messages...)
+
+		default:
+		}
+	}
+
+	require.Equal(t, 1, len(got))
+	require.Equal(t, etcdraftpb.MsgHeartbeat, got[0].Type)
+	require.Equal(t, hb.id, got[0].From)
+	require.Equal(t, peers[1].ID, got[0].To)
+	require.Equal(t, `{"Orig":["dGVzdA=="]}`, string(got[0].Context))
+}
+
+func TestFanout(t *testing.T) {
+	msg := etcdraftpb.Message{
+		Type:    etcdraftpb.MsgHeartbeat,
+		From:    1,
+		To:      2,
+		Context: []byte(`{"Orig":["dGVzdA=="]}`),
+	}
+
+	hb := newHeartbeats()
+	hb.id = msg.To
+	count := 0
+	hb.capture = func(cmsg etcdraftpb.Message) {
+		count++
+		require.Equal(t, 1, count)
+		require.Equal(t, msg.Type, cmsg.Type)
+		require.Equal(t, msg.From, cmsg.From)
+		require.Equal(t, msg.To, cmsg.To)
+		require.Equal(t, "test", string(cmsg.Context))
+	}
+
+	node := testNodeState(t, nil)
+	node.lead = msg.From
+
+	nodes := map[uint64]*nodeState{
+		1: node,
+		2: testNodeState(t, nil),
+	}
+
+	hb.fanout(nodes, msg)
+	got := []etcdraftpb.Message{}
+
+	for _, n := range nodes {
+		select {
+		case rd := <-n.readyc:
+			got = append(got, rd.Messages...)
+
+		default:
+		}
+	}
+
+	require.Equal(t, 1, len(got))
+	require.Equal(t, etcdraftpb.MsgHeartbeatResp, got[0].Type)
+	require.Equal(t, msg.To, got[0].From)
+	require.Equal(t, msg.From, got[0].To)
+	require.Equal(t, msg.Context, got[0].Context)
+}
+
+func testNodeState(t *testing.T, peers []raft.Peer) *nodeState {
+	cfg := &raft.Config{
+		ID:              1,
+		Storage:         raft.NewMemoryStorage(),
+		ElectionTick:    2,
+		MaxInflightMsgs: 256,
+		HeartbeatTick:   1,
+	}
+
+	rn, err := raft.NewRawNode(cfg)
+	require.NoError(t, err)
+
+	if len(peers) > 0 {
+		err = rn.Bootstrap(peers)
+		require.NoError(t, err)
+	}
+
+	return &nodeState{
+		readyc: make(chan raft.Ready, 1),
+		rn:     rn,
+	}
+
+}

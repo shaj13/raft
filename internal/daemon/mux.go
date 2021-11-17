@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/shaj13/raftkit/internal/log"
 	"go.etcd.io/etcd/raft/v3"
@@ -361,4 +362,156 @@ func (m *muxNode) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 
 func (m *muxNode) Stop() {
 	m.mux.remove(m.gid)
+}
+
+func newHeartbeats() *heartbeats {
+	return &heartbeats{
+		pending: map[string]struct{}{},
+	}
+}
+
+type heartbeats struct {
+	id         uint64
+	pending    map[string]struct{}
+	suppressed bool
+	// capture used only for testing.
+	capture func(msg etcdraftpb.Message)
+}
+
+func (h *heartbeats) suppress(rd *raft.Ready) {
+	for i := 0; i < len(rd.Messages); i++ {
+		msg := rd.Messages[i]
+		pending := h.pending
+		switch msg.Type {
+		case etcdraftpb.MsgHeartbeat, etcdraftpb.MsgHeartbeatResp:
+			pending[string(msg.Context)] = struct{}{}
+			rd.Messages = append(rd.Messages[:i], rd.Messages[i+1:]...)
+			h.suppressed = true
+			i--
+		}
+	}
+}
+
+func (h *heartbeats) coalesced(nodes map[uint64]*nodeState) {
+	if !h.suppressed {
+		return
+	}
+
+	// sent avoid sending the heartbeat to the same node
+	// that is participating in multiple consensus groups.
+	// i.e Nodes A,B groups C,D
+	// node A send msg once to B either in C or D.
+	sent := make(map[uint64]struct{})
+	// don't heartbeat yourself.
+	sent[h.id] = struct{}{}
+
+	cc := new(coalescedContext)
+	for ctx := range h.pending {
+		if len(ctx) > 0 {
+			cc.Orig = append(cc.Orig, []byte(ctx))
+		}
+	}
+
+	bcc, err := json.Marshal(cc)
+	if err != nil {
+		log.Warnf("raft: marshal coalesced heartbeats context: %v", err)
+	}
+
+	for _, node := range nodes {
+		cfg := node.rn.Status().Config
+		msgs := []etcdraftpb.Message{}
+		for _, v := range []map[uint64]struct{}{
+			cfg.Voters.IDs(),
+			cfg.Learners,
+		} {
+			for id := range v {
+				if _, ok := sent[id]; ok {
+					continue
+				}
+
+				sent[id] = struct{}{}
+
+				mh := etcdraftpb.Message{
+					From:    h.id,
+					To:      id,
+					Type:    etcdraftpb.MsgHeartbeat,
+					Context: bcc,
+				}
+				msgs = append(msgs, mh)
+			}
+		}
+
+		node.readyc <- raft.Ready{
+			Messages: msgs,
+		}
+	}
+
+	// reset the heartbeats state.
+	h.suppressed = false
+	h.pending = map[string]struct{}{}
+}
+
+func (h *heartbeats) fanout(nodes map[uint64]*nodeState, msg etcdraftpb.Message) {
+	var node *nodeState
+	isResp := msg.Type == etcdraftpb.MsgHeartbeatResp
+	ctx := msg.Context
+
+	for _, n := range nodes {
+		// ok allow sends the given heartbeat to all groups which believe that
+		// their leader resides on the sending node.
+		ok := n.lead == msg.From && !isResp
+		// resp sends the given heartbeat response to all groups
+		// which overlap with the sender's groups and consider themselves leader.
+		okResp := n.lead == h.id && isResp
+
+		if !(ok || okResp) {
+			continue
+		}
+
+		cc := new(coalescedContext)
+		if err := json.Unmarshal(ctx, cc); err != nil {
+			log.Warnf("raft: unmarshal coalesced heartbeats context: %v", err)
+			_ = node.rn.Step(msg)
+		}
+
+		for _, ctx := range cc.Orig {
+			m := etcdraftpb.Message{
+				From:    msg.From,
+				To:      msg.To,
+				Type:    msg.Type,
+				Context: ctx,
+			}
+			if h.capture != nil {
+				h.capture(m)
+			}
+			_ = n.rn.Step(m)
+		}
+
+		node = n
+	}
+
+	if node == nil {
+		str := raft.DescribeMessage(msg, nil)
+		log.Warnf("raft: not fanning out msg: %s", str)
+		return
+	}
+
+	if !isResp {
+		msg.Context = ctx
+		node.readyc <- raft.Ready{
+			Messages: []etcdraftpb.Message{
+				{
+					From:    msg.To,
+					To:      msg.From,
+					Type:    etcdraftpb.MsgHeartbeatResp,
+					Context: msg.Context,
+				},
+			},
+		}
+	}
+}
+
+// coalescedContext hold heartbeats context if any.
+type coalescedContext struct {
+	Orig [][]byte
 }
