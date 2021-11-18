@@ -806,6 +806,10 @@ func (d *daemon) saveSnapshot() error {
 	appliedIndex := d.appliedIndex.Get()
 	snapIndex := d.snapIndex.Get()
 
+	if appliedIndex == snapIndex {
+		return nil
+	}
+
 	log.Infof(
 		"raft.daemon: start snapshot [applied index: %d | last snapshot index: %d]",
 		appliedIndex,
@@ -838,18 +842,18 @@ func (d *daemon) saveSnapshot() error {
 		return err
 	}
 
-	compactIndex := uint64(1)
-	if appliedIndex > d.cfg.SnapInterval() {
-		compactIndex = appliedIndex - d.cfg.SnapInterval()
+	d.snapIndex.Set(appliedIndex)
+
+	if appliedIndex <= d.cfg.SnapInterval() {
+		return nil
 	}
 
+	compactIndex := appliedIndex - d.cfg.SnapInterval()
 	if err := d.cache.Compact(compactIndex); err != nil {
 		return err
 	}
 
 	log.Infof("raft.daemon: compacted log at index %d", compactIndex)
-
-	d.snapIndex.Set(appliedIndex)
 	return nil
 }
 
