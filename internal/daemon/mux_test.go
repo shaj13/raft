@@ -35,13 +35,28 @@ func TestMuxOp(t *testing.T) {
 			fn: func(mux *mux) {
 				mux.tick(testGroupID)
 			},
-			ot: call,
+			ot: tick,
 		},
 		{
 			fn: func(mux *mux) {
 				mux.advance(testGroupID)
 			},
 			ot: advance,
+		},
+		{
+			fn: func(mux *mux) {
+				msg := etcdraftpb.Message{
+					Type: etcdraftpb.MsgHeartbeat,
+				}
+				mux.step(context.TODO(), testGroupID, msg)
+			},
+			ot: heartbeat,
+		},
+		{
+			fn: func(mux *mux) {
+				mux.step(context.TODO(), testGroupID, etcdraftpb.Message{})
+			},
+			ot: call,
 		},
 	}
 
@@ -132,14 +147,14 @@ func TestHeartbeatsSuppress(t *testing.T) {
 	rd := raft.Ready{
 		Messages: []etcdraftpb.Message{
 			{
-				Type: etcdraftpb.MsgHeartbeat,
+				Type:    etcdraftpb.MsgHeartbeat,
+				Context: []byte(key),
 			},
 			{
 				Type: etcdraftpb.MsgHeartbeatResp,
 			},
 			{
-				Type:    etcdraftpb.MsgHeartbeatResp,
-				Context: []byte(key),
+				Type: etcdraftpb.MsgHeartbeatResp,
 			},
 			{
 				Type: etcdraftpb.MsgApp,
@@ -148,7 +163,7 @@ func TestHeartbeatsSuppress(t *testing.T) {
 	}
 
 	hb := newHeartbeats()
-	hb.suppress(&rd)
+	rd = hb.suppress(rd)
 	_, ok := hb.pending[key]
 	require.Equal(t, 1, len(rd.Messages))
 	require.Equal(t, rd.Messages[0].Type, etcdraftpb.MsgApp)
@@ -167,7 +182,6 @@ func TestHeartbeatsCoalesced(t *testing.T) {
 	}
 
 	hb := newHeartbeats()
-	hb.suppressed = true
 	hb.pending["test"] = struct{}{}
 	hb.id = 1
 
@@ -188,23 +202,22 @@ func TestHeartbeatsCoalesced(t *testing.T) {
 	require.Equal(t, etcdraftpb.MsgHeartbeat, got[0].Type)
 	require.Equal(t, hb.id, got[0].From)
 	require.Equal(t, peers[1].ID, got[0].To)
-	require.Equal(t, `{"Orig":["dGVzdA=="]}`, string(got[0].Context))
+	require.Equal(t, `{"Buffers":["dGVzdA=="]}`, string(got[0].Context))
 }
 
 func TestFanout(t *testing.T) {
 	msg := etcdraftpb.Message{
 		Type:    etcdraftpb.MsgHeartbeat,
 		From:    1,
-		To:      2,
-		Context: []byte(`{"Orig":["dGVzdA=="]}`),
+		To:      1,
+		Context: []byte(`{"Buffers":["dGVzdA=="]}`),
 	}
 
 	hb := newHeartbeats()
 	hb.id = msg.To
 	count := 0
-	hb.capture = func(cmsg etcdraftpb.Message) {
+	hb.step = func(_ *nodeState, cmsg etcdraftpb.Message) {
 		count++
-		require.Equal(t, 1, count)
 		require.Equal(t, msg.Type, cmsg.Type)
 		require.Equal(t, msg.From, cmsg.From)
 		require.Equal(t, msg.To, cmsg.To)
@@ -232,6 +245,7 @@ func TestFanout(t *testing.T) {
 	}
 
 	require.Equal(t, 1, len(got))
+	require.Equal(t, 2, count)
 	require.Equal(t, etcdraftpb.MsgHeartbeatResp, got[0].Type)
 	require.Equal(t, msg.To, got[0].From)
 	require.Equal(t, msg.From, got[0].To)
@@ -257,6 +271,7 @@ func testNodeState(t *testing.T, peers []raft.Peer) *nodeState {
 
 	return &nodeState{
 		readyc: make(chan raft.Ready, 1),
+		cfg:    cfg,
 		rn:     rn,
 	}
 
