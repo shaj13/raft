@@ -81,7 +81,7 @@ type daemon struct {
 	appliedIndex *atomic.Uint64
 	proposec     chan etcdraftpb.Message
 	msgc         chan etcdraftpb.Message
-	notify       chan struct{}
+	snapshotc    chan chan error
 	csMu         sync.Mutex // guard ConfState.
 	cState       *etcdraftpb.ConfState
 }
@@ -247,6 +247,7 @@ func (d *daemon) Shutdown(ctx context.Context) error {
 		nopClose(func() {
 			close(d.proposec)
 			close(d.msgc)
+			close(d.snapshotc)
 			d.processwg.Wait()
 		}),
 		nopClose(d.cancel),
@@ -386,51 +387,13 @@ func (d *daemon) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 		return d.cache.Snapshot()
 	}
 
-	log.Infof(
-		"raft.daemon: start snapshot [applied index: %d | last snapshot index: %d]",
-		appliedIndex,
-		snapIndex,
-	)
-
-	r, err := d.fsm.Snapshot()
-	if err != nil {
+	c := make(chan error)
+	d.snapshotc <- c
+	if err := <-c; err != nil {
 		return etcdraftpb.Snapshot{}, err
 	}
 
-	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
-	if err != nil {
-		return snap, err
-	}
-
-	ss := storage.Snapshot{
-		SnapshotState: raftpb.SnapshotState{
-			Raw:     snap,
-			Members: d.pool.Snapshot(),
-		},
-		Data: r,
-	}
-
-	if err := d.storage.Snapshotter().Write(&ss); err != nil {
-		return snap, err
-	}
-
-	if err := d.storage.SaveSnapshot(snap); err != nil {
-		return snap, err
-	}
-
-	compactIndex := uint64(1)
-	if appliedIndex > d.cfg.SnapInterval() {
-		compactIndex = appliedIndex - d.cfg.SnapInterval()
-	}
-
-	if err := d.cache.Compact(compactIndex); err != nil {
-		return snap, err
-	}
-
-	log.Infof("raft.daemon: compacted log at index %d", compactIndex)
-
-	d.snapIndex.Set(appliedIndex)
-	return snap, err
+	return d.cache.Snapshot()
 }
 
 // Start daemon.
@@ -451,37 +414,17 @@ func (d *daemon) Start(addr string, oprs ...Operator) error {
 		return errors.New("raft: node not initialized, use raft.WithInitCluster() or raft.WithRestart()")
 	}
 
-	merge := func(cs ...chan struct{}) chan struct{} {
-		in := make(chan struct{})
-		go func() {
-			for range in {
-				for _, c := range cs {
-					c <- struct{}{}
-				}
-			}
-
-			for _, c := range cs {
-				close(c)
-			}
-
-		}()
-		return in
-	}
-
 	// set local member.
 	d.local = ost.local
 	d.idgen = idutil.NewGenerator(uint16(d.local.ID), time.Now())
 	d.ctx, d.cancel = context.WithCancel(d.cfg.Context())
-	snapshotc := make(chan struct{}, 10)
 	d.proposec = make(chan etcdraftpb.Message, 4096)
 	d.msgc = make(chan etcdraftpb.Message, 4096)
-	d.notify = merge(snapshotc)
+	d.snapshotc = make(chan chan error)
 	d.started.Set()
-	defer close(d.notify)
 
 	go d.process(d.proposec)
 	go d.process(d.msgc)
-	go d.snapshots(snapshotc)
 	return d.eventLoop()
 }
 
@@ -517,15 +460,14 @@ func (d *daemon) eventLoop() error {
 				d.msgbus.BroadcastToAll(ErrNoLeader)
 			}
 
-			d.promotions()
 			d.publishCommitted(rd.CommittedEntries)
 			d.publishReadState(rd.ReadStates)
 			d.publishAppliedIndices(prevIndex, d.appliedIndex.Get())
-
-			d.notify <- struct{}{}
-
+			d.promotions()
+			d.maybeSaveSnapshot()
 			d.node.Advance()
-
+		case c := <-d.snapshotc:
+			c <- d.saveSnapshot()
 		case <-d.ctx.Done():
 			return ErrStopped
 		}
@@ -737,29 +679,6 @@ func (d *daemon) send(msgs []etcdraftpb.Message) {
 	}
 }
 
-func (d *daemon) snapshots(c chan struct{}) {
-	d.wg.Add(1)
-	defer d.wg.Done()
-
-	for range c {
-		if d.ctx.Err() != nil {
-			return
-		}
-
-		if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
-			continue
-		}
-
-		if _, err := d.CreateSnapshot(); err != nil {
-			log.Errorf(
-				"raft.daemon: creating new snapshot at index %s failed: %v",
-				d.appliedIndex,
-				err,
-			)
-		}
-	}
-}
-
 func (d *daemon) promotions() {
 	rs := d.node.Status()
 
@@ -862,12 +781,76 @@ func (d *daemon) forceSnapshot(msg etcdraftpb.Message) bool {
 	// report snapshot failure, to re-send the new snapshot.
 	defer d.ReportSnapshot(msg.To, raft.SnapshotFailure)
 
-	_, err := d.CreateSnapshot()
-	if err != nil {
+	if err := d.saveSnapshot(); err != nil {
 		log.Warnf("raft.daemon: force new snapshot: %v", err)
 	}
 
 	return true
+}
+
+func (d *daemon) maybeSaveSnapshot() {
+	if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
+		return
+	}
+
+	if err := d.saveSnapshot(); err != nil {
+		log.Errorf(
+			"raft.daemon: creating new snapshot at index %s failed: %v",
+			d.appliedIndex,
+			err,
+		)
+	}
+}
+
+func (d *daemon) saveSnapshot() error {
+	appliedIndex := d.appliedIndex.Get()
+	snapIndex := d.snapIndex.Get()
+
+	log.Infof(
+		"raft.daemon: start snapshot [applied index: %d | last snapshot index: %d]",
+		appliedIndex,
+		snapIndex,
+	)
+
+	r, err := d.fsm.Snapshot()
+	if err != nil {
+		return err
+	}
+
+	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
+	if err != nil {
+		return err
+	}
+
+	ss := storage.Snapshot{
+		SnapshotState: raftpb.SnapshotState{
+			Raw:     snap,
+			Members: d.pool.Snapshot(),
+		},
+		Data: r,
+	}
+
+	if err := d.storage.Snapshotter().Write(&ss); err != nil {
+		return err
+	}
+
+	if err := d.storage.SaveSnapshot(snap); err != nil {
+		return err
+	}
+
+	compactIndex := uint64(1)
+	if appliedIndex > d.cfg.SnapInterval() {
+		compactIndex = appliedIndex - d.cfg.SnapInterval()
+	}
+
+	if err := d.cache.Compact(compactIndex); err != nil {
+		return err
+	}
+
+	log.Infof("raft.daemon: compacted log at index %d", compactIndex)
+
+	d.snapIndex.Set(appliedIndex)
+	return nil
 }
 
 func nopClose(fn func()) func() error {
