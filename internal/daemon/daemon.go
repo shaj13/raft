@@ -82,8 +82,7 @@ type daemon struct {
 	proposec     chan etcdraftpb.Message
 	msgc         chan etcdraftpb.Message
 	snapshotc    chan chan error
-	csMu         sync.Mutex // guard ConfState.
-	cState       *etcdraftpb.ConfState
+	confState    *etcdraftpb.ConfState
 }
 
 func (d *daemon) LinearizableRead(ctx context.Context) error {
@@ -247,11 +246,11 @@ func (d *daemon) Shutdown(ctx context.Context) error {
 		nopClose(func() {
 			close(d.proposec)
 			close(d.msgc)
-			close(d.snapshotc)
 			d.processwg.Wait()
 		}),
 		nopClose(d.cancel),
 		nopClose(d.wg.Wait),
+		nopClose(func() { close(d.snapshotc) }),
 		nopClose(d.node.Stop),
 		d.msgbus.Clsoe,
 		d.storage.Close,
@@ -464,10 +463,10 @@ func (d *daemon) eventLoop() error {
 			d.publishReadState(rd.ReadStates)
 			d.publishAppliedIndices(prevIndex, d.appliedIndex.Get())
 			d.promotions()
-			d.maybeSaveSnapshot()
+			d.maybeCreateSnapshot()
 			d.node.Advance()
 		case c := <-d.snapshotc:
-			c <- d.saveSnapshot()
+			c <- d.createSnapshot()
 		case <-d.ctx.Done():
 			return ErrStopped
 		}
@@ -543,7 +542,7 @@ func (d *daemon) publishSnapshotFile(sf *storage.Snapshot) error {
 		return err
 	}
 
-	d.confState(&snap.Metadata.ConfState)
+	d.confState = &snap.Metadata.ConfState
 	d.snapIndex.Set(snap.Metadata.Index)
 	d.appliedIndex.Set(snap.Metadata.Index)
 	return nil
@@ -631,7 +630,7 @@ func (d *daemon) publishConfChange(ent etcdraftpb.Entry) {
 		}(*mem)
 	}
 
-	d.confState(d.node.ApplyConfChange(cc))
+	d.confState = d.node.ApplyConfChange(cc)
 }
 
 // process the incoming messages from the given chan.
@@ -734,17 +733,6 @@ func (d *daemon) promotions() {
 	}
 }
 
-func (d *daemon) confState(cs *etcdraftpb.ConfState) *etcdraftpb.ConfState {
-	d.csMu.Lock()
-	defer d.csMu.Unlock()
-
-	if cs != nil {
-		d.cState = cs
-	}
-
-	return d.cState
-}
-
 func (d *daemon) forceSnapshot(msg etcdraftpb.Message) bool {
 	if msg.Type != etcdraftpb.MsgSnap {
 		return false
@@ -781,19 +769,19 @@ func (d *daemon) forceSnapshot(msg etcdraftpb.Message) bool {
 	// report snapshot failure, to re-send the new snapshot.
 	defer d.ReportSnapshot(msg.To, raft.SnapshotFailure)
 
-	if err := d.saveSnapshot(); err != nil {
+	if err := d.createSnapshot(); err != nil {
 		log.Warnf("raft.daemon: force new snapshot: %v", err)
 	}
 
 	return true
 }
 
-func (d *daemon) maybeSaveSnapshot() {
+func (d *daemon) maybeCreateSnapshot() {
 	if d.appliedIndex.Get()-d.snapIndex.Get() <= d.cfg.SnapInterval() {
 		return
 	}
 
-	if err := d.saveSnapshot(); err != nil {
+	if err := d.createSnapshot(); err != nil {
 		log.Errorf(
 			"raft.daemon: creating new snapshot at index %s failed: %v",
 			d.appliedIndex,
@@ -802,7 +790,7 @@ func (d *daemon) maybeSaveSnapshot() {
 	}
 }
 
-func (d *daemon) saveSnapshot() error {
+func (d *daemon) createSnapshot() error {
 	appliedIndex := d.appliedIndex.Get()
 	snapIndex := d.snapIndex.Get()
 
@@ -821,7 +809,7 @@ func (d *daemon) saveSnapshot() error {
 		return err
 	}
 
-	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState(nil), nil)
+	snap, err := d.cache.CreateSnapshot(appliedIndex, d.confState, nil)
 	if err != nil {
 		return err
 	}

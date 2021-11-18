@@ -133,16 +133,16 @@ func TestReportShutdown(t *testing.T) {
 	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond)
 
 	d := daemon{
-		node:     node,
-		started:  atomic.NewBool(),
-		msgbus:   msgbus.New(),
-		storage:  stg,
-		cfg:      cfg,
-		pool:     pool,
-		proposec: make(chan etcdraftpb.Message),
-		msgc:     make(chan etcdraftpb.Message),
-		notify:   make(chan struct{}),
-		cancel:   func() {},
+		node:      node,
+		started:   atomic.NewBool(),
+		msgbus:    msgbus.New(),
+		storage:   stg,
+		cfg:       cfg,
+		pool:      pool,
+		proposec:  make(chan etcdraftpb.Message),
+		msgc:      make(chan etcdraftpb.Message),
+		snapshotc: make(chan chan error),
+		cancel:    func() {},
 	}
 	d.started.Set()
 	d.ReportShutdown(0)
@@ -409,7 +409,7 @@ func TestLinearizableRead(t *testing.T) {
 	require.Equal(t, expectedErr, err)
 }
 
-func TestCreateSnapshot(t *testing.T) {
+func TestLocalCreateSnapshot(t *testing.T) {
 	expectedErr := errors.New("TestCreateSnapshot")
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
@@ -424,8 +424,8 @@ func TestCreateSnapshot(t *testing.T) {
 
 	d.started.Set()
 
-	// round #1 it return's latest snap when indices are equaled.
-	_, err := d.CreateSnapshot()
+	// round #1 it refuse to create snap when indices are equaled.
+	err := d.createSnapshot()
 	require.NoError(t, err)
 
 	// round #2 it return err when fsm return err.
@@ -433,7 +433,7 @@ func TestCreateSnapshot(t *testing.T) {
 	fsm.EXPECT().Snapshot().Return(nil, expectedErr)
 	d.fsm = fsm
 	d.appliedIndex.Set(1)
-	_, err = d.CreateSnapshot()
+	err = d.createSnapshot()
 	require.Equal(t, expectedErr, err)
 
 	// round #3 it return nil and create snap.
@@ -450,7 +450,7 @@ func TestCreateSnapshot(t *testing.T) {
 	d.storage = stg
 	d.pool = pool
 	d.cache.Append([]etcdraftpb.Entry{{Index: 1}})
-	_, err = d.CreateSnapshot()
+	err = d.createSnapshot()
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), d.snapIndex.Get())
 }
@@ -473,17 +473,19 @@ func TestEventLoop(t *testing.T) {
 	})
 
 	cfg.EXPECT().TickInterval().Return(time.Millisecond * 100)
+	cfg.EXPECT().SnapInterval().Return(uint64(100))
 	node.EXPECT().Advance()
 	node.EXPECT().Status()
 	node.EXPECT().Ready().Return(readyc).AnyTimes()
 	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
-	d := new(daemon)
-	d.appliedIndex = atomic.NewUint64()
-	d.node = node
-	d.storage = stg
-	d.notify = make(chan struct{}, 1)
-	d.ctx = ctx
-	d.cfg = cfg
+	d := &daemon{
+		appliedIndex: atomic.NewUint64(),
+		snapIndex:    atomic.NewUint64(),
+		node:         node,
+		storage:      stg,
+		ctx:          ctx,
+		cfg:          cfg,
+	}
 
 	err := d.eventLoop()
 	require.Equal(t, ErrStopped, err)
@@ -720,40 +722,6 @@ func TestSend(t *testing.T) {
 	}
 }
 
-func TestSnapshots(t *testing.T) {
-	c := make(chan struct{})
-	done := make(chan struct{})
-	ctrl := gomock.NewController(t)
-	fsm := NewMockStateMachine(ctrl)
-	cfg := NewMockConfig(ctrl)
-	d := new(daemon)
-	d.started = atomic.NewBool()
-	d.cfg = cfg
-	d.appliedIndex = atomic.NewUint64()
-	d.snapIndex = atomic.NewUint64()
-	d.fsm = fsm
-	d.ctx, d.cancel = context.WithCancel(context.TODO())
-
-	d.started.Set()
-	cfg.EXPECT().SnapInterval().Return(uint64(1)).MaxTimes(2)
-	fsm.EXPECT().Snapshot().Return(nil, ErrStopped).MinTimes(1)
-
-	go func() {
-		d.snapshots(c)
-		done <- struct{}{}
-	}()
-
-	// round #1 it should not create snapshot.
-	c <- struct{}{}
-
-	// round #2 it create snapshot.
-	d.appliedIndex.Set(10)
-	c <- struct{}{}
-	close(c)
-	<-done
-	ctrl.Finish()
-}
-
 func TestPromotions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
@@ -794,4 +762,30 @@ func TestPromotions(t *testing.T) {
 	d.started.Set()
 	d.promotions()
 	ctrl.Finish()
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	d := &daemon{
+		cache:        raft.NewMemoryStorage(),
+		started:      atomic.NewBool(),
+		snapIndex:    atomic.NewUint64(),
+		appliedIndex: atomic.NewUint64(),
+		snapshotc:    make(chan chan error),
+	}
+
+	_, err := d.CreateSnapshot()
+	require.Equal(t, ErrStopped, err)
+
+	d.started.Set()
+	_, err = d.CreateSnapshot()
+	require.NoError(t, err)
+
+	go func() {
+		c := <-d.snapshotc
+		c <- ErrNoLeader
+	}()
+
+	d.appliedIndex.Set(10)
+	_, err = d.CreateSnapshot()
+	require.Equal(t, ErrNoLeader, err)
 }
