@@ -474,6 +474,7 @@ func TestEventLoop(t *testing.T) {
 
 	cfg.EXPECT().TickInterval().Return(time.Millisecond * 100)
 	node.EXPECT().Advance()
+	node.EXPECT().Status()
 	node.EXPECT().Ready().Return(readyc).AnyTimes()
 	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
 	d := new(daemon)
@@ -754,8 +755,6 @@ func TestSnapshots(t *testing.T) {
 }
 
 func TestPromotions(t *testing.T) {
-	c := make(chan struct{})
-	done := make(chan struct{})
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
@@ -790,17 +789,9 @@ func TestPromotions(t *testing.T) {
 	node.
 		EXPECT().
 		ProposeConfChange(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, cc etcdraftpb.ConfChangeI) error {
-			done <- struct{}{}
-			return ErrStopped
-		})
+		Return(ErrStopped)
 
 	d.started.Set()
-
-	go d.promotions(c)
-
-	c <- struct{}{}
-	d.cancel()
-	<-done
+	d.promotions()
 	ctrl.Finish()
 }
