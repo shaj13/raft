@@ -10,8 +10,6 @@
 - [ ] relese snap -> "storage"
 - [ ] move log from internal 
 - [ ] 2 logs one for raft node and one for generale (see grpc)
-- [ ] rename daemon to engine 
-- [ ] colacsed heartbeats 
 
 
 ## Test cases 
