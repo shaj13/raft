@@ -1,4 +1,4 @@
-package daemon
+package raftengine
 
 import (
 	"context"
@@ -31,8 +31,8 @@ func TestNew(t *testing.T) {
 	cfg.EXPECT().Pool()
 	cfg.EXPECT().StateMachine()
 
-	d := New(cfg)
-	require.NotNil(t, d)
+	eng := New(cfg)
+	require.NotNil(t, eng)
 }
 
 func TestStart(t *testing.T) {
@@ -43,7 +43,7 @@ func TestStart(t *testing.T) {
 	node := NewMockNode(ctrl)
 	ready := make(chan raft.Ready)
 
-	d := &daemon{
+	eng := &engine{
 		node:         node,
 		storage:      stg,
 		pool:         pool,
@@ -58,7 +58,7 @@ func TestStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
 
-	defer d.Shutdown(ctx)
+	defer eng.Shutdown(ctx)
 
 	cfg.EXPECT().Context().Return(ctx).MaxTimes(2)
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{}).MaxTimes(2)
@@ -73,13 +73,13 @@ func TestStart(t *testing.T) {
 	node.EXPECT().Stop().MaxTimes(2)
 	node.EXPECT().Status().Return(raft.Status{}).MaxTimes(2)
 
-	d.node = nil
-	err := d.Start(":80")
+	eng.node = nil
+	err := eng.Start(":80")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "node not initialized")
 
-	d.node = node
-	err = d.Start(":80")
+	eng.node = node
+	err = eng.Start(":80")
 	require.Equal(t, ErrStopped, err)
 }
 
@@ -88,19 +88,19 @@ func TestReportUnreachable(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	node.EXPECT().ReportUnreachable(gomock.Eq(id)).MaxTimes(1)
-	d := &daemon{
+	eng := &engine{
 		node:    node,
 		started: atomic.NewBool(),
 	}
 
 	// round #1 should not call ReportUnreachable when
 	// daemon not started
-	d.ReportUnreachable(id)
+	eng.ReportUnreachable(id)
 
 	// round #2 should call ReportUnreachable when
 	// daemon started
-	d.started.Set()
-	d.ReportUnreachable(id)
+	eng.started.Set()
+	eng.ReportUnreachable(id)
 }
 
 func TestReportSnapshot(t *testing.T) {
@@ -108,16 +108,16 @@ func TestReportSnapshot(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	node.EXPECT().ReportSnapshot(gomock.Eq(id), gomock.Eq(raft.SnapshotFinish)).MaxTimes(1)
-	d := daemon{node: node, started: atomic.NewBool()}
+	eng := &engine{node: node, started: atomic.NewBool()}
 
 	// round #1 should not call ReportSnapshot when
 	// daemon not started
-	d.ReportSnapshot(id, raft.SnapshotFinish)
+	eng.ReportSnapshot(id, raft.SnapshotFinish)
 
 	// round #2 should call ReportSnapshot when
 	// daemon started
-	d.started.Set()
-	d.ReportSnapshot(id, raft.SnapshotFinish)
+	eng.started.Set()
+	eng.ReportSnapshot(id, raft.SnapshotFinish)
 }
 
 func TestReportShutdown(t *testing.T) {
@@ -132,7 +132,7 @@ func TestReportShutdown(t *testing.T) {
 	pool.EXPECT().TearDown(gomock.Any())
 	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond)
 
-	d := daemon{
+	eng := engine{
 		node:      node,
 		started:   atomic.NewBool(),
 		msgbus:    msgbus.New(),
@@ -144,36 +144,36 @@ func TestReportShutdown(t *testing.T) {
 		snapshotc: make(chan chan error),
 		cancel:    func() {},
 	}
-	d.started.Set()
-	d.ReportShutdown(0)
-	require.True(t, d.started.False())
+	eng.started.Set()
+	eng.ReportShutdown(0)
+	require.True(t, eng.started.False())
 }
 
 func TestPush(t *testing.T) {
-	d := &daemon{
+	eng := &engine{
 		msgc:    make(chan etcdraftpb.Message, 1),
 		ctx:     context.TODO(),
 		started: atomic.NewBool(),
 	}
 
 	// round #1 it return err when daemon not started
-	err := d.Push(etcdraftpb.Message{})
+	err := eng.Push(etcdraftpb.Message{})
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return nil err when daemon started
-	d.started.Set()
-	err = d.Push(etcdraftpb.Message{})
+	eng.started.Set()
+	err = eng.Push(etcdraftpb.Message{})
 	require.NoError(t, err)
 
 	// round #2 it return err when buffer is full
-	err = d.Push(etcdraftpb.Message{})
+	err = eng.Push(etcdraftpb.Message{})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "buffer is full")
 
 	// round #4 it return err when ctx.Done
-	d.ctx, d.cancel = context.WithCancel(d.ctx)
-	d.cancel()
-	err = d.Push(etcdraftpb.Message{})
+	eng.ctx, eng.cancel = context.WithCancel(eng.ctx)
+	eng.cancel()
+	err = eng.Push(etcdraftpb.Message{})
 	require.Equal(t, context.Canceled, err)
 }
 
@@ -181,18 +181,18 @@ func TestStatus(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	node.EXPECT().Status().Return(raft.Status{}).MaxTimes(1)
-	d := &daemon{
+	eng := &engine{
 		node:    node,
 		started: atomic.NewBool(),
 	}
 
 	// round #1 it return err when daemon not started
-	_, err := d.Status()
+	_, err := eng.Status()
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return nil err when daemon started
-	d.started.Set()
-	_, err = d.Status()
+	eng.started.Set()
+	_, err = eng.Status()
 	require.NoError(t, err)
 }
 
@@ -200,7 +200,7 @@ func TestProposeReplicate(t *testing.T) {
 	data := []byte("data")
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
-	d := &daemon{
+	eng := &engine{
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    node,
 		started: atomic.NewBool(),
@@ -209,30 +209,30 @@ func TestProposeReplicate(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started
-	err := d.ProposeReplicate(context.TODO(), data)
+	err := eng.ProposeReplicate(context.TODO(), data)
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err whne node return's err
 	expected := errors.New("TestProposeReplicate Error")
-	d.started.Set()
+	eng.started.Set()
 	node.EXPECT().Propose(gomock.Any(), gomock.Any()).Return(expected)
-	err = d.ProposeReplicate(context.TODO(), data)
+	err = eng.ProposeReplicate(context.TODO(), data)
 	require.Equal(t, expected, err)
 
 	// round #3 it return ctx done
 	node = NewMockNode(ctrl)
 	node.EXPECT().Propose(gomock.Any(), gomock.Any()).Return(nil)
-	d.node = node
+	eng.node = node
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.ProposeReplicate(ctx, data)
+	err = eng.ProposeReplicate(ctx, data)
 	require.Equal(t, context.Canceled, err)
 }
 
 func TestProposeConfChange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
-	d := &daemon{
+	eng := &engine{
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    node,
 		started: atomic.NewBool(),
@@ -241,23 +241,23 @@ func TestProposeConfChange(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started
-	err := d.ProposeConfChange(context.TODO(), nil, etcdraftpb.ConfChangeAddNode)
+	err := eng.ProposeConfChange(context.TODO(), nil, etcdraftpb.ConfChangeAddNode)
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err whne node return's err
 	expected := errors.New("TestProposeConfChange Error")
-	d.started.Set()
+	eng.started.Set()
 	node.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(expected)
-	err = d.ProposeConfChange(context.TODO(), &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
+	err = eng.ProposeConfChange(context.TODO(), &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
 	require.Equal(t, expected, err)
 
 	// round #3 it return ctx done
 	node = NewMockNode(ctrl)
 	node.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(nil)
-	d.node = node
+	eng.node = node
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.ProposeConfChange(ctx, &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
+	err = eng.ProposeConfChange(ctx, &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
 	require.Equal(t, context.Canceled, err)
 }
 
@@ -268,7 +268,7 @@ func TestTransferLeadership(t *testing.T) {
 	node := NewMockNode(ctrl)
 	cfg.EXPECT().TickInterval().Return(time.Second).AnyTimes()
 
-	d := &daemon{
+	eng := &engine{
 		started: atomic.NewBool(),
 		node:    node,
 		cfg:     cfg,
@@ -276,16 +276,16 @@ func TestTransferLeadership(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started.
-	err := d.TransferLeadership(context.TODO(), id)
+	err := eng.TransferLeadership(context.TODO(), id)
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err when ctx done.
 	node.EXPECT().Status().Return(raft.Status{}).AnyTimes()
 	node.EXPECT().TransferLeadership(gomock.Any(), gomock.Any(), gomock.Eq(id))
-	d.started.Set()
+	eng.started.Set()
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.TransferLeadership(ctx, id)
+	err = eng.TransferLeadership(ctx, id)
 	require.Equal(t, context.Canceled, err)
 
 	// round #3 it return nil err when TransferLeadership success.
@@ -306,8 +306,8 @@ func TestTransferLeadership(t *testing.T) {
 		return raft.Status{}
 	})
 	node.EXPECT().TransferLeadership(gomock.Any(), gomock.Any(), gomock.Eq(id))
-	d.node = node
-	err = d.TransferLeadership(context.TODO(), id)
+	eng.node = node
+	err = eng.TransferLeadership(context.TODO(), id)
 	require.NoError(t, err)
 }
 
@@ -316,7 +316,7 @@ func TestLinearizableRead(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
 	node := NewMockNode(ctrl)
-	d := &daemon{
+	eng := &engine{
 		cfg:     cfg,
 		started: atomic.NewBool(),
 		node:    node,
@@ -328,28 +328,28 @@ func TestLinearizableRead(t *testing.T) {
 	cfg.EXPECT().TickInterval().Return(time.Millisecond * 100).AnyTimes()
 
 	// round #1 it return err when daemon not started.
-	err := d.LinearizableRead(context.TODO())
+	err := eng.LinearizableRead(context.TODO())
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err when read index return err.
 
 	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(expectedErr)
-	d.started.Set()
-	err = d.LinearizableRead(context.TODO())
+	eng.started.Set()
+	err = eng.LinearizableRead(context.TODO())
 	require.Equal(t, expectedErr, err)
 
 	// round #3 it return err when ctx done while waiting to read index.
 	node = NewMockNode(ctrl)
-	d.node = node
+	eng.node = node
 	node.EXPECT().ReadIndex(gomock.Any(), gomock.Any()).Return(nil)
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = d.LinearizableRead(ctx)
+	err = eng.LinearizableRead(ctx)
 	require.Equal(t, context.Canceled, err)
 
 	// round #3 it return exit when read index equal applied index.
 	node = NewMockNode(ctrl)
-	d.node = node
+	eng.node = node
 	node.
 		EXPECT().
 		ReadIndex(gomock.Any(), gomock.Any()).
@@ -357,18 +357,18 @@ func TestLinearizableRead(t *testing.T) {
 			sid := binary.BigEndian.Uint64(rctx)
 			go func() {
 				<-time.After(time.Millisecond * 50)
-				d.msgbus.Broadcast(sid, uint64(0))
+				eng.msgbus.Broadcast(sid, uint64(0))
 			}()
 			return nil
 		})
-	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(context.TODO())
+	eng.appliedIndex = atomic.NewUint64()
+	err = eng.LinearizableRead(context.TODO())
 	require.NoError(t, err)
 
 	// round #4 it return err when ctx done while waiting for read index to be applied.
 	ctx, cancel = context.WithCancel(context.TODO())
 	node = NewMockNode(ctrl)
-	d.node = node
+	eng.node = node
 	node.
 		EXPECT().
 		ReadIndex(gomock.Any(), gomock.Any()).
@@ -376,19 +376,19 @@ func TestLinearizableRead(t *testing.T) {
 			sid := binary.BigEndian.Uint64(rctx)
 			go func() {
 				<-time.After(time.Millisecond * 50)
-				d.msgbus.Broadcast(sid, uint64(1))
+				eng.msgbus.Broadcast(sid, uint64(1))
 				<-time.After(time.Millisecond * 50)
 				cancel()
 			}()
 			return nil
 		})
-	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(ctx)
+	eng.appliedIndex = atomic.NewUint64()
+	err = eng.LinearizableRead(ctx)
 	require.Equal(t, context.Canceled, err)
 
 	// round #5 it return err when there an error while waiting for read index to be applied.
 	node = NewMockNode(ctrl)
-	d.node = node
+	eng.node = node
 	node.
 		EXPECT().
 		ReadIndex(gomock.Any(), gomock.Any()).
@@ -398,14 +398,14 @@ func TestLinearizableRead(t *testing.T) {
 				dur := time.Millisecond * 50
 				index := uint64(1)
 				<-time.After(dur)
-				d.msgbus.Broadcast(sid, index)
+				eng.msgbus.Broadcast(sid, index)
 				<-time.After(dur)
-				d.msgbus.Broadcast(index, expectedErr)
+				eng.msgbus.Broadcast(index, expectedErr)
 			}()
 			return nil
 		})
-	d.appliedIndex = atomic.NewUint64()
-	err = d.LinearizableRead(context.TODO())
+	eng.appliedIndex = atomic.NewUint64()
+	err = eng.LinearizableRead(context.TODO())
 	require.Equal(t, expectedErr, err)
 }
 
@@ -414,7 +414,7 @@ func TestLocalCreateSnapshot(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cfg := NewMockConfig(ctrl)
 	cfg.EXPECT().SnapInterval().Return(uint64(1))
-	d := &daemon{
+	eng := &engine{
 		cfg:          cfg,
 		started:      atomic.NewBool(),
 		appliedIndex: atomic.NewUint64(),
@@ -422,18 +422,18 @@ func TestLocalCreateSnapshot(t *testing.T) {
 		cache:        raft.NewMemoryStorage(),
 	}
 
-	d.started.Set()
+	eng.started.Set()
 
 	// round #1 it refuse to create snap when indices are equaled.
-	err := d.createSnapshot()
+	err := eng.createSnapshot()
 	require.NoError(t, err)
 
 	// round #2 it return err when fsm return err.
 	fsm := NewMockStateMachine(ctrl)
 	fsm.EXPECT().Snapshot().Return(nil, expectedErr)
-	d.fsm = fsm
-	d.appliedIndex.Set(1)
-	err = d.createSnapshot()
+	eng.fsm = fsm
+	eng.appliedIndex.Set(1)
+	err = eng.createSnapshot()
 	require.Equal(t, expectedErr, err)
 
 	// round #3 it return nil and create snap.
@@ -446,13 +446,13 @@ func TestLocalCreateSnapshot(t *testing.T) {
 	pool.EXPECT().Snapshot().Return(nil)
 	fsm = NewMockStateMachine(ctrl)
 	fsm.EXPECT().Snapshot().Return(nil, nil)
-	d.fsm = fsm
-	d.storage = stg
-	d.pool = pool
-	d.cache.Append([]etcdraftpb.Entry{{Index: 1}})
-	err = d.createSnapshot()
+	eng.fsm = fsm
+	eng.storage = stg
+	eng.pool = pool
+	eng.cache.Append([]etcdraftpb.Entry{{Index: 1}})
+	err = eng.createSnapshot()
 	require.NoError(t, err)
-	require.Equal(t, uint64(1), d.snapIndex.Get())
+	require.Equal(t, uint64(1), eng.snapIndex.Get())
 }
 
 func TestEventLoop(t *testing.T) {
@@ -478,7 +478,7 @@ func TestEventLoop(t *testing.T) {
 	node.EXPECT().Status()
 	node.EXPECT().Ready().Return(readyc).AnyTimes()
 	stg.EXPECT().SaveEntries(gomock.Any(), gomock.Any()).Return(nil).MinTimes(1)
-	d := &daemon{
+	eng := &engine{
 		appliedIndex: atomic.NewUint64(),
 		snapIndex:    atomic.NewUint64(),
 		node:         node,
@@ -487,7 +487,7 @@ func TestEventLoop(t *testing.T) {
 		cfg:          cfg,
 	}
 
-	err := d.eventLoop()
+	err := eng.eventLoop()
 	require.Equal(t, ErrStopped, err)
 }
 
@@ -502,22 +502,24 @@ func TestPublishReadState(t *testing.T) {
 	}
 	bus := msgbus.New()
 	sub := bus.SubscribeOnce(sid)
-	d := new(daemon)
-	d.msgbus = bus
-	d.publishReadState([]raft.ReadState{rs})
+	eng := &engine{
+		msgbus: bus,
+	}
+	eng.publishReadState([]raft.ReadState{rs})
 	got := <-sub.Chan()
 	require.Equal(t, index, got)
 }
 
 func TestPublishAppliedIndices(t *testing.T) {
 	bus := msgbus.New()
-	d := new(daemon)
-	d.msgbus = bus
+	eng := &engine{
+		msgbus: bus,
+	}
 
 	s1 := bus.SubscribeOnce(2)
 	s2 := bus.SubscribeOnce(3)
 
-	d.publishAppliedIndices(1, 3)
+	eng.publishAppliedIndices(1, 3)
 
 	v1 := <-s1.Chan()
 	v2 := <-s2.Chan()
@@ -551,27 +553,28 @@ func TestPublishSnapshot(t *testing.T) {
 	pool.EXPECT().Restore(gomock.Any())
 	fsm.EXPECT().Restore(gomock.Any()).Return(nil)
 
-	daemon := new(daemon)
-	daemon.cache = raft.NewMemoryStorage()
-	daemon.storage = stg
-	daemon.appliedIndex = atomic.NewUint64()
-	daemon.snapIndex = atomic.NewUint64()
-	daemon.pool = pool
-	daemon.fsm = fsm
-	daemon.appliedIndex.Set(1)
+	eng := &engine{
+		cache:        raft.NewMemoryStorage(),
+		storage:      stg,
+		appliedIndex: atomic.NewUint64(),
+		snapIndex:    atomic.NewUint64(),
+		pool:         pool,
+		fsm:          fsm,
+	}
+	eng.appliedIndex.Set(1)
 
 	// round #1 it return's err if snap index is lower than applied index.
-	err := daemon.publishSnapshot(*snap)
+	err := eng.publishSnapshot(*snap)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), " should > progress.appliedIndex")
 
 	// round #2 it publish snapshot.
 	snap.Metadata.Index = 3
 	sf.Raw = *snap
-	err = daemon.publishSnapshot(*snap)
+	err = eng.publishSnapshot(*snap)
 	require.NoError(t, err)
-	require.Equal(t, snap.Metadata.Index, daemon.snapIndex.Get())
-	require.Equal(t, snap.Metadata.Index, daemon.appliedIndex.Get())
+	require.Equal(t, snap.Metadata.Index, eng.snapIndex.Get())
+	require.Equal(t, snap.Metadata.Index, eng.appliedIndex.Get())
 }
 
 func TestPublishReplicate(t *testing.T) {
@@ -579,10 +582,11 @@ func TestPublishReplicate(t *testing.T) {
 	data := []byte("testData")
 	ctrl := gomock.NewController(t)
 	fsm := NewMockStateMachine(ctrl)
-	d := new(daemon)
-	d.fsm = fsm
-	d.msgbus = msgbus.New()
-	sub := d.msgbus.SubscribeOnce(sid)
+	eng := &engine{
+		fsm:    fsm,
+		msgbus: msgbus.New(),
+	}
+	sub := eng.msgbus.SubscribeOnce(sid)
 	rp := &raftpb.Replicate{
 		Data: data,
 		CID:  sid,
@@ -591,7 +595,7 @@ func TestPublishReplicate(t *testing.T) {
 		Data: pbutil.MustMarshal(rp),
 	}
 	fsm.EXPECT().Apply(gomock.Eq(data))
-	d.publishReplicate(ent)
+	eng.publishReplicate(ent)
 	v := <-sub.Chan()
 	require.Nil(t, v)
 }
@@ -602,12 +606,12 @@ func TestPublishConfChange(t *testing.T) {
 
 	table := []struct {
 		change etcdraftpb.ConfChangeType
-		expect func(*gomock.Controller, *daemon) <-chan struct{}
+		expect func(*gomock.Controller, *engine) <-chan struct{}
 		err    error
 	}{
 		{
 			change: etcdraftpb.ConfChangeAddNode,
-			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+			expect: func(ctrl *gomock.Controller, d *engine) <-chan struct{} {
 				pool := membershipmock.NewMockPool(ctrl)
 				pool.EXPECT().Add(gomock.Any()).MinTimes(1).Return(ErrStopped)
 				d.pool = pool
@@ -617,7 +621,7 @@ func TestPublishConfChange(t *testing.T) {
 		},
 		{
 			change: etcdraftpb.ConfChangeUpdateNode,
-			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+			expect: func(ctrl *gomock.Controller, d *engine) <-chan struct{} {
 				pool := membershipmock.NewMockPool(ctrl)
 				pool.EXPECT().Update(gomock.Any()).MinTimes(1)
 				d.pool = pool
@@ -626,7 +630,7 @@ func TestPublishConfChange(t *testing.T) {
 		},
 		{
 			change: etcdraftpb.ConfChangeRemoveNode,
-			expect: func(ctrl *gomock.Controller, d *daemon) <-chan struct{} {
+			expect: func(ctrl *gomock.Controller, d *engine) <-chan struct{} {
 				c := make(chan struct{})
 				pool := membershipmock.NewMockPool(ctrl)
 				cfg := NewMockConfig(ctrl)
@@ -646,11 +650,12 @@ func TestPublishConfChange(t *testing.T) {
 		sid := uint64(1)
 		ctrl := gomock.NewController(t)
 		node := NewMockNode(ctrl)
-		d := new(daemon)
-		d.node = node
-		d.msgbus = msgbus.New()
-		d.ctx = context.TODO()
-		sub := d.msgbus.SubscribeOnce(sid)
+		eng := &engine{
+			node:   node,
+			msgbus: msgbus.New(),
+			ctx:    context.TODO(),
+		}
+		sub := eng.msgbus.SubscribeOnce(sid)
 		mem := &raftpb.Member{
 			ID: 1,
 		}
@@ -664,8 +669,8 @@ func TestPublishConfChange(t *testing.T) {
 		}
 
 		node.EXPECT().ApplyConfChange(gomock.Eq(cc))
-		wait := tt.expect(ctrl, d)
-		d.publishConfChange(ent)
+		wait := tt.expect(ctrl, eng)
+		eng.publishConfChange(ent)
 		v := <-sub.Chan()
 		require.Equal(t, tt.err, v)
 		<-wait
@@ -678,18 +683,18 @@ func TestProcess(t *testing.T) {
 	done := make(chan struct{})
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
-	d := new(daemon)
-	d.node = node
-	d.ctx, d.cancel = context.WithCancel(context.TODO())
+	eng := new(engine)
+	eng.node = node
+	eng.ctx, eng.cancel = context.WithCancel(context.TODO())
 
 	node.EXPECT().Step(gomock.Any(), gomock.Any()).Return(ErrStopped).MinTimes(1)
 	go func() {
-		d.process(c)
+		eng.process(c)
 		done <- struct{}{}
 	}()
 
 	c <- etcdraftpb.Message{}
-	d.cancel()
+	eng.cancel()
 	// it should not process this msg.
 	c <- etcdraftpb.Message{}
 	<-done
@@ -697,27 +702,27 @@ func TestProcess(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
-	table := []func(*gomock.Controller, *daemon, uint64){
-		func(ctrl *gomock.Controller, d *daemon, id uint64) {
+	table := []func(*gomock.Controller, *engine, uint64){
+		func(ctrl *gomock.Controller, eng *engine, id uint64) {
 			pool := membershipmock.NewMockPool(ctrl)
 			pool.EXPECT().Get(gomock.Eq(id)).Return(nil, false)
-			d.pool = pool
+			eng.pool = pool
 		},
-		func(ctrl *gomock.Controller, d *daemon, id uint64) {
+		func(ctrl *gomock.Controller, eng *engine, id uint64) {
 			mem := membershipmock.NewMockMember(ctrl)
 			pool := membershipmock.NewMockPool(ctrl)
 			pool.EXPECT().Get(gomock.Eq(id)).Return(mem, true)
 			mem.EXPECT().Send(gomock.Any()).Return(ErrStopped)
-			d.pool = pool
+			eng.pool = pool
 		},
 	}
 
 	for _, tt := range table {
 		ctrl := gomock.NewController(t)
 		msg := etcdraftpb.Message{To: 1}
-		d := new(daemon)
-		tt(ctrl, d, msg.To)
-		d.send([]etcdraftpb.Message{msg})
+		eng := new(engine)
+		tt(ctrl, eng, msg.To)
+		eng.send([]etcdraftpb.Message{msg})
 		ctrl.Finish()
 	}
 }
@@ -730,13 +735,14 @@ func TestPromotions(t *testing.T) {
 	staging := membershipmock.NewMockMember(ctrl)
 	cfg := NewMockConfig(ctrl)
 
-	d := new(daemon)
-	d.node = node
-	d.pool = pool
-	d.cfg = cfg
-	d.idgen = idutil.NewGenerator(1, time.Now())
-	d.started = atomic.NewBool()
-	d.ctx, d.cancel = context.WithCancel(context.TODO())
+	eng := &engine{
+		node:    node,
+		pool:    pool,
+		cfg:     cfg,
+		idgen:   idutil.NewGenerator(1, time.Now()),
+		started: atomic.NewBool(),
+	}
+	eng.ctx, eng.cancel = context.WithCancel(context.TODO())
 	rs := raft.Status{
 		BasicStatus: raft.BasicStatus{
 			ID: 1,
@@ -759,13 +765,13 @@ func TestPromotions(t *testing.T) {
 		ProposeConfChange(gomock.Any(), gomock.Any()).
 		Return(ErrStopped)
 
-	d.started.Set()
-	d.promotions()
+	eng.started.Set()
+	eng.promotions()
 	ctrl.Finish()
 }
 
 func TestCreateSnapshot(t *testing.T) {
-	d := &daemon{
+	eng := &engine{
 		cache:        raft.NewMemoryStorage(),
 		started:      atomic.NewBool(),
 		snapIndex:    atomic.NewUint64(),
@@ -773,19 +779,19 @@ func TestCreateSnapshot(t *testing.T) {
 		snapshotc:    make(chan chan error),
 	}
 
-	_, err := d.CreateSnapshot()
+	_, err := eng.CreateSnapshot()
 	require.Equal(t, ErrStopped, err)
 
-	d.started.Set()
-	_, err = d.CreateSnapshot()
+	eng.started.Set()
+	_, err = eng.CreateSnapshot()
 	require.NoError(t, err)
 
 	go func() {
-		c := <-d.snapshotc
+		c := <-eng.snapshotc
 		c <- ErrNoLeader
 	}()
 
-	d.appliedIndex.Set(10)
-	_, err = d.CreateSnapshot()
+	eng.appliedIndex.Set(10)
+	_, err = eng.CreateSnapshot()
 	require.Equal(t, ErrNoLeader, err)
 }

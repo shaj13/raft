@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftengine"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
@@ -56,7 +56,7 @@ type Logger = log.Logger
 
 // StateMachine define an interface that must be implemented by
 // application to make use of the raft replicated log.
-type StateMachine = daemon.StateMachine
+type StateMachine = raftengine.StateMachine
 
 // Option configures raft node using the functional options paradigm popularized by Rob Pike and Dave Cheney.
 // If you're unfamiliar with this style,
@@ -291,7 +291,7 @@ func WithContext(ctx context.Context) Option {
 // WithJoin send rpc request to join an existing cluster.
 func WithJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.Join(addr, timeout)
+		opr := raftengine.Join(addr, timeout)
 		c.appendOperator(opr)
 	})
 }
@@ -299,7 +299,7 @@ func WithJoin(addr string, timeout time.Duration) StartOption {
 // WithForceJoin send rpc request to join an existing cluster even if already part of a cluster.
 func WithForceJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.ForceJoin(addr, timeout)
+		opr := raftengine.ForceJoin(addr, timeout)
 		c.appendOperator(opr)
 	})
 }
@@ -307,7 +307,7 @@ func WithForceJoin(addr string, timeout time.Duration) StartOption {
 // WithInitCluster initialize a new cluster and create first raft node.
 func WithInitCluster() StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.InitCluster()
+		opr := raftengine.InitCluster()
 		c.appendOperator(opr)
 	})
 }
@@ -318,7 +318,7 @@ func WithInitCluster() StartOption {
 // Note: ForceNewCluster preserve the same node id.
 func WithForceNewCluster() StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.ForceNewCluster()
+		opr := raftengine.ForceNewCluster()
 		c.appendOperator(opr)
 	})
 }
@@ -327,7 +327,7 @@ func WithForceNewCluster() StartOption {
 // this feature would be in restoring cluster data.
 func WithRestore(path string) StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.Restore(path)
+		opr := raftengine.Restore(path)
 		c.appendOperator(opr)
 	})
 }
@@ -335,7 +335,7 @@ func WithRestore(path string) StartOption {
 // WithRestart restart raft node from state dir.
 func WithRestart() StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.Restart()
+		opr := raftengine.Restart()
 		c.appendOperator(opr)
 	})
 }
@@ -361,7 +361,7 @@ func WithRestart() StartOption {
 // Note: first member will be assigned to the current node.
 func WithMembers(membs ...RawMember) StartOption {
 	return startOptionFunc(func(c *startConfig) {
-		opr := daemon.Members(membs...)
+		opr := raftengine.Members(membs...)
 		c.appendOperator(opr)
 	})
 }
@@ -387,17 +387,17 @@ func WithFallback(opts ...StartOption) StartOption {
 		nc := new(startConfig)
 		nc.apply(opts...)
 
-		opr := daemon.Fallback(nc.operators...)
+		opr := raftengine.Fallback(nc.operators...)
 		c.appendOperator(opr)
 	})
 }
 
 type startConfig struct {
-	operators []daemon.Operator
+	operators []raftengine.Operator
 	addr      string
 }
 
-func (c *startConfig) appendOperator(opr daemon.Operator) {
+func (c *startConfig) appendOperator(opr raftengine.Operator) {
 	c.operators = append(c.operators, opr)
 }
 
@@ -421,8 +421,8 @@ type config struct {
 	storage          storage.Storage
 	pool             membership.Pool
 	dial             transport.Dial
-	daemon           daemon.Daemon
-	mux              daemon.Mux
+	engine           raftengine.Engine
+	mux              raftengine.Mux
 	fsm              StateMachine
 }
 
@@ -483,14 +483,14 @@ func (c *config) Dial() transport.Dial {
 }
 
 func (c *config) Reporter() membership.Reporter {
-	return c.daemon
+	return c.engine
 }
 
-func (c *config) StateMachine() daemon.StateMachine {
+func (c *config) StateMachine() raftengine.StateMachine {
 	return c.fsm
 }
 
-func (c *config) Mux() daemon.Mux {
+func (c *config) Mux() raftengine.Mux {
 	return c.mux
 }
 

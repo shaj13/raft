@@ -1,4 +1,4 @@
-package daemon
+package raftengine
 
 import (
 	"context"
@@ -555,7 +555,7 @@ func (rm removedMembers) String() string {
 	return "RemovedMembers"
 }
 
-func invoke(d *daemon, oprs ...Operator) (*operatorsState, error) {
+func invoke(d *engine, oprs ...Operator) (*operatorsState, error) {
 	for _, opr := range oprs {
 		a, ok := opr.(interface {
 			addOns() []Operator

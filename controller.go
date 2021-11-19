@@ -6,8 +6,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftengine"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
@@ -16,7 +16,7 @@ import (
 
 type controller struct {
 	node    *Node
-	daemon  daemon.Daemon
+	engine  raftengine.Engine
 	pool    membership.Pool
 	storage storage.Storage
 }
@@ -43,7 +43,7 @@ func (c *controller) Join(ctx context.Context, gid uint64, m *raftpb.Member) (*r
 }
 
 func (c *controller) Push(ctx context.Context, gid uint64, m etcdraftpb.Message) error {
-	return c.daemon.Push(m)
+	return c.engine.Push(m)
 }
 
 func (c *controller) PromoteMember(ctx context.Context, gid uint64, m raftpb.Member) error {

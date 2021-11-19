@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
+	raftenginemock "github.com/shaj13/raftkit/internal/mocks/raftengine"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/transport"
 	"github.com/stretchr/testify/require"
@@ -16,20 +16,20 @@ import (
 
 func TestControllerPush(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Push(gomock.Any()).Return(nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Push(gomock.Any()).Return(nil)
 	c := new(controller)
-	c.daemon = daemon
+	c.engine = eng
 	err := c.Push(context.TODO(), 0, etcdraftpb.Message{})
 	require.NoError(t, err)
 }
 
 func TestControllerPromoteMember(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(raft.Status{}, ErrNotLeader).AnyTimes()
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(raft.Status{}, ErrNotLeader).AnyTimes()
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.exec = testPreCond
 	c := new(controller)
 	c.node = n
@@ -49,12 +49,12 @@ func TestControllerJoin(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				pool := membershipmock.NewMockPool(ctrl)
 				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).Return(ErrNotLeader)
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).Return(ErrNotLeader)
 				n := new(Node)
 				n.exec = testPreCond
-				n.daemon = daemon
+				n.engine = eng
 				n.pool = pool
 				c.node = n
 			},
@@ -65,16 +65,16 @@ func TestControllerJoin(t *testing.T) {
 			expect: func(c *controller) {
 				ctrl := gomock.NewController(t)
 				pool := membershipmock.NewMockPool(ctrl)
-				daemon := daemonmock.NewMockDaemon(ctrl)
+				eng := raftenginemock.NewMockEngine(ctrl)
 				mem := membershipmock.NewMockMember(ctrl)
 				mem.EXPECT().Type().Return(VoterMember)
 				pool.EXPECT().Get(gomock.Any()).Return(mem, true).MaxTimes(2)
 				pool.EXPECT().Snapshot().Return(nil)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeUpdateNode)).Return(nil)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeUpdateNode)).Return(nil)
 				n := new(Node)
 				n.exec = testPreCond
-				n.daemon = daemon
+				n.engine = eng
 				n.pool = pool
 				c.node = n
 				c.pool = pool

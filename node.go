@@ -8,9 +8,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/log"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftengine"
 	"github.com/shaj13/raftkit/internal/raftpb"
 	"github.com/shaj13/raftkit/internal/storage"
 	"github.com/shaj13/raftkit/internal/transport"
@@ -22,7 +22,7 @@ import (
 var (
 	// ErrNodeStopped is returned by the Node methods after a call to
 	// Shutdown or when it has not started.
-	ErrNodeStopped = daemon.ErrStopped
+	ErrNodeStopped = raftengine.ErrStopped
 	// ErrNotLeader is returned when an operation can't be completed on a
 	// follower or candidate node
 	ErrNotLeader = errors.New("raft: node is not the leader")
@@ -31,7 +31,7 @@ var (
 func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 	cfg := newConfig()
 	nh, _ := transport.Proto(proto).Get()
-	mux := daemon.NewMux()
+	mux := raftengine.NewMux()
 
 	router := &router{
 		ctrls: make(map[uint64]transport.Controller),
@@ -46,7 +46,7 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 }
 
 type NodeGroup struct {
-	mux     daemon.Mux
+	mux     raftengine.Mux
 	handler transport.Handler
 	router  *router
 }
@@ -60,7 +60,7 @@ func (ng *NodeGroup) Start() {
 }
 
 func (ng *NodeGroup) Add(id uint64, n *Node) bool {
-	if _, err := n.daemon.Status(); err == nil {
+	if _, err := n.engine.Status(); err == nil {
 		return false
 	}
 	n.cfg.groupID = id
@@ -83,14 +83,14 @@ type Node struct {
 	dial    transport.Dial
 	pool    membership.Pool
 	storage storage.Storage
-	daemon  daemon.Daemon
+	engine  raftengine.Engine
 	cfg     *config
 	// exec pre conditions, its used by tests.
 	exec func(fns ...func(c *Node) error) error
 }
 
 func (n *Node) Shutdown(ctx context.Context) error {
-	return n.daemon.Shutdown(ctx)
+	return n.engine.Shutdown(ctx)
 }
 
 func (n *Node) Handler() etransport.Handler {
@@ -108,7 +108,7 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 		return err
 	}
 
-	return n.daemon.LinearizableRead(ctx)
+	return n.engine.LinearizableRead(ctx)
 }
 
 func (n *Node) Snapshot() (io.ReadCloser, error) {
@@ -120,7 +120,7 @@ func (n *Node) Snapshot() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	snap, err := n.daemon.CreateSnapshot()
+	snap, err := n.engine.CreateSnapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 		return err
 	}
 
-	return n.daemon.TransferLeadership(ctx, id)
+	return n.engine.TransferLeadership(ctx, id)
 }
 
 func (n *Node) StepDown(ctx context.Context) error {
@@ -178,13 +178,13 @@ func (n *Node) StepDown(ctx context.Context) error {
 		return errors.New("raft: failed to find longest active member")
 	}
 
-	return n.daemon.TransferLeadership(ctx, membs[0].ID())
+	return n.engine.TransferLeadership(ctx, membs[0].ID())
 }
 
 func (n *Node) Start(opts ...StartOption) error {
 	cfg := new(startConfig)
 	cfg.apply(opts...)
-	return n.daemon.Start(cfg.addr, cfg.operators...)
+	return n.engine.Start(cfg.addr, cfg.operators...)
 }
 
 func (n *Node) Leave(ctx context.Context) error {
@@ -207,7 +207,7 @@ func (n *Node) Replicate(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	return n.daemon.ProposeReplicate(ctx, data)
+	return n.engine.ProposeReplicate(ctx, data)
 }
 
 func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
@@ -229,7 +229,7 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 	mem, _ := n.GetMemebr(raw.ID)
 	raw.Type = mem.Type()
 
-	return n.daemon.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
+	return n.engine.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
 }
 
 func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
@@ -252,7 +252,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 	raw := mem.Raw()
 	raw.Type = raftpb.RemovedMember
 
-	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
+	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
 }
 
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
@@ -279,7 +279,7 @@ func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 		cct = etcdraftpb.ConfChangeAddLearnerNode
 	}
 
-	return n.daemon.ProposeConfChange(ctx, raw, cct)
+	return n.engine.ProposeConfChange(ctx, raw, cct)
 }
 
 func (n *Node) PromoteMember(ctx context.Context, id uint64) error {
@@ -307,7 +307,7 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 	raw := mem.Raw()
 	(&raw).Type = LearnerMember
 
-	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
+	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
 }
 
 func (n *Node) GetMemebr(id uint64) (Member, bool) {
@@ -329,12 +329,12 @@ func (n *Node) Members() []Member {
 }
 
 func (n *Node) Whoami() uint64 {
-	s, _ := n.daemon.Status()
+	s, _ := n.engine.Status()
 	return s.ID
 }
 
 func (n *Node) Leader() uint64 {
-	s, _ := n.daemon.Status()
+	s, _ := n.engine.Status()
 	return s.Lead
 }
 
@@ -366,7 +366,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		return err
 	}
 
-	rs, err := n.daemon.Status()
+	rs, err := n.engine.Status()
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 	// leader may lost during forwarding,
 	// if there is no progress and promotion have been forwarded to this node.
 	if rs.Progress == nil && forwarded {
-		return daemon.ErrNoLeader
+		return raftengine.ErrNoLeader
 	}
 
 	mem, _ := n.GetMemebr(id)
@@ -384,7 +384,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 		lmem, ok := n.GetMemebr(rs.Lead)
 		// leader lost, because rs.Lead = None.
 		if !ok {
-			return daemon.ErrNoLeader
+			return raftengine.ErrNoLeader
 		}
 
 		client, err := n.dial(ctx, lmem.Address())
@@ -405,7 +405,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 
 	(&raw).Type = VoterMember
 
-	return n.daemon.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
+	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
 }
 
 func joined() func(c *Node) error {
@@ -496,7 +496,7 @@ func idInUse(id uint64) func(c *Node) error {
 func noLeader() func(c *Node) error {
 	return func(c *Node) error {
 		if c.Leader() == None {
-			return daemon.ErrNoLeader
+			return raftengine.ErrNoLeader
 		}
 		return nil
 	}

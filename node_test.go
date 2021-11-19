@@ -8,8 +8,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raftkit/internal/membership"
-	daemonmock "github.com/shaj13/raftkit/internal/mocks/daemon"
 	membershipmock "github.com/shaj13/raftkit/internal/mocks/membership"
+	raftenginemock "github.com/shaj13/raftkit/internal/mocks/raftengine"
 	storagemock "github.com/shaj13/raftkit/internal/mocks/storage"
 	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
@@ -23,8 +23,8 @@ import (
 func TestNodePreConditions(t *testing.T) {
 	// the tests aims to verify that all node method calls the selected pre conditions and in order.
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
 	ctx := context.TODO()
 
 	table := []struct {
@@ -148,7 +148,7 @@ func TestNodePreConditions(t *testing.T) {
 		terr := fmt.Errorf("TestNodePreConditions")
 		got := []func(c *Node) error{}
 		node := new(Node)
-		node.daemon = daemon
+		node.engine = eng
 		node.exec = func(fns ...func(c *Node) error) error {
 			got = fns
 			return terr
@@ -195,21 +195,21 @@ func TestNodeHandler(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Shutdown(gomock.Any())
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Shutdown(gomock.Any())
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	err := n.Shutdown(context.TODO())
 	require.NoError(t, err)
 }
 
 func TestNodeLinearizableRead(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().LinearizableRead(gomock.Any()).Return(nil)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().LinearizableRead(gomock.Any()).Return(nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.exec = testPreCond
 	err := n.LinearizableRead(context.TODO())
 	require.NoError(t, err)
@@ -217,16 +217,16 @@ func TestNodeLinearizableRead(t *testing.T) {
 
 func TestNodeSnapshot(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
+	eng := raftenginemock.NewMockEngine(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
 	shotter := storagemock.NewMockSnapshotter(ctrl)
 
-	daemon.EXPECT().CreateSnapshot().Return(etcdraftpb.Snapshot{}, nil)
+	eng.EXPECT().CreateSnapshot().Return(etcdraftpb.Snapshot{}, nil)
 	stg.EXPECT().Snapshotter().Return(shotter)
 	shotter.EXPECT().Reader(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.exec = testPreCond
 	n.storage = stg
 	_, err := n.Snapshot()
@@ -236,11 +236,11 @@ func TestNodeSnapshot(t *testing.T) {
 func TestNodeTransferLeadership(t *testing.T) {
 	id := uint64(10)
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(id)).Return(nil)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(id)).Return(nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.exec = testPreCond
 	err := n.TransferLeadership(context.TODO(), id)
 	require.NoError(t, err)
@@ -248,7 +248,7 @@ func TestNodeTransferLeadership(t *testing.T) {
 
 func TestNodeStepDown(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
+	eng := raftenginemock.NewMockEngine(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
 	m2 := membershipmock.NewMockMember(ctrl)
@@ -262,12 +262,12 @@ func TestNodeStepDown(t *testing.T) {
 	}
 
 	pool.EXPECT().Members().Return([]membership.Member{m1, m2})
-	daemon.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
-	daemon.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(uint64(1)))
+	eng.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
+	eng.EXPECT().TransferLeadership(gomock.Any(), gomock.Eq(uint64(1)))
 
 	n := new(Node)
 	n.exec = testPreCond
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 
 	err := n.StepDown(context.TODO())
@@ -283,15 +283,15 @@ func TestNodeUpdateMember(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	m1.EXPECT().Type().Return(LearnerMember)
 	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
 
 	raw := &RawMember{}
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 	n.exec = testPreCond
 	err := n.UpdateMember(context.TODO(), raw)
@@ -301,12 +301,12 @@ func TestNodeUpdateMember(t *testing.T) {
 
 func TestNodeReplicate(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().ProposeReplicate(gomock.Any(), gomock.Any()).Return(nil)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().ProposeReplicate(gomock.Any(), gomock.Any()).Return(nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.exec = testPreCond
 	err := n.Replicate(context.TODO(), nil)
 	require.NoError(t, err)
@@ -317,20 +317,20 @@ func TestNodeRemoveMember(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.
 		EXPECT().
 		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
 			raw = m
 			return nil
 		})
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	m1.EXPECT().Raw().Return(RawMember{})
 	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
 
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 	n.exec = testPreCond
 	err := n.RemoveMember(context.TODO(), 0)
@@ -343,16 +343,16 @@ func TestNodeAddMember(t *testing.T) {
 	raw := &raftpb.Member{Type: LearnerMember}
 	ctrl := gomock.NewController(t)
 	pool := membershipmock.NewMockPool(ctrl)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.
 		EXPECT().
 		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddLearnerNode)).
 		Return(nil)
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	pool.EXPECT().NextID().Return(id)
 
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 	n.exec = testPreCond
 	err := n.AddMember(context.TODO(), raw)
@@ -365,20 +365,20 @@ func TestNodeDemoteMember(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.
 		EXPECT().
 		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
 			raw = m
 			return nil
 		})
-	daemon.EXPECT().Status().Return(raft.Status{}, nil)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	m1.EXPECT().Raw().Return(RawMember{})
 	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
 
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 	n.exec = testPreCond
 	err := n.DemoteMember(context.TODO(), 0)
@@ -405,19 +405,19 @@ func TestNNodeLeader(t *testing.T) {
 		},
 	}
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(st, nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(st, nil)
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	require.Equal(t, st.Lead, n.Leader())
 }
 
 func TestNodeStart(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Start(gomock.Any(), gomock.Any()).Return(nil)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Start(gomock.Any(), gomock.Any()).Return(nil)
 	n := new(Node)
-	n.daemon = daemon
+	n.engine = eng
 	err := n.Start()
 	require.NoError(t, err)
 }
@@ -425,16 +425,16 @@ func TestNodeStart(t *testing.T) {
 func TestNodePromoteMember(t *testing.T) {
 	ctx := context.TODO()
 	ctrl := gomock.NewController(t)
-	daemon := daemonmock.NewMockDaemon(ctrl)
+	eng := raftenginemock.NewMockEngine(ctrl)
 	pool := membershipmock.NewMockPool(ctrl)
 	mem := membershipmock.NewMockMember(ctrl)
 	client := transportmock.NewMockClient(ctrl)
 	n := new(Node)
 	n.exec = testPreCond
-	n.daemon = daemon
+	n.engine = eng
 	n.pool = pool
 
-	daemon.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
+	eng.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
 	pool.EXPECT().Get(gomock.Any()).Return(mem, true).AnyTimes()
 	mem.EXPECT().Raw().Return(RawMember{}).AnyTimes()
 	mem.EXPECT().Address().Return("").AnyTimes()
@@ -470,9 +470,9 @@ func TestNodePromoteMember(t *testing.T) {
 			10: {Match: 100},
 		},
 	}
-	daemon = daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(st, nil).AnyTimes()
-	n.daemon = daemon
+	eng = raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(st, nil).AnyTimes()
+	n.engine = eng
 	err = n.promoteMember(ctx, 1, false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not synced with the leader yet")
@@ -487,10 +487,10 @@ func TestNodePromoteMember(t *testing.T) {
 			1:  {Match: 90},
 		},
 	}
-	daemon = daemonmock.NewMockDaemon(ctrl)
-	daemon.EXPECT().Status().Return(st, nil).AnyTimes()
-	daemon.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-	n.daemon = daemon
+	eng = raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(st, nil).AnyTimes()
+	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	n.engine = eng
 	err = n.promoteMember(ctx, 1, false)
 	require.NoError(t, err)
 }
@@ -531,9 +531,9 @@ func TestPreConditions(t *testing.T) {
 			contains: nilErr.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
+				n.engine = eng
 				n.cfg = newConfig()
 			},
 		},
@@ -542,13 +542,13 @@ func TestPreConditions(t *testing.T) {
 			contains: ErrNotLeader.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{
 					BasicStatus: raft.BasicStatus{
 						ID: 12,
 					},
 				}, nil).MaxTimes(2)
-				n.daemon = daemon
+				n.engine = eng
 				n.cfg = newConfig(WithDisableProposalForwarding())
 			},
 		},
@@ -557,9 +557,9 @@ func TestPreConditions(t *testing.T) {
 			contains: "no elected cluster leader",
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				n.engine = eng
 			},
 		},
 		{
@@ -567,13 +567,13 @@ func TestPreConditions(t *testing.T) {
 			contains: nilErr.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{
 					BasicStatus: raft.BasicStatus{
 						SoftState: raft.SoftState{Lead: 10},
 					},
 				}, nil)
-				n.daemon = daemon
+				n.engine = eng
 			},
 		},
 		{
@@ -601,9 +601,9 @@ func TestPreConditions(t *testing.T) {
 			contains: nilErr.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				n.engine = eng
 			},
 		},
 		{
@@ -611,9 +611,9 @@ func TestPreConditions(t *testing.T) {
 			contains: "is the leader",
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				n.engine = eng
 			},
 		},
 		{
@@ -621,13 +621,13 @@ func TestPreConditions(t *testing.T) {
 			contains: ErrNotLeader.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{
 					BasicStatus: raft.BasicStatus{
 						ID: 15,
 					},
 				}, nil).MaxTimes(2)
-				n.daemon = daemon
+				n.engine = eng
 			},
 		},
 		{
@@ -635,9 +635,9 @@ func TestPreConditions(t *testing.T) {
 			contains: nilErr.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil).MaxTimes(2)
+				n.engine = eng
 			},
 		},
 		{
@@ -739,9 +739,9 @@ func TestPreConditions(t *testing.T) {
 			contains: "not yet part of a raft",
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{}, nil)
-				n.daemon = daemon
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{}, nil)
+				n.engine = eng
 			},
 		},
 		{
@@ -749,13 +749,13 @@ func TestPreConditions(t *testing.T) {
 			contains: nilErr.Error(),
 			expect: func(n *Node) {
 				ctrl := gomock.NewController(t)
-				daemon := daemonmock.NewMockDaemon(ctrl)
-				daemon.EXPECT().Status().Return(raft.Status{
+				eng := raftenginemock.NewMockEngine(ctrl)
+				eng.EXPECT().Status().Return(raft.Status{
 					BasicStatus: raft.BasicStatus{
 						ID: 1,
 					},
 				}, nil)
-				n.daemon = daemon
+				n.engine = eng
 			},
 		},
 	}

@@ -1,4 +1,4 @@
-package daemon
+package raftengine
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-//go:generate mockgen -package daemon  -source internal/daemon/types.go -destination internal/daemon/types_test.go
+//go:generate mockgen -package raftengine  -source internal/raftengine/types.go -destination internal/raftengine/types_test.go
 
 // Operator is a bootstrapper func that determine the action that is to be performed or considered.
 type Operator interface {
@@ -69,5 +69,5 @@ type operatorsState struct {
 	hst              etcdraftpb.HardState
 	ents             []etcdraftpb.Entry
 	sf               *storage.Snapshot
-	daemon           *daemon
+	daemon           *engine
 }

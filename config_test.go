@@ -142,14 +142,14 @@ func TestStartConfig(t *testing.T) {
 		expected string
 		opt      StartOption
 	}{
-		{expected: "daemon.join", opt: WithJoin("", 0)},
-		{expected: "daemon.forceJoin", opt: WithForceJoin("", 0)},
-		{expected: "daemon.initCluster", opt: WithInitCluster()},
-		{expected: "daemon.forceNewCluster", opt: WithForceNewCluster()},
-		{expected: "daemon.restart", opt: WithRestart()},
-		{expected: "*daemon.fallback", opt: WithFallback()},
-		{expected: "daemon.restore", opt: WithRestore("")},
-		{expected: "daemon.members", opt: WithMembers()},
+		{expected: "raftengine.join", opt: WithJoin("", 0)},
+		{expected: "raftengine.forceJoin", opt: WithForceJoin("", 0)},
+		{expected: "raftengine.initCluster", opt: WithInitCluster()},
+		{expected: "raftengine.forceNewCluster", opt: WithForceNewCluster()},
+		{expected: "raftengine.restart", opt: WithRestart()},
+		{expected: "*raftengine.fallback", opt: WithFallback()},
+		{expected: "raftengine.restore", opt: WithRestore("")},
+		{expected: "raftengine.members", opt: WithMembers()},
 	}
 
 	for _, tt := range table {

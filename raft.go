@@ -1,8 +1,8 @@
 package raft
 
 import (
-	"github.com/shaj13/raftkit/internal/daemon"
 	"github.com/shaj13/raftkit/internal/membership"
+	"github.com/shaj13/raftkit/internal/raftengine"
 	"github.com/shaj13/raftkit/internal/storage/disk"
 	itransport "github.com/shaj13/raftkit/internal/transport"
 	"github.com/shaj13/raftkit/transport"
@@ -21,18 +21,18 @@ func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
 	cfg.storage = disk.New(cfg)
 	cfg.dial = dialer(cfg)
 	cfg.pool = membership.New(cfg)
-	cfg.daemon = daemon.New(cfg)
+	cfg.engine = raftengine.New(cfg)
 
 	node := new(Node)
 	node.pool = cfg.pool
-	node.daemon = cfg.daemon
+	node.engine = cfg.engine
 	node.storage = cfg.storage
 	node.dial = cfg.dial
 	node.cfg = cfg
 	node.handler = newHandler(cfg)
 
 	cfg.controller.(*controller).node = node
-	cfg.controller.(*controller).daemon = cfg.daemon
+	cfg.controller.(*controller).engine = cfg.engine
 	cfg.controller.(*controller).pool = cfg.pool
 	cfg.controller.(*controller).storage = cfg.storage
 
