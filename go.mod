@@ -1,4 +1,4 @@
-module github.com/shaj13/raftkit
+module github.com/shaj13/raft
 
 go 1.15
 
