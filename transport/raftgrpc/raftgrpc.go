@@ -1,12 +1,12 @@
-package grpc
+package raftgrpc
 
 import (
 	"context"
 
 	"github.com/shaj13/raftkit/internal/log"
 	itransport "github.com/shaj13/raftkit/internal/transport"
-	raftgrpc "github.com/shaj13/raftkit/internal/transport/grpc"
-	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
+	"github.com/shaj13/raftkit/internal/transport/raftgrpc"
+	"github.com/shaj13/raftkit/internal/transport/raftgrpc/pb"
 	"github.com/shaj13/raftkit/transport"
 	"google.golang.org/grpc"
 )

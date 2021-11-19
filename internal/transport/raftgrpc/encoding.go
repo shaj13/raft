@@ -1,11 +1,11 @@
-package grpc
+package raftgrpc
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 
-	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
+	"github.com/shaj13/raftkit/internal/transport/raftgrpc/pb"
 )
 
 func newEncoder(r io.Reader) *encoder {

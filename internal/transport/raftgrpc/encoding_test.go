@@ -1,4 +1,4 @@
-package grpc
+package raftgrpc
 
 import (
 	"bufio"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
+	"github.com/shaj13/raftkit/internal/transport/raftgrpc/pb"
 	"github.com/stretchr/testify/assert"
 )
 

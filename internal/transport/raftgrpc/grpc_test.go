@@ -1,4 +1,4 @@
-package grpc
+package raftgrpc
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
 	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/transport/grpc/pb"
+	"github.com/shaj13/raftkit/internal/transport/raftgrpc/pb"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
