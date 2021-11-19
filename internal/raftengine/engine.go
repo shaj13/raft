@@ -136,21 +136,7 @@ func (eng *engine) LinearizableRead(ctx context.Context) error {
 	}
 
 	// wait until leader index applied into this node.
-	sub := eng.msgbus.SubscribeOnce(index)
-	defer sub.Unsubscribe()
-
-	select {
-	case v := <-sub.Chan():
-		if v != nil {
-			return v.(error)
-		}
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-eng.ctx.Done():
-		return ErrStopped
-	}
-
-	return nil
+	return eng.wait(ctx, index)
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
@@ -325,20 +311,7 @@ func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 	}
 
 	// wait for changes to be done
-	sub := eng.msgbus.SubscribeOnce(r.CID)
-	defer sub.Unsubscribe()
-
-	select {
-	case v := <-sub.Chan():
-		if v != nil {
-			return v.(error)
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-eng.ctx.Done():
-		return ErrStopped
-	}
+	return eng.wait(ctx, r.CID)
 }
 
 // ProposeConfChange proposes a configuration change to the cluster pool members.
@@ -356,20 +329,7 @@ func (eng *engine) ProposeConfChange(ctx context.Context, m *raftpb.Member, cct 
 	}
 
 	// wait for changes to be done
-	sub := eng.msgbus.SubscribeOnce(id)
-	defer sub.Unsubscribe()
-
-	select {
-	case v := <-sub.Chan():
-		if v != nil {
-			return v.(error)
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-eng.ctx.Done():
-		return ErrStopped
-	}
+	return eng.wait(ctx, id)
 }
 
 // CreateSnapshot begin a snapshot and return snap metadata.
@@ -843,6 +803,23 @@ func (eng *engine) createSnapshot() error {
 
 	log.Infof("raft.engine: compacted log at index %d", compactIndex)
 	return nil
+}
+
+func (eng *engine) wait(ctx context.Context, id uint64) error {
+	sub := eng.msgbus.SubscribeOnce(id)
+	defer sub.Unsubscribe()
+
+	select {
+	case v := <-sub.Chan():
+		if v != nil {
+			return v.(error)
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-eng.ctx.Done():
+		return ErrStopped
+	}
 }
 
 func nopClose(fn func()) func() error {
