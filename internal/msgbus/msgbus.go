@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raftkit/internal/atomic"
+	"github.com/shaj13/raft/internal/atomic"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 )
 

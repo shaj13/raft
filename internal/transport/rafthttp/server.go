@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/transport"
+	"github.com/shaj13/raft/internal/log"
+	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/internal/transport"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )

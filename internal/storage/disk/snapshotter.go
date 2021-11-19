@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raft/internal/storage"
 )
 
 var _ storage.Snapshotter = &snapshotter{}

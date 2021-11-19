@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	transportmock "github.com/shaj13/raftkit/internal/mocks/transport"
-	"github.com/shaj13/raftkit/internal/raftpb"
+	transportmock "github.com/shaj13/raft/internal/mocks/transport"
+	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"

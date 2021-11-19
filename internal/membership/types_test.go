@@ -10,8 +10,8 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	raftpb "github.com/shaj13/raftkit/internal/raftpb"
-	transport "github.com/shaj13/raftkit/internal/transport"
+	raftpb "github.com/shaj13/raft/internal/raftpb"
+	transport "github.com/shaj13/raft/internal/transport"
 	v3 "go.etcd.io/etcd/raft/v3"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )

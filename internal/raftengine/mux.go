@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raft/internal/log"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )

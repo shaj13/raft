@@ -1,6 +1,6 @@
 package transport
 
-import "github.com/shaj13/raftkit/internal/transport"
+import "github.com/shaj13/raft/internal/transport"
 
 const (
 	GRPC Proto = Proto(transport.GRPC)

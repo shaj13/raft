@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
+	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal/walpb"

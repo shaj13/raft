@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shaj13/raftkit/internal/log"
+	"github.com/shaj13/raft/internal/log"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 )
 

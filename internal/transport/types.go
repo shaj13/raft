@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/shaj13/raftkit/internal/raftpb"
+	"github.com/shaj13/raft/internal/raftpb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

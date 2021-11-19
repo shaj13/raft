@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/transport"
-	"github.com/shaj13/raftkit/internal/transport/raftgrpc/pb"
+	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
