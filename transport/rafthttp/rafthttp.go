@@ -1,4 +1,4 @@
-package http
+package rafthttp
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/shaj13/raftkit/internal/log"
 	itransport "github.com/shaj13/raftkit/internal/transport"
-	rafthttp "github.com/shaj13/raftkit/internal/transport/http"
+	"github.com/shaj13/raftkit/internal/transport/rafthttp"
 	"github.com/shaj13/raftkit/transport"
 )
 
@@ -35,10 +35,10 @@ func (fn optionFunc) apply(c *config) {
 	fn(c)
 }
 
-// WithTransport optionally specifies an http.RoundTripper for the client
+// WithRoundTripper optionally specifies an http.RoundTripper for the client
 // to use when it makes a request.
 // Default: http.DefaultTransport.
-func WithTransport(tr http.RoundTripper) Option {
+func WithRoundTripper(tr http.RoundTripper) Option {
 	return optionFunc(func(c *config) {
 		c.tr = func(c context.Context) http.RoundTripper {
 			return tr
