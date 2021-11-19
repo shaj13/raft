@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	raft "github.com/shaj13/raftkit"
+	raft "github.com/shaj13/raft"
 	"github.com/stretchr/testify/require"
 )
 
