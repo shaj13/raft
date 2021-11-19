@@ -8,13 +8,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/shaj13/raftkit/internal/log"
-	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/raftengine"
-	"github.com/shaj13/raftkit/internal/raftpb"
-	"github.com/shaj13/raftkit/internal/storage"
-	"github.com/shaj13/raftkit/internal/transport"
-	etransport "github.com/shaj13/raftkit/transport"
+	"github.com/shaj13/raft/internal/log"
+	"github.com/shaj13/raft/internal/membership"
+	"github.com/shaj13/raft/internal/raftengine"
+	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/internal/transport"
+	etransport "github.com/shaj13/raft/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

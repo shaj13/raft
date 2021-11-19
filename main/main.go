@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	raft "github.com/shaj13/raftkit"
-	"github.com/shaj13/raftkit/transport"
-	raftgrpc "github.com/shaj13/raftkit/transport/grpc"
+	raft "github.com/shaj13/raft"
+	"github.com/shaj13/raft/transport"
+	"github.com/shaj13/raft/transport/raftgrpc"
 	"google.golang.org/grpc"
 	// "google.golang.org/grpc"
 )

@@ -1,11 +1,11 @@
 package raft
 
 import (
-	"github.com/shaj13/raftkit/internal/membership"
-	"github.com/shaj13/raftkit/internal/raftengine"
-	"github.com/shaj13/raftkit/internal/storage/disk"
-	itransport "github.com/shaj13/raftkit/internal/transport"
-	"github.com/shaj13/raftkit/transport"
+	"github.com/shaj13/raft/internal/membership"
+	"github.com/shaj13/raft/internal/raftengine"
+	"github.com/shaj13/raft/internal/storage/disk"
+	itransport "github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/transport"
 )
 
 func New(fsm StateMachine, proto transport.Proto, opts ...Option) *Node {
