@@ -281,6 +281,7 @@ func (s setup) after(ost *operatorsState) (err error) {
 
 	cfg := ost.daemon.cfg.RaftConfig()
 	cfg.ID = local.ID
+	cfg.Logger = nodeLogger{ost.daemon.cfg.Logger()}
 	cfg.Storage = ost.daemon.cache
 	ost.cfg = cfg
 	ost.local = local

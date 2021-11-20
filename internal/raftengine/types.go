@@ -10,6 +10,7 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -36,6 +37,7 @@ type Config interface {
 	Context() context.Context
 	DrainTimeout() time.Duration
 	GroupID() uint64
+	Logger() raftlog.Logger
 }
 
 // StateMachine define an interface that must be implemented by
@@ -70,4 +72,16 @@ type operatorsState struct {
 	ents             []etcdraftpb.Entry
 	sf               *storage.Snapshot
 	daemon           *engine
+}
+
+type nodeLogger struct {
+	raftlog.Logger
+}
+
+func (nl nodeLogger) Debug(v ...interface{}) {
+	nl.V(2).Info(v...)
+}
+
+func (nl nodeLogger) Debugf(format string, v ...interface{}) {
+	nl.V(2).Infof(format, v...)
 }
