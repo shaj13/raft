@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 )
@@ -23,6 +24,12 @@ func TestConfig(t *testing.T) {
 			expected: raft.ReadOnlySafe,
 			opt:      WithLinearizableReadSafe(),
 			value:    func(c *config) interface{} { return c.rcfg.ReadOnlyOption },
+		},
+		{
+			defaults: raftlog.DefaultLogger,
+			expected: nil,
+			opt:      WithLogger(nil),
+			value:    func(c *config) interface{} { return c.logger },
 		},
 		{
 			defaults: raft.ReadOnlySafe,

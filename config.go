@@ -11,22 +11,9 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
 )
-
-// EnableDebug call the EnableDebug method on logger, if logger
-// type contains an EnableDebug method call it to logs messages at debug level.
-// Otherwise, EnableDebug is a noop func.
-//
-// NOTE: this function must only be called during initialization time (i.e. in
-// an init() function), and is not thread-safe.
-var EnableDebug = log.EnableDebug
-
-// SetLogger sets logger that is used to generates lines of output.
-//
-// NOTE: this function must only be called during initialization time (i.e. in
-// an init() function), and is not thread-safe.
-var _ = log.SetLogger
 
 // None is a placeholder node ID used to identify non-existence.
 const None = raft.None
@@ -49,10 +36,6 @@ type MemberType = raftpb.MemberType
 
 // RawMember represents a raft cluster member and holds its metadata.
 type RawMember = raftpb.Member
-
-// Logger represents an active logging object that generates lines of
-// output to an io.Writer.
-type Logger = log.Logger
 
 // StateMachine define an interface that must be implemented by
 // application to make use of the raft replicated log.
@@ -288,6 +271,15 @@ func WithContext(ctx context.Context) Option {
 	})
 }
 
+// WithLogger sets logger that is used to generates lines of output.
+//
+// Default Value: raftlog.DefaultLogger.
+func WithLogger(lg raftlog.Logger) Option {
+	return optionFunc(func(c *config) {
+		c.logger = lg
+	})
+}
+
 // WithJoin send rpc request to join an existing cluster.
 func WithJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
@@ -424,6 +416,11 @@ type config struct {
 	engine           raftengine.Engine
 	mux              raftengine.Mux
 	fsm              StateMachine
+	logger           raftlog.Logger
+}
+
+func (c *config) Logger() raftlog.Logger {
+	return c.logger
 }
 
 func (c *config) Context() context.Context {
@@ -509,6 +506,7 @@ func newConfig(opts ...Option) *config {
 		drainTimeOut:     time.Second * 10,
 		maxSnapshotFiles: 5,
 		snapInterval:     1000,
+		logger:           raftlog.DefaultLogger,
 		statedir:         os.TempDir(),
 	}
 
