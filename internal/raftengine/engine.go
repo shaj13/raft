@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/shaj13/raft/internal/atomic"
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/membership"
 	"github.com/shaj13/raft/internal/msgbus"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -52,6 +52,7 @@ func New(cfg Config) Engine {
 	d.started = atomic.NewBool()
 	d.appliedIndex = atomic.NewUint64()
 	d.snapIndex = atomic.NewUint64()
+	d.logger = cfg.Logger()
 	return d
 }
 
@@ -83,6 +84,7 @@ type engine struct {
 	msgc         chan etcdraftpb.Message
 	snapshotc    chan chan error
 	confState    *etcdraftpb.ConfState
+	logger       raftlog.Logger
 }
 
 func (eng *engine) LinearizableRead(ctx context.Context) error {
@@ -161,13 +163,13 @@ func (eng *engine) ReportShutdown(id uint64) {
 		return
 	}
 
-	log.Info("raft.engine: this member removed from the cluster! shutting down.")
+	eng.logger.Info("raft.engine: this member removed from the cluster! shutting down.")
 
 	ctx, cancel := context.WithTimeout(context.Background(), eng.cfg.DrainTimeout())
 	defer cancel()
 
 	if err := eng.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+		eng.logger.Fatal(err)
 	}
 }
 
@@ -263,7 +265,7 @@ func (eng *engine) TransferLeadership(ctx context.Context, transferee uint64) er
 	eng.propwg.Add(1)
 	defer eng.propwg.Done()
 
-	log.Infof("raft.engine: start transfer leadership %x -> %x", eng.node.Status().Lead, transferee)
+	eng.logger.Infof("raft.engine: start transfer leadership %x -> %x", eng.node.Status().Lead, transferee)
 
 	eng.node.TransferLeadership(ctx, eng.node.Status().Lead, transferee)
 	ticker := time.NewTicker(eng.cfg.TickInterval() / 10)
@@ -285,7 +287,7 @@ func (eng *engine) TransferLeadership(ctx context.Context, transferee uint64) er
 	return nil
 }
 
-// ProposeReplicate proposes to replicate the data to be appended to the raft log.
+// ProposeReplicate proposes to replicate the data to be appended to the raft eng.logger.
 func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 	if eng.started.False() {
 		return ErrStopped
@@ -304,7 +306,7 @@ func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	log.Debugf("raft.engine: propose replicate data, change id => %d", r.CID)
+	eng.logger.V(1).Infof("raft.engine: propose replicate data, change id => %d", r.CID)
 
 	if err := eng.node.Propose(ctx, buf); err != nil {
 		return err
@@ -446,7 +448,7 @@ func (eng *engine) proposeConfChange(ctx context.Context, m *raftpb.Member, t et
 		Context: buf,
 	}
 
-	log.Debugf("raft.engine: propose conf change, change id => %d", cc.ID)
+	eng.logger.V(1).Infof("raft.engine: propose conf change, change id => %d", cc.ID)
 	return cc.ID, eng.node.ProposeConfChange(ctx, cc)
 }
 
@@ -526,7 +528,7 @@ func (eng *engine) publishReplicate(ent etcdraftpb.Entry) {
 	defer func() {
 		eng.msgbus.Broadcast(r.CID, err)
 		if err != nil {
-			log.Warnf(
+			eng.logger.Warning(
 				"raft.engine: publishing replicate data: %v",
 				err,
 			)
@@ -537,7 +539,7 @@ func (eng *engine) publishReplicate(ent etcdraftpb.Entry) {
 		return
 	}
 
-	log.Debugf("raft.engine: publishing replicate data, change id => %d", r.CID)
+	eng.logger.V(1).Infof("raft.engine: publishing replicate data, change id => %d", r.CID)
 
 	eng.fsm.Apply(r.Data)
 }
@@ -550,7 +552,7 @@ func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 	defer func() {
 		eng.msgbus.Broadcast(cc.ID, err)
 		if err != nil {
-			log.Warnf("raft.engine: publishing conf change: %v", err)
+			eng.logger.Warningf("raft.engine: publishing conf change: %v", err)
 		}
 	}()
 
@@ -558,7 +560,7 @@ func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 		return
 	}
 
-	log.Debugf("raft.engine: publishing conf change, change id => %d", cc.ID)
+	eng.logger.V(1).Infof("raft.engine: publishing conf change, change id => %d", cc.ID)
 
 	if len(cc.Context) == 0 {
 		return
@@ -582,7 +584,7 @@ func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 			// to make sure the commit ack sent before closing connection.
 			case <-time.After(eng.cfg.TickInterval() * 2):
 				if err := eng.pool.Remove(mem); err != nil {
-					log.Errorf("raft.engine: removing member %x: %v", mem.ID, err)
+					eng.logger.Errorf("raft.engine: removing member %x: %v", mem.ID, err)
 				}
 			case <-eng.ctx.Done():
 				return
@@ -606,14 +608,14 @@ func (eng *engine) process(c chan etcdraftpb.Message) {
 		}
 
 		if err := eng.node.Step(eng.ctx, m); err != nil {
-			log.Warnf("raft.engine: process raft message: %v", err)
+			eng.logger.Warningf("raft.engine: process raft message: %v", err)
 		}
 	}
 }
 
 func (eng *engine) send(msgs []etcdraftpb.Message) {
 	lg := func(m etcdraftpb.Message, str string) {
-		log.Warnf(
+		eng.logger.Warningf(
 			"raft.engine: sending message %s to member %x: %v",
 			m.Type,
 			m.To,
@@ -683,11 +685,11 @@ func (eng *engine) promotions() {
 	}
 
 	for _, m := range promotions {
-		log.Infof("raft.engine: promoting staging member %x", m.ID)
+		eng.logger.Infof("raft.engine: promoting staging member %x", m.ID)
 		ctx, cancel := context.WithTimeout(eng.ctx, eng.cfg.TickInterval()*5)
 		_, err := eng.proposeConfChange(ctx, &m, etcdraftpb.ConfChangeAddNode)
 		if err != nil {
-			log.Warnf("raft.engine: promoting staging member %x: %v", m.ID, err)
+			eng.logger.Warningf("raft.engine: promoting staging member %x: %v", m.ID, err)
 		}
 		cancel()
 	}
@@ -724,13 +726,13 @@ func (eng *engine) forceSnapshot(msg etcdraftpb.Message) bool {
 		return false
 	}
 
-	log.Debugf("raft.engine: force new snapshot %x it is not in the ConfState", msg.To)
+	eng.logger.V(1).Infof("raft.engine: force new snapshot %x it is not in the ConfState", msg.To)
 
 	// report snapshot failure, to re-send the new snapshot.
 	defer eng.ReportSnapshot(msg.To, raft.SnapshotFailure)
 
 	if err := eng.createSnapshot(); err != nil {
-		log.Warnf("raft.engine: force new snapshot: %v", err)
+		eng.logger.Warningf("raft.engine: force new snapshot: %v", err)
 	}
 
 	return true
@@ -742,7 +744,7 @@ func (eng *engine) maybeCreateSnapshot() {
 	}
 
 	if err := eng.createSnapshot(); err != nil {
-		log.Errorf(
+		eng.logger.Errorf(
 			"raft.engine: creating new snapshot at index %s failed: %v",
 			eng.appliedIndex,
 			err,
@@ -758,7 +760,7 @@ func (eng *engine) createSnapshot() error {
 		return nil
 	}
 
-	log.Infof(
+	eng.logger.Infof(
 		"raft.engine: start snapshot [applied index: %d | last snapshot index: %d]",
 		appliedIndex,
 		snapIndex,
@@ -801,7 +803,7 @@ func (eng *engine) createSnapshot() error {
 		return err
 	}
 
-	log.Infof("raft.engine: compacted log at index %d", compactIndex)
+	eng.logger.Infof("raft.engine: compacted log at index %d", compactIndex)
 	return nil
 }
 
