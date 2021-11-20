@@ -150,7 +150,7 @@ func New(verbosity int, prefix string, writers ...io.Writer) Logger {
 		}
 
 		w := io.MultiWriter(mw...)
-		ll[i] = log.New(w, "", log.LstdFlags)
+		ll[i] = log.New(w, prefix, log.LstdFlags)
 	}
 
 	return &logger{
