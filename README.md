@@ -8,8 +8,7 @@
 - [ ] test forceSnapshot
 - [ ] test node group 
 - [ ] relese snap -> "storage"
-- [ ] move log from internal 
-- [ ] 2 logs one for raft node and one for generale (see grpc)
+- [ ] add more logs.
 
 
 ## Test cases 
