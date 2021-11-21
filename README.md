@@ -14,7 +14,6 @@
 ## Test cases 
 - [ ] sanity check staging member 
 - [ ] test shutdown gracfull and non gracefull (sanity check)
-- [ ] sanity check on node group 
 
 
 
