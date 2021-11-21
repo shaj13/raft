@@ -433,6 +433,7 @@ func TestNodePromoteMember(t *testing.T) {
 	n.exec = testPreCond
 	n.engine = eng
 	n.pool = pool
+	n.cfg = newConfig()
 
 	eng.EXPECT().Status().Return(raft.Status{}, nil).AnyTimes()
 	pool.EXPECT().Get(gomock.Any()).Return(mem, true).AnyTimes()
