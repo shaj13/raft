@@ -3,10 +3,10 @@ package raftgrpc
 import (
 	"context"
 
-	"github.com/shaj13/raft/internal/log"
 	itransport "github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/internal/transport/raftgrpc"
 	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/shaj13/raft/transport"
 	"google.golang.org/grpc"
 )
@@ -80,5 +80,5 @@ func RegisterHandler(s *grpc.Server, h transport.Handler) {
 		return
 	}
 
-	log.Fatalf("raft.grpc: type %T does not implement transport handler", h)
+	raftlog.Fatalf("raft.grpc: type %T does not implement gRPC transport handler", h)
 }

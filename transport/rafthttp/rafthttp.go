@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/shaj13/raft/internal/log"
 	itransport "github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/internal/transport/rafthttp"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/shaj13/raft/transport"
 )
 
@@ -81,6 +81,6 @@ func Handler(h transport.Handler) http.Handler {
 		return h
 	}
 
-	log.Fatalf("raft.http: type %T does not implement transport handler", h)
+	raftlog.Fatalf("raft.http: type %T does not implement http transport handler", h)
 	return nil
 }
