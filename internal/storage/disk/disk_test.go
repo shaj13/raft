@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
@@ -111,7 +112,7 @@ func TestDiskExist(t *testing.T) {
 }
 
 func newTestDisk(dir string) *disk {
-	gc := newGC(context.TODO(), dir, dir, 100)
+	gc := newGC(context.TODO(), raftlog.DefaultLogger, dir, dir, 100)
 	d := new(disk)
 	d.cfg = new(config)
 	d.snapdir = dir
@@ -125,3 +126,4 @@ type config struct{}
 func (config) StateDir() (str string)    { return }
 func (config) MaxSnapshotFiles() (i int) { return }
 func (config) Context() context.Context  { return context.TODO() }
+func (config) Logger() raftlog.Logger    { return raftlog.DefaultLogger }

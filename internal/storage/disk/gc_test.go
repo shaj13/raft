@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,7 +24,7 @@ func TestGCStart(t *testing.T) {
 
 	createTestFiles(dir, files, t)
 
-	gc := newGC(context.Background(), dir, dir, 1)
+	gc := newGC(context.TODO(), raftlog.DefaultLogger, dir, dir, 1)
 	gc.Start()
 	gc.notifyc <- struct{}{}
 	gc.Close()

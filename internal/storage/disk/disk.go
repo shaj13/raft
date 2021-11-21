@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
@@ -20,6 +21,7 @@ type Config interface {
 	StateDir() string
 	MaxSnapshotFiles() int
 	Context() context.Context
+	Logger() raftlog.Logger
 }
 
 // New return new disk storage.
@@ -78,7 +80,7 @@ func (d *disk) SaveEntries(st raftpb.HardState, ents []raftpb.Entry) error {
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
 // Otherwise, it create new wal from given metadata alongside snapshots dir.
 func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
-	gc := newGC(d.cfg.Context(), d.waldir, d.snapdir, d.cfg.MaxSnapshotFiles())
+	gc := newGC(d.cfg.Context(), d.cfg.Logger(), d.waldir, d.snapdir, d.cfg.MaxSnapshotFiles())
 	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}

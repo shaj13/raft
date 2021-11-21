@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shaj13/raft/internal/log"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 )
 
-func newGC(ctx context.Context, wdir, sdir string, retain int) *gc {
+func newGC(ctx context.Context, logger raftlog.Logger, wdir, sdir string, retain int) *gc {
 	gc := new(gc)
 	gc.ctx, gc.cancel = context.WithCancel(ctx)
 	gc.maxsnaps = retain
@@ -26,6 +26,7 @@ type gc struct {
 	notifyc  chan struct{}
 	ctx      context.Context
 	cancel   context.CancelFunc
+	logger   raftlog.Logger
 	maxsnaps int
 	waldir   string
 	snapdir  string
@@ -37,7 +38,7 @@ func (gc *gc) Start() {
 			select {
 			case <-gc.notifyc:
 				if err := gc.purge(); err != nil {
-					log.Warnf("raft/storage: purging oldest snapshots/WALs files: %v", err)
+					gc.logger.Warningf("raft.storage: purging oldest snapshots/WALs files: %v", err)
 				}
 			case <-gc.ctx.Done():
 				close(gc.done)
