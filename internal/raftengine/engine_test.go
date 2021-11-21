@@ -15,6 +15,7 @@ import (
 	"github.com/shaj13/raft/internal/msgbus"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -30,6 +31,7 @@ func TestNew(t *testing.T) {
 	cfg.EXPECT().Storage()
 	cfg.EXPECT().Pool()
 	cfg.EXPECT().StateMachine()
+	cfg.EXPECT().Logger()
 
 	eng := New(cfg)
 	require.NotNil(t, eng)
@@ -45,6 +47,7 @@ func TestStart(t *testing.T) {
 
 	eng := &engine{
 		node:         node,
+		logger:       raftlog.DefaultLogger,
 		storage:      stg,
 		pool:         pool,
 		cfg:          cfg,
@@ -61,6 +64,7 @@ func TestStart(t *testing.T) {
 	defer eng.Shutdown(ctx)
 
 	cfg.EXPECT().Context().Return(ctx).MaxTimes(2)
+	cfg.EXPECT().Logger().Return(raftlog.DefaultLogger).MaxTimes(2)
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{}).MaxTimes(2)
 	cfg.EXPECT().TickInterval().Return(time.Second).MaxTimes(2)
 	cfg.EXPECT().DrainTimeout().Return(time.Nanosecond).MaxTimes(2)
@@ -89,6 +93,7 @@ func TestReportUnreachable(t *testing.T) {
 	node := NewMockNode(ctrl)
 	node.EXPECT().ReportUnreachable(gomock.Eq(id)).MaxTimes(1)
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		node:    node,
 		started: atomic.NewBool(),
 	}
@@ -134,6 +139,7 @@ func TestReportShutdown(t *testing.T) {
 
 	eng := engine{
 		node:      node,
+		logger:    raftlog.DefaultLogger,
 		started:   atomic.NewBool(),
 		msgbus:    msgbus.New(),
 		storage:   stg,
@@ -154,6 +160,7 @@ func TestPush(t *testing.T) {
 		msgc:    make(chan etcdraftpb.Message, 1),
 		ctx:     context.TODO(),
 		started: atomic.NewBool(),
+		logger:  raftlog.DefaultLogger,
 	}
 
 	// round #1 it return err when daemon not started
@@ -201,6 +208,7 @@ func TestProposeReplicate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    node,
 		started: atomic.NewBool(),
@@ -233,6 +241,7 @@ func TestProposeConfChange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		idgen:   idutil.NewGenerator(1, time.Now()),
 		node:    node,
 		started: atomic.NewBool(),
@@ -269,6 +278,7 @@ func TestTransferLeadership(t *testing.T) {
 	cfg.EXPECT().TickInterval().Return(time.Second).AnyTimes()
 
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		started: atomic.NewBool(),
 		node:    node,
 		cfg:     cfg,
@@ -317,6 +327,7 @@ func TestLinearizableRead(t *testing.T) {
 	cfg := NewMockConfig(ctrl)
 	node := NewMockNode(ctrl)
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		cfg:     cfg,
 		started: atomic.NewBool(),
 		node:    node,
@@ -415,6 +426,7 @@ func TestLocalCreateSnapshot(t *testing.T) {
 	cfg := NewMockConfig(ctrl)
 	cfg.EXPECT().SnapInterval().Return(uint64(1))
 	eng := &engine{
+		logger:       raftlog.DefaultLogger,
 		cfg:          cfg,
 		started:      atomic.NewBool(),
 		appliedIndex: atomic.NewUint64(),
@@ -554,6 +566,7 @@ func TestPublishSnapshot(t *testing.T) {
 	fsm.EXPECT().Restore(gomock.Any()).Return(nil)
 
 	eng := &engine{
+		logger:       raftlog.DefaultLogger,
 		cache:        raft.NewMemoryStorage(),
 		storage:      stg,
 		appliedIndex: atomic.NewUint64(),
@@ -583,6 +596,7 @@ func TestPublishReplicate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	fsm := NewMockStateMachine(ctrl)
 	eng := &engine{
+		logger: raftlog.DefaultLogger,
 		fsm:    fsm,
 		msgbus: msgbus.New(),
 	}
@@ -651,6 +665,7 @@ func TestPublishConfChange(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		node := NewMockNode(ctrl)
 		eng := &engine{
+			logger: raftlog.DefaultLogger,
 			node:   node,
 			msgbus: msgbus.New(),
 			ctx:    context.TODO(),
@@ -684,6 +699,7 @@ func TestProcess(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	node := NewMockNode(ctrl)
 	eng := new(engine)
+	eng.logger = raftlog.DefaultLogger
 	eng.node = node
 	eng.ctx, eng.cancel = context.WithCancel(context.TODO())
 
@@ -721,6 +737,7 @@ func TestSend(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		msg := etcdraftpb.Message{To: 1}
 		eng := new(engine)
+		eng.logger = raftlog.DefaultLogger
 		tt(ctrl, eng, msg.To)
 		eng.send([]etcdraftpb.Message{msg})
 		ctrl.Finish()
@@ -736,6 +753,7 @@ func TestPromotions(t *testing.T) {
 	cfg := NewMockConfig(ctrl)
 
 	eng := &engine{
+		logger:  raftlog.DefaultLogger,
 		node:    node,
 		pool:    pool,
 		cfg:     cfg,
@@ -772,6 +790,7 @@ func TestPromotions(t *testing.T) {
 
 func TestCreateSnapshot(t *testing.T) {
 	eng := &engine{
+		logger:       raftlog.DefaultLogger,
 		cache:        raft.NewMemoryStorage(),
 		started:      atomic.NewBool(),
 		snapIndex:    atomic.NewUint64(),

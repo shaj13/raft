@@ -240,6 +240,7 @@ func TestSetup(t *testing.T) {
 		Return(meta, hs, ents, sf, nil)
 
 	cfg.EXPECT().RaftConfig().Return(&raft.Config{})
+	cfg.EXPECT().Logger()
 	pool.EXPECT().RegisterTypeMatcher(gomock.Any())
 
 	ids := map[uint64]struct{}{}
