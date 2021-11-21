@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -25,7 +25,8 @@ func NewHandlerFunc(basePath string) transport.NewHandler {
 }
 
 type handler struct {
-	ctrl transport.Controller
+	ctrl   transport.Controller
+	logger raftlog.Logger
 }
 
 func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
@@ -60,7 +61,7 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 		return http.StatusBadRequest, err
 	}
 
-	log.Debugf("raft.http: downloading sanpshot file [term: %d, index: %d]", term, index)
+	h.logger.V(2).Infof("raft.http: downloading sanpshot file [term: %d, index: %d]", term, index)
 
 	wr, err := h.ctrl.SnapshotWriter(gid, term, index)
 	if err != nil {
@@ -84,7 +85,7 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 		return code, err
 	}
 
-	log.Debugf("raft.http: new member asks to join the cluster on address %s", m.Address)
+	h.logger.V(2).Infof("raft.http: new member asks to join the cluster on address %s", m.Address)
 
 	resp, err := h.ctrl.Join(r.Context(), gid, m)
 	if err != nil {
@@ -117,7 +118,7 @@ func (h *handler) promoteMember(w http.ResponseWriter, r *http.Request) (int, er
 
 type handlerFunc func(w http.ResponseWriter, r *http.Request) (int, error)
 
-func httpHandler(h handlerFunc) http.HandlerFunc {
+func httpHandler(h handlerFunc, logger raftlog.Logger) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			code := http.StatusMethodNotAllowed
@@ -127,7 +128,7 @@ func httpHandler(h handlerFunc) http.HandlerFunc {
 
 		code, err := h(w, r)
 		if err != nil {
-			log.Warnf("raft.http: handle %s: %v", r.URL.Path, err)
+			logger.Infof("raft.http: handle %s: %v", r.URL.Path, err)
 			http.Error(w, err.Error(), code)
 			return
 		}
@@ -141,10 +142,10 @@ func httpHandler(h handlerFunc) http.HandlerFunc {
 
 func mux(s *handler, basePath string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message))
-	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot))
-	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join))
-	mux.HandleFunc(join(basePath, promoteURI), httpHandler(s.promoteMember))
+	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message, s.logger))
+	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot, s.logger))
+	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join, s.logger))
+	mux.HandleFunc(join(basePath, promoteURI), httpHandler(s.promoteMember, s.logger))
 	return mux
 }
 

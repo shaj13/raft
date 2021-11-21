@@ -14,6 +14,7 @@ import (
 	"github.com/golang/mock/gomock"
 	transportmock "github.com/shaj13/raft/internal/mocks/transport"
 	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -176,6 +177,7 @@ func TestPromoteMember(t *testing.T) {
 
 func testClientServer(tb testing.TB) (*httptest.Server, *client, *handler) {
 	srv := new(handler)
+	srv.logger = raftlog.DefaultLogger
 	ts := httptest.NewServer(mux(srv, ""))
 
 	ctx := context.TODO()

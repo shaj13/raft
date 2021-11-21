@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/raftlog"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -13,6 +14,7 @@ import (
 // Config define common configuration used by the dial and transport handler.
 type Config interface {
 	Controller() Controller
+	Logger() raftlog.Logger
 	GroupID() uint64
 }
 
