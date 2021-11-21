@@ -8,7 +8,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/membership"
 	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
@@ -392,7 +391,7 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 			return err
 		}
 
-		log.Debugf("raft.node: forwarding member %x promotion to %x", id, lmem.ID())
+		n.cfg.logger.V(3).Infof("raft.node: forwarding member %x promotion to %x", id, lmem.ID())
 		return client.PromoteMember(ctx, raw)
 	}
 

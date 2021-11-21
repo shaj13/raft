@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/membership"
 	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
@@ -513,8 +512,6 @@ func newConfig(opts ...Option) *config {
 	for _, opt := range opts {
 		opt.apply(c)
 	}
-
-	c.rcfg.Logger = log.GetLogger()
 
 	return c
 }
