@@ -89,13 +89,14 @@ func TestLearnerMember(t *testing.T) {
 	otr.start(nodes...)
 	otr.waitAll()
 
+	joinAddr := nodes[1].rawMembers[0].Address
 	raw := raft.RawMember{
 		ID:      3,
 		Address: ":3",
 		Type:    raft.LearnerMember,
 	}
 
-	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(":2", time.Second))
+	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(joinAddr, time.Second))
 	otr.start(learner)
 	otr.wait(learner)
 
@@ -120,13 +121,15 @@ func TestPromoteMember(t *testing.T) {
 	otr.start(nodes...)
 	otr.waitAll()
 
+	joinAddr := nodes[0].rawMembers[0].Address
+
 	raw := raft.RawMember{
 		ID:      3,
 		Address: ":3",
 		Type:    raft.LearnerMember,
 	}
 
-	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(":1", time.Second))
+	learner := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(joinAddr, time.Second))
 	otr.start(learner)
 	otr.wait(learner)
 

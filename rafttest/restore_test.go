@@ -29,9 +29,10 @@ func TestSnapshotShare(t *testing.T) {
 		Address: ":2",
 	}
 
+	joinAddr := node.rawMembers[0].Address
 	// join prev node cluster.
 	node = newNode().withRawMember(raw)
-	node.withStartOptions(raft.WithJoin(":1", time.Second))
+	node.withStartOptions(raft.WithJoin(joinAddr, time.Second))
 	otr.start(node)
 	otr.wait(node)
 

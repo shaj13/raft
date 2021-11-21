@@ -80,9 +80,13 @@ func (l *loopback) dialer(dc transport.Config) transport.Dial {
 		l.mu.Lock()
 		defer l.mu.Unlock()
 
+		cfg, ok := l.cfgs[addr]
+		if !ok {
+			l.t.Fatal(addr, "have not registered")
+		}
 		lc := &loopbackClient{
 			from: l.cfgs[raw.Address],
-			to:   l.cfgs[addr],
+			to:   cfg,
 		}
 		return lc, nil
 	}
@@ -195,11 +199,12 @@ type orchestrator struct {
 
 func (o *orchestrator) create(n int) []*node {
 	nodes := make([]*node, n)
+	netID := rand.Int()
 
 	for i := 1; i <= n; i++ {
 		raw := raft.RawMember{
 			ID:      uint64(i),
-			Address: fmt.Sprintf(":%d", i),
+			Address: fmt.Sprintf("%d:%d", i, netID),
 		}
 
 		node := newNode().withRawMember(raw).withStartOptions(raft.WithInitCluster())
@@ -212,7 +217,7 @@ func (o *orchestrator) create(n int) []*node {
 
 			raw := raft.RawMember{
 				ID:      uint64(j),
-				Address: fmt.Sprintf(":%d", j),
+				Address: fmt.Sprintf("%d:%d", j, netID),
 			}
 			node.withRawMember(raw)
 		}
@@ -223,6 +228,13 @@ func (o *orchestrator) create(n int) []*node {
 	return nodes
 }
 
+func (o *orchestrator) init(n *node) {
+	ctx := raft.WithContext(ctxWithRawMember(n.rawMember()))
+	state := raft.WithStateDIR(o.t.TempDir())
+	n.opts = append(n.opts, ctx, state)
+	n.raftnode = raft.New(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
+}
+
 func (o *orchestrator) start(nodes ...*node) {
 	o.nodes = append(o.nodes, nodes...)
 	for _, n := range nodes {
@@ -231,11 +243,7 @@ func (o *orchestrator) start(nodes ...*node) {
 		n.startOpts = append(n.startOpts, membs)
 
 		if n.raftnode == nil {
-			ctx := raft.WithContext(ctxWithRawMember(n.rawMember()))
-			state := raft.WithStateDIR(o.t.TempDir())
-			n.opts = append(n.opts, ctx, state)
-
-			n.raftnode = raft.New(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
+			o.init(n)
 		}
 
 		go func(n *node) {

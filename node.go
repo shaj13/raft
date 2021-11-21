@@ -62,10 +62,11 @@ func (ng *NodeGroup) Add(id uint64, n *Node) bool {
 	if _, err := n.engine.Status(); err == nil {
 		return false
 	}
+	ng.router.add(id, n.cfg.controller)
 	n.cfg.groupID = id
 	n.cfg.mux = ng.mux
+	n.cfg.controller = ng.router
 	n.handler = ng.handler
-	ng.router.add(id, n.cfg.controller)
 	return true
 }
 
