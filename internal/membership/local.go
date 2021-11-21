@@ -2,11 +2,11 @@ package membership
 
 import (
 	"context"
-	"log"
 	"sync/atomic"
 	"time"
 
 	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/raftlog"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -57,7 +57,7 @@ func (l *local) Close() error {
 }
 
 func (l *local) Send(etcdraftpb.Message) error {
-	log.Panic("raft.membership: attempted to send msg to local member; should never happen")
+	raftlog.Panic("raft.membership: attempted to send msg to local member; should never happen")
 	return nil
 }
 
