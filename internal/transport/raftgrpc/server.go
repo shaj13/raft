@@ -24,7 +24,8 @@ var errSnapHeader = errors.New("raft/grpc: snapshot header missing from grpc met
 // NewHandler compatible with transport.NewHandler.
 func NewHandler(cfg transport.Config) transport.Handler {
 	return &handler{
-		ctrl: cfg.Controller(),
+		ctrl:   cfg.Controller(),
+		logger: cfg.Logger(),
 	}
 }
 

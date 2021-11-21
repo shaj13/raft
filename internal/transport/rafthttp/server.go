@@ -18,7 +18,8 @@ import (
 func NewHandlerFunc(basePath string) transport.NewHandler {
 	return func(cfg transport.Config) transport.Handler {
 		s := &handler{
-			ctrl: cfg.Controller(),
+			ctrl:   cfg.Controller(),
+			logger: cfg.Logger(),
 		}
 		return mux(s, basePath)
 	}
