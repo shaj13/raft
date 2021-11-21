@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/shaj13/raft/internal/log"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -92,12 +92,12 @@ func (m *mux) Start() {
 				if n.lead != st.Lead {
 					if st.Lead != 0 {
 						if n.lead == 0 {
-							log.Infof("raft.node: %x elected leader %x for group %x at term %d", st.ID, st.Lead, gid, st.Term)
+							n.cfg.Logger.Infof("raft.node: %x elected leader %x at term %d", st.ID, st.Lead, st.Term)
 						} else {
-							log.Infof("raft.node: %x changed group %x leader from %x to %x at term %d", st.ID, gid, n.lead, st.Lead, st.Term)
+							n.cfg.Logger.Infof("raft.node: %x changed  leader from %x to %x at term %d", st.ID, n.lead, st.Lead, st.Term)
 						}
 					} else {
-						log.Infof("raft.node: %x lost group %x leader(%x) at term %d", st.ID, gid, n.lead, st.Term)
+						n.cfg.Logger.Infof("raft.node: %x lost leader %x at term %d", st.ID, n.lead, st.Term)
 					}
 					n.lead = st.Lead
 				}
@@ -116,7 +116,7 @@ func (m *mux) Start() {
 		case op := <-m.operationc:
 			node = nodes[op.gid]
 			if node == nil && op.ot != add {
-				log.Warnf("raft: unknown group %x", op.gid)
+				raftlog.Warningf("raft: unknown group %x", op.gid)
 				close(op.done)
 				continue
 			}
@@ -127,7 +127,7 @@ func (m *mux) Start() {
 				current := hb.id
 				id := node.cfg.ID
 				if id != current && current != raft.None {
-					log.Panic("raft: all node group must have the same id !!")
+					raftlog.Panic("raft: all node group must have the same id !!")
 				}
 				nodes[op.gid] = node
 				hb.id = id
@@ -464,7 +464,7 @@ func (h *heartbeats) coalesced(nodes map[uint64]*nodeState) {
 
 	bcc, err := json.Marshal(cc)
 	if err != nil {
-		log.Warnf("raft: marshal coalesced heartbeats context: %v", err)
+		raftlog.Warningf("raft: marshal coalesced heartbeats context: %v", err)
 	}
 
 	for _, node := range nodes {
@@ -507,9 +507,9 @@ func (h *heartbeats) fanout(nodes map[uint64]*nodeState, msg etcdraftpb.Message)
 	)
 
 	defer func() {
-		if !success {
+		if !success && raftlog.V(8).Enabled() {
 			str := raft.DescribeMessage(msg, nil)
-			log.Debugf("raft: not fanning out msg: %s", str)
+			raftlog.V(8).Infof("raft: not fanning out msg: %s", str)
 		}
 	}()
 
@@ -518,7 +518,7 @@ func (h *heartbeats) fanout(nodes map[uint64]*nodeState, msg etcdraftpb.Message)
 
 	cc := new(coalescedContext)
 	if err := json.Unmarshal(ctx, cc); err != nil {
-		log.Warnf("raft: unmarshal coalesced heartbeats context: %v", err)
+		raftlog.Warningf("raft: unmarshal coalesced heartbeats context: %v", err)
 	}
 
 	for _, n := range nodes {
@@ -560,7 +560,7 @@ func (h *heartbeats) fanout(nodes map[uint64]*nodeState, msg etcdraftpb.Message)
 	}
 
 	if node == nil {
-		log.Warnf("raft: ignored heartbeat from unknown member %x", msg.From)
+		raftlog.Warningf("raft: ignored heartbeat from unknown member %x", msg.From)
 		return
 	}
 
