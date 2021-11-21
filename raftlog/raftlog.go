@@ -1,3 +1,13 @@
+// Package raftlog implements a simple logging package. It defines a type, Logger,
+// with methods for formatting output. It also has a predefined 'standard'
+// Logger accessible through helper functions Info[f], Warning[f], Error[f], Fatal[f], and
+// Panic[f], which are easier to use than creating a Logger manually.
+// That logger writes to standard error and prints the date and time
+// of each logged message.
+// Every log message is output on a separate line: if the message being
+// printed does not end in a newline, the logger will add one.
+// The Fatal functions call os.Exit(1) after writing the log message.
+// The Panic functions call panic after writing the log message.
 package raftlog
 
 import (
@@ -7,6 +17,7 @@ import (
 	"os"
 )
 
+// DefaultLogger define the standard logger used by the package-level output functions.
 var DefaultLogger Logger = New(0, "", os.Stderr, io.Discard)
 
 const (
@@ -59,11 +70,7 @@ type Verbose interface {
 }
 
 // Logger represents an active logging object that generates lines of
-// output to an io.Writer's.
-//
-// Note: a messages of a given severity are logged not only in the writer for that severity,
-// but also in all writer's of lower severity. E.g.,
-// a message of severity FATAL will be logged to the writer's of severity FATAL, ERROR, WARNING, and INFO.
+// output to an io.Writer.
 type Logger interface {
 	// Info logs to INFO log. Arguments are handled in the manner of fmt.Println.
 	Info(...interface{})
@@ -114,13 +121,12 @@ type Logger interface {
 // Each severity must have its own writer, if len of writers less than
 // num of severity New will use last writer to fulfill missings.
 // Otherwise, New will use os.Stderr as default.
-// See the documentation of Logger for more information.
 //
 // Use io.Discard to suppress message repetition to all lower writers.
 //
 // info := os.Stderr
 // warn := io.Discard
-// MultiLogger(1, "", info, warn)
+// New(1, "", info, warn)
 //
 // Use io.Discard in all lower writer's to set desired severity.
 //
@@ -130,6 +136,9 @@ type Logger interface {
 // ....
 // New(1, "", info, warn, err)
 //
+// Note: a messages of a given severity are logged not only in the writer for that severity,
+// but also in all writer's of lower severity. E.g.,
+// a message of severity FATAL will be logged to the writers of severity FATAL, ERROR, WARNING, and INFO.
 func New(verbosity int, prefix string, writers ...io.Writer) Logger {
 	if len(writers) == 0 {
 		writers = []io.Writer{os.Stderr}
