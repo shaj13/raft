@@ -14,6 +14,7 @@ import (
 	transportmock "github.com/shaj13/raft/internal/mocks/transport"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
@@ -178,6 +179,7 @@ func TestPromoteMember(t *testing.T) {
 func testClientServer(tb testing.TB) (*bufconn.Listener, *client, *handler) {
 	ln := bufconn.Listen(1024)
 	srv := new(handler)
+	srv.logger = raftlog.DefaultLogger
 
 	server := grpc.NewServer()
 	pb.RegisterRaftServer(server, srv)

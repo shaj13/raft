@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
+	"github.com/shaj13/raft/raftlog"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -29,7 +29,8 @@ func NewHandler(cfg transport.Config) transport.Handler {
 }
 
 type handler struct {
-	ctrl transport.Controller
+	logger raftlog.Logger
+	ctrl   transport.Controller
 }
 
 func (h *handler) PromoteMember(ctx context.Context, m *raftpb.Member) (*empty.Empty, error) {
@@ -46,7 +47,7 @@ func (h *handler) Message(stream pb.Raft_MessageServer) (err error) {
 	defer func() {
 		bufferPool.Put(buf)
 		if err != nil {
-			log.Warnf("raft.grpc: handle incoming message: %v", err)
+			h.logger.Warningf("raft.grpc: handle incoming message: %v", err)
 		}
 	}()
 
@@ -82,7 +83,7 @@ func (h *handler) Message(stream pb.Raft_MessageServer) (err error) {
 func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft.grpc: downloading snapshot: %v", err)
+			h.logger.Warningf("raft.grpc: downloading snapshot: %v", err)
 		}
 	}()
 
@@ -108,7 +109,7 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 		return err
 	}
 
-	log.Debugf("raft.grpc: downloading sanpshot file [term: %d, index: %d]", term, index)
+	h.logger.V(2).Infof("raft.grpc: downloading sanpshot file [term: %d, index: %d]", term, index)
 
 	w, err := h.ctrl.SnapshotWriter(gid, term, index)
 	if err != nil {
@@ -139,12 +140,12 @@ func (h *handler) Snapshot(stream pb.Raft_SnapshotServer) (err error) {
 func (h *handler) Join(ctx context.Context, m *raftpb.Member) (resp *raftpb.JoinResponse, err error) {
 	defer func() {
 		if err != nil {
-			log.Warnf("raft.grpc: handle join request: %v", err)
+			h.logger.Warningf("raft.grpc: handle join request: %v", err)
 		}
 	}()
 
 	gid := groupID(ctx)
-	log.Debugf("raft.grpc: new member asks to join the cluster on address %s", m.Address)
+	h.logger.V(2).Infof("raft.grpc: new member asks to join the cluster on address %s", m.Address)
 
 	return h.ctrl.Join(ctx, gid, m)
 }
