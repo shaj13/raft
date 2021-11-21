@@ -13,6 +13,7 @@ import (
 	membership "github.com/shaj13/raft/internal/membership"
 	raftpb "github.com/shaj13/raft/internal/raftpb"
 	transport "github.com/shaj13/raft/internal/transport"
+	raftlog "github.com/shaj13/raft/raftlog"
 	raft "go.etcd.io/etcd/raft/v3"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -302,6 +303,20 @@ func (m *MockConfig) DrainTimeout() time.Duration {
 func (mr *MockConfigMockRecorder) DrainTimeout() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrainTimeout", reflect.TypeOf((*MockConfig)(nil).DrainTimeout))
+}
+
+// Logger mocks base method.
+func (m *MockConfig) Logger() raftlog.Logger {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Logger")
+	ret0, _ := ret[0].(raftlog.Logger)
+	return ret0
+}
+
+// Logger indicates an expected call of Logger.
+func (mr *MockConfigMockRecorder) Logger() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logger", reflect.TypeOf((*MockConfig)(nil).Logger))
 }
 
 // Reporter mocks base method.

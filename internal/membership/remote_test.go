@@ -9,6 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	transportmock "github.com/shaj13/raft/internal/mocks/transport"
 	"github.com/shaj13/raft/internal/raftpb"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -24,6 +25,7 @@ func TestNewRemote(t *testing.T) {
 	cfg.EXPECT().Reporter().Return(nil)
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1))
 	cfg.EXPECT().Context().Return(context.Background())
+	cfg.EXPECT().Logger()
 
 	m, err := newRemote(cfg, raftpb.Member{})
 	require.NoError(t, err)
@@ -216,6 +218,7 @@ func TestRemoteProcess(t *testing.T) {
 	r.active = true
 	r.done = make(chan struct{})
 	r.msgc = make(chan etcdraftpb.Message, 1)
+	r.logger = raftlog.DefaultLogger
 	go r.process(context.TODO())
 
 	_ = r.Send(etcdraftpb.Message{})

@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/shaj13/raft/internal/log"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -32,6 +32,7 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 	mem.done = make(chan struct{})
 	mem.active = true
 	mem.activeSince = time.Now()
+	mem.logger = cfg.Logger()
 	mem.raw.Store(m)
 	go mem.process(mem.ctx)
 
@@ -42,6 +43,7 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 type remote struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
+	logger      raftlog.Logger
 	r           Reporter
 	cfg         Config
 	dial        transport.Dial
@@ -183,7 +185,7 @@ func (r *remote) process(ctx context.Context) {
 		rpc := r.client()
 		err := rpc.Message(ctx, msg)
 		if err != nil {
-			log.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
+			r.logger.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
 		}
 		r.report(msg, err)
 		r.setStatus(err == nil)
