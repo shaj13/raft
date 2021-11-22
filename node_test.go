@@ -12,6 +12,7 @@ import (
 	raftenginemock "github.com/shaj13/raft/internal/mocks/raftengine"
 	storagemock "github.com/shaj13/raft/internal/mocks/storage"
 	transportmock "github.com/shaj13/raft/internal/mocks/transport"
+	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/stretchr/testify/require"
@@ -770,6 +771,50 @@ func TestPreConditions(t *testing.T) {
 		}
 		require.Contains(t, err.Error(), tt.contains)
 	}
+}
+
+func TestNodeGroupHandler(t *testing.T) {
+	expected := "handler"
+	ng := &NodeGroup{
+		handler: expected,
+	}
+	require.Equal(t, expected, ng.handler)
+}
+
+func TestNodeGroupAdd(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
+
+	ng := &NodeGroup{
+		router: &router{
+			ctrls: make(map[uint64]transport.Controller),
+		},
+		mux:     raftengine.NewMux(),
+		handler: "ng-handler",
+	}
+
+	node := &Node{
+		engine: eng,
+	}
+
+	// it refuse to add node when engine started.
+	ok := ng.Add(1, node)
+	require.False(t, ok)
+
+	eng = raftenginemock.NewMockEngine(ctrl)
+	eng.EXPECT().Status().Return(raft.Status{}, ErrNodeStopped)
+
+	node.engine = eng
+	node.cfg = newConfig()
+
+	// it add node and change some of config.
+	ok = ng.Add(1, node)
+	require.True(t, ok)
+	require.Equal(t, uint64(1), node.cfg.groupID)
+	require.Equal(t, ng.mux, node.cfg.mux)
+	require.Equal(t, ng.router, node.cfg.controller)
+	require.Equal(t, ng.handler, node.handler)
 }
 
 func testPreCond(fns ...func(c *Node) error) error {

@@ -6,7 +6,6 @@
 - [ ] check the conf change v2 in etcd
 - [ ] Repair wall 
 - [ ] test forceSnapshot
-- [ ] test node group 
 - [ ] relese snap -> "storage"
 - [ ] add more logs.
 
