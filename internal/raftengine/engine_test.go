@@ -814,3 +814,49 @@ func TestCreateSnapshot(t *testing.T) {
 	_, err = eng.CreateSnapshot()
 	require.Equal(t, ErrNoLeader, err)
 }
+
+func TestForceSnapshot(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	node := NewMockNode(ctrl)
+	fsm := NewMockStateMachine(ctrl)
+
+	eng := &engine{
+		node:         node,
+		fsm:          fsm,
+		started:      atomic.NewBool(),
+		appliedIndex: atomic.NewUint64(),
+		snapIndex:    atomic.NewUint64(),
+		logger:       raftlog.DefaultLogger,
+	}
+
+	// round #1 it should return false when msg not snapshot.
+	ok := eng.forceSnapshot(etcdraftpb.Message{})
+	require.False(t, ok)
+
+	msg := &etcdraftpb.Message{
+		From: 1,
+		To:   2,
+		Type: etcdraftpb.MsgSnap,
+		Snapshot: etcdraftpb.Snapshot{
+			Metadata: etcdraftpb.SnapshotMetadata{
+				ConfState: etcdraftpb.ConfState{
+					Voters: []uint64{1, 2},
+				},
+			},
+		},
+	}
+
+	// round #2 it should return false when to exist in voters list.
+	ok = eng.forceSnapshot(*msg)
+	require.False(t, ok)
+
+	// round #3 it should create snapshot and report snap as failed.
+	msg.To = 4
+	eng.started.Set()
+	eng.appliedIndex.Set(1)
+	node.EXPECT().ReportSnapshot(gomock.Eq(msg.To), gomock.Eq(raft.SnapshotFailure))
+	fsm.EXPECT().Snapshot().Return(nil, ErrNoLeader)
+	ok = eng.forceSnapshot(*msg)
+	require.True(t, ok)
+	ctrl.Finish()
+}
