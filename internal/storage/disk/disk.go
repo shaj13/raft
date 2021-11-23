@@ -69,6 +69,13 @@ func (d *disk) SaveSnapshot(snap raftpb.Snapshot) error {
 		return err
 	}
 
+	// Force WAL to fsync its hard state before ReleaseLockTo() releases
+	// old data from the WAL. Otherwise could get an error like:
+	// panic: tocommit(107) is out of range [lastIndex(84)]. Was the raft log corrupted, truncated, or lost?
+	if err := d.wal.Sync(); err != nil {
+		return err
+	}
+
 	return d.wal.ReleaseLockTo(snap.Metadata.Index)
 }
 
