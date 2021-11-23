@@ -204,3 +204,44 @@ func TestTransferLeadership(t *testing.T) {
 	require.NotEqual(t, leader.rawMember().ID, leaderID)
 	require.Equal(t, followerID, leaderID)
 }
+
+func TestStagingMember(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(1)
+	otr.start(nodes...)
+	otr.waitAll()
+	otr.produceData(100)
+
+	joinAddr := nodes[0].rawMembers[0].Address
+	raw := raft.RawMember{
+		ID:      3,
+		Address: ":3",
+		Type:    raft.StagingMember,
+	}
+
+	staging := newNode().withRawMember(raw).withStartOptions(raft.WithJoin(joinAddr, time.Second))
+	otr.start(staging)
+	otr.wait(staging)
+
+	promoted := false
+	for i := 1; i < 5; i++ {
+		mem, _ := nodes[0].raftnode.GetMemebr(raw.ID)
+		if mem.Type() == raft.VoterMember {
+			promoted = true
+			break
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+
+	if !promoted {
+		t.Fatal("expected stagingMember to be auto promoted")
+	}
+
+	// verify StagingMember fsm same as leader fsm.
+	for i := 0; i < 100; i++ {
+		v := staging.fsm.Read(i)
+		require.Equal(t, i, v)
+	}
+}
