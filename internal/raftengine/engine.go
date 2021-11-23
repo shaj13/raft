@@ -359,9 +359,6 @@ func (eng *engine) CreateSnapshot() (etcdraftpb.Snapshot, error) {
 
 // Start engine.
 func (eng *engine) Start(addr string, oprs ...Operator) error {
-	// create memory storage at first place so the operators append hs/ents
-	// and to avoid using the same storage on different start invocations.
-	eng.cache = raft.NewMemoryStorage()
 	sp := setup{addr: addr}
 	ssp := stateSetup{publishSnapshotFile: eng.publishSnapshotFile}
 	rm := removedMembers{}

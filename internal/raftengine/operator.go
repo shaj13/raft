@@ -91,7 +91,7 @@ func (f forceJoin) before(ost *operatorsState) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), f.timeout)
 	defer cancel()
 
-	rpc, err := ost.daemon.cfg.Dial()(ctx, f.addr)
+	rpc, err := ost.eng.cfg.Dial()(ctx, f.addr)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (f forceJoin) before(ost *operatorsState) error {
 
 func (f forceJoin) after(ost *operatorsState) error {
 	for _, mem := range ost.membs {
-		if err := ost.daemon.pool.Add(mem); err != nil {
+		if err := ost.eng.pool.Add(mem); err != nil {
 			return err
 		}
 	}
@@ -158,7 +158,7 @@ func (c initCluster) after(ost *operatorsState) error {
 		}
 	}
 
-	ost.daemon.node = c.bootstrap(ost.daemon.cfg, peers)
+	ost.eng.node = c.bootstrap(ost.eng.cfg, peers)
 	return nil
 }
 
@@ -178,7 +178,7 @@ func (r restart) before(ost *operatorsState) error {
 }
 
 func (r restart) after(ost *operatorsState) error {
-	ost.daemon.node = r.bootstrap(ost.daemon.cfg, nil)
+	ost.eng.node = r.bootstrap(ost.eng.cfg, nil)
 	return nil
 }
 
@@ -242,8 +242,8 @@ func (s stateSetup) after(ost *operatorsState) (err error) {
 		}
 	}
 
-	ost.daemon.cache.SetHardState(ost.hst)
-	ost.daemon.cache.Append(ost.ents)
+	ost.eng.cache.SetHardState(ost.hst)
+	ost.eng.cache.Append(ost.ents)
 	return
 }
 
@@ -256,7 +256,7 @@ type setup struct {
 }
 
 func (s setup) before(ost *operatorsState) (err error) {
-	ost.hasExistingState = ost.daemon.storage.Exist()
+	ost.hasExistingState = ost.eng.storage.Exist()
 	ost.local = &raftpb.Member{
 		// generate a random id in case this is the first member in the cluster.
 		ID:      uint64(rand.Int63()) + 1,
@@ -271,7 +271,7 @@ func (s setup) after(ost *operatorsState) (err error) {
 	}
 
 	meta := pbutil.MustMarshal(ost.local)
-	meta, ost.hst, ost.ents, ost.sf, err = ost.daemon.storage.Boot(meta)
+	meta, ost.hst, ost.ents, ost.sf, err = ost.eng.storage.Boot(meta)
 	if err != nil {
 		return
 	}
@@ -279,14 +279,17 @@ func (s setup) after(ost *operatorsState) (err error) {
 	local := new(raftpb.Member)
 	pbutil.MustUnmarshal(local, meta)
 
-	cfg := ost.daemon.cfg.RaftConfig()
+	// create memory storage at first place so the operators append hs/ents
+	// and to avoid using the same storage on different start invocations.
+	ost.eng.cache = raft.NewMemoryStorage()
+	cfg := ost.eng.cfg.RaftConfig()
 	cfg.ID = local.ID
-	cfg.Logger = nodeLogger{ost.daemon.cfg.Logger()}
-	cfg.Storage = ost.daemon.cache
+	cfg.Logger = nodeLogger{ost.eng.cfg.Logger()}
+	cfg.Storage = ost.eng.cache
 	ost.cfg = cfg
 	ost.local = local
 
-	ost.daemon.pool.RegisterTypeMatcher(func(m raftpb.Member) raftpb.MemberType {
+	ost.eng.pool.RegisterTypeMatcher(func(m raftpb.Member) raftpb.MemberType {
 		if cfg.ID == m.ID && m.Type != raftpb.RemovedMember {
 			return raftpb.LocalMember
 		}
@@ -306,7 +309,7 @@ func (forceNewCluster) noFallback()                            {}
 func (forceNewCluster) before(ost *operatorsState) (err error) { return }
 
 func (f forceNewCluster) after(ost *operatorsState) (err error) {
-	storage := ost.daemon.storage
+	storage := ost.eng.storage
 	sf := ost.sf
 	local := *ost.local
 	membs := ost.membs
@@ -419,7 +422,7 @@ func (r restore) before(ost *operatorsState) (err error) {
 		return errors.New("raft: found orphan node state")
 	}
 
-	storage := ost.daemon.storage
+	storage := ost.eng.storage
 
 	// update state to existed.
 	ost.hasExistingState = true
@@ -543,7 +546,7 @@ func (rm removedMembers) after(ost *operatorsState) (err error) {
 			if cc.Type == etcdraftpb.ConfChangeRemoveNode {
 				mem := new(raftpb.Member)
 				pbutil.MustUnmarshal(mem, cc.Context)
-				if err := ost.daemon.pool.Add(*mem); err != nil {
+				if err := ost.eng.pool.Add(*mem); err != nil {
 					return err
 				}
 			}
@@ -572,7 +575,7 @@ func invoke(d *engine, oprs ...Operator) (*operatorsState, error) {
 	})
 
 	ost := new(operatorsState)
-	ost.daemon = d
+	ost.eng = d
 
 	for _, opr := range oprs {
 		if err := opr.before(ost); err != nil {

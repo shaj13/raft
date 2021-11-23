@@ -71,7 +71,7 @@ type operatorsState struct {
 	hst              etcdraftpb.HardState
 	ents             []etcdraftpb.Entry
 	sf               *storage.Snapshot
-	daemon           *engine
+	eng              *engine
 }
 
 type nodeLogger struct {

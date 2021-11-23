@@ -105,7 +105,7 @@ func TestJoin(t *testing.T) {
 func TestInitCluster(t *testing.T) {
 	nodeStarted := false
 	ost := new(operatorsState)
-	ost.daemon = new(engine)
+	ost.eng = new(engine)
 	ost.hasExistingState = true
 
 	err := InitCluster().before(ost)
@@ -127,7 +127,7 @@ func TestInitCluster(t *testing.T) {
 func TestRestart(t *testing.T) {
 	nodeRestarted := false
 	ost := new(operatorsState)
-	ost.daemon = new(engine)
+	ost.eng = new(engine)
 
 	err := Restart().before(ost)
 	require.Error(t, err)
@@ -184,9 +184,9 @@ func TestForceJoin(t *testing.T) {
 	ost.local = &raftpb.Member{
 		ID: 10,
 	}
-	ost.daemon = new(engine)
-	ost.daemon.pool = pool
-	ost.daemon.cfg = cfg
+	ost.eng = new(engine)
+	ost.eng.pool = pool
+	ost.eng.cfg = cfg
 
 	// setup mocks expectation.
 	cfg.
@@ -227,10 +227,10 @@ func TestSetup(t *testing.T) {
 	pool := membershipmock.NewMockPool(ctrl)
 	cfg := NewMockConfig(ctrl)
 	ost := new(operatorsState)
-	ost.daemon = new(engine)
-	ost.daemon.storage = stg
-	ost.daemon.cfg = cfg
-	ost.daemon.pool = pool
+	ost.eng = new(engine)
+	ost.eng.storage = stg
+	ost.eng.cfg = cfg
+	ost.eng.pool = pool
 
 	// setup mocks expectation.
 	stg.EXPECT().Exist().Return(false).AnyTimes()
@@ -340,8 +340,8 @@ func TestStateSetup(t *testing.T) {
 			}
 
 			ost := &tt.ost
-			ost.daemon = new(engine)
-			ost.daemon.cache = raft.NewMemoryStorage()
+			ost.eng = new(engine)
+			ost.eng.cache = raft.NewMemoryStorage()
 
 			err := ss.after(ost)
 			require.Equal(t, tt.expectErr, err != nil)
@@ -390,7 +390,7 @@ func TestForceNewCluster(t *testing.T) {
 			Type:  etcdraftpb.EntryNormal,
 		},
 	}
-	ost.daemon = new(engine)
+	ost.eng = new(engine)
 	ctrl := gomock.NewController(t)
 	shotter := storagemock.NewMockSnapshotter(ctrl)
 	stg := storagemock.NewMockStorage(ctrl)
@@ -416,7 +416,7 @@ func TestForceNewCluster(t *testing.T) {
 		Read(gomock.Any(), gomock.Any()).
 		Return(nil, nil)
 
-	ost.daemon.storage = stg
+	ost.eng.storage = stg
 
 	err := ForceNewCluster().after(ost)
 	confChange := 0
@@ -450,8 +450,8 @@ func TestRestore(t *testing.T) {
 	opr := restore{}
 	ost := new(operatorsState)
 	ost.local = &raftpb.Member{ID: 1}
-	ost.daemon = new(engine)
-	ost.daemon.storage = stg
+	ost.eng = new(engine)
+	ost.eng.storage = stg
 
 	stg.
 		EXPECT().
@@ -522,7 +522,7 @@ func TestRemovedMembers(t *testing.T) {
 	ost.hst = etcdraftpb.HardState{
 		Commit: 1,
 	}
-	ost.daemon = &engine{
+	ost.eng = &engine{
 		pool: pool,
 	}
 
