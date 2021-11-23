@@ -9,11 +9,6 @@
 - [ ] add more logs.
 
 
-## Test cases 
-- [ ] sanity check staging member 
-- [ ] test shutdown gracfull and non gracefull (sanity check)
-
-
 
 
 
