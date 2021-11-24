@@ -17,7 +17,6 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// TODO: do we need to expose ?
 var (
 	// ErrNodeStopped is returned by the Node methods after a call to
 	// Shutdown or when it has not started.
@@ -27,6 +26,16 @@ var (
 	ErrNotLeader = errors.New("raft: node is not the leader")
 )
 
+// NewNodeGroup returns a new NodeGroup.
+// the provided transportation protocol must be the same for all sub-nodes.
+//
+//	nodeA := raft.New(gRPC, ...)
+//	nodeB := raft.New(gRPC, ...)
+//	ng := raft.NewNodeGroup(gRPC)
+//
+// the returned node group will lazily initialize,
+// from the first node registered within it, So it's recommended to apply
+// the same  HeartbeatTick, ElectionTick, and TickInterval configuration to all sub-nodes.
 func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 	cfg := newConfig()
 	nh, _ := transport.Proto(proto).Get()
@@ -44,7 +53,23 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 	}
 }
 
-// NodeGroup
+// NodeGroup manage multi Raft nodes from many different Raft groups known as Raft clusters.
+// NodeGroup is more efficient than a collection of nodes.
+//
+// Scales raft into multiple raft groups requires data sharding,
+// each raft group responsible for managing data in the range [start, end].
+// as the system grows to include more ranges, so does the amount of traffic
+// required to handle heartbeats. The number of ranges is much larger than the
+// number of physical nodes so many ranges will have overlapping membership
+// this is where NodeGroup comes in: instead of allowing each range to run Raft independently,
+// we manage an entire node’s worth of ranges as a group. Each pair of physical nodes
+// only needs to exchange heartbeats once per tick (coalesced heartbeats),
+// no matter how many ranges they have in common.
+//
+// Add, and Remove can run while node group stopped.
+// starting an added node is required a started node group,
+// Otherwise, it will hang until the node group started.
+
 type NodeGroup struct {
 	mux     raftengine.Mux
 	handler transport.Handler
@@ -65,10 +90,29 @@ func (ng *NodeGroup) Start() {
 	ng.mux.Start()
 }
 
-// Add the given node that related to the given group id,
+// Add add the given node that associated to the given group id,
 // and reports whether the node were successfully added.
-// each group must have its own unique node.
-// the provided node must be freshly created and has not been started.
+//
+// The node and the group are correlated so each group id must have
+// its own node object and each node object must have its own group id.
+//
+// All registered nodes within the node group must have the same id,
+// that is how multiple nodes object representing one single physical node
+// that participate in multiple raft groups. Starting a node with a
+// different id from the previous one will cause a panic.
+//
+// 	nodeA = id(1)
+// 	nodeB = id(2)
+// 	nodeGroup.Add(1, nodeA)
+//	nodeGroup.Add(2, nodeB)
+// 	nodeB.Start(...) // panic
+//
+// The provided node must be freshly created and has not been started.
+//
+// 	nodeA := raft.New(...)
+//  nodeB := raft.New(...)
+//  nodeGroup.Add(1, nodeA)
+//	nodeGroup.Add(2, nodeB)
 func (ng *NodeGroup) Add(groupID uint64, n *Node) bool {
 	if _, err := n.engine.Status(); err == nil || n.cfg.groupID != None {
 		return false
@@ -85,8 +129,9 @@ func (ng *NodeGroup) Add(groupID uint64, n *Node) bool {
 // after the removal, the actual node will become idle,
 // it must coordinate with node shutdown explicitly.
 //
-// NodeGroup.Remove(12)
-// node.Shutdown(ctx)
+// 	nodeGroup.Remove(12)
+// 	node.Shutdown(ctx)
+//
 func (ng *NodeGroup) Remove(groupID uint64) {
 	ng.router.remove(groupID)
 }
