@@ -69,7 +69,6 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 // Add, and Remove can run while node group stopped.
 // starting an added node is required a started node group,
 // Otherwise, it will hang until the node group started.
-
 type NodeGroup struct {
 	mux     raftengine.Mux
 	handler transport.Handler
