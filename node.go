@@ -44,36 +44,54 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 	}
 }
 
+// NodeGroup
 type NodeGroup struct {
 	mux     raftengine.Mux
 	handler transport.Handler
 	router  *router
 }
 
+// Handler return NodeGroup transportation handler,
+// that delegated to respond to RPC requests over the wire.
+// the returned handler must be registered with the transportation server.
 func (ng *NodeGroup) Handler() etransport.Handler {
 	return ng.handler
 }
 
+// Start starts the NodeGroup. It can be called after Stop to restart the
+// NodeGroup.
+// Start returns when Stop called.
 func (ng *NodeGroup) Start() {
 	ng.mux.Start()
 }
 
-func (ng *NodeGroup) Add(id uint64, n *Node) bool {
-	if _, err := n.engine.Status(); err == nil {
+// Add the given node that related to the given group id,
+// and reports whether the node were successfully added.
+// each group must have its own unique node.
+// the provided node must be freshly created and has not been started.
+func (ng *NodeGroup) Add(groupID uint64, n *Node) bool {
+	if _, err := n.engine.Status(); err == nil || n.cfg.groupID != None {
 		return false
 	}
-	ng.router.add(id, n.cfg.controller)
-	n.cfg.groupID = id
+	ng.router.add(groupID, n.cfg.controller)
+	n.cfg.groupID = groupID
 	n.cfg.mux = ng.mux
 	n.cfg.controller = ng.router
 	n.handler = ng.handler
 	return true
 }
 
-func (ng *NodeGroup) Remove(id uint64) {
-	ng.router.remove(id)
+// Remove remove node related to the given group id.
+// after the removal, the actual node will become idle,
+// it must coordinate with node shutdown explicitly.
+//
+// NodeGroup.Remove(12)
+// node.Shutdown(ctx)
+func (ng *NodeGroup) Remove(groupID uint64) {
+	ng.router.remove(groupID)
 }
 
+// Stop performs any necessary termination of the NodeGroup.
 func (ng *NodeGroup) Stop() {
 	ng.mux.Stop()
 }
