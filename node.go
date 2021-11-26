@@ -409,10 +409,26 @@ func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 	return n.engine.ProposeConfChange(ctx, raw, cct)
 }
 
+// PromoteMember proposes to promote a learner member to a voting member,
+// It considered complete after reaching a majority.
+// After committing the promotion, each member in the
+// cluster updates the given member type on its pool.
+//
+// If the provided context expires before, the promotion is complete,
+// PromoteMember returns the context's error, otherwise it returns any
+// error returned due to the promotion.
 func (n *Node) PromoteMember(ctx context.Context, id uint64) error {
 	return n.promoteMember(ctx, id, false)
 }
 
+// DemoteMember proposes to take away a member vote.
+// It considered complete after reaching a majority.
+// After committing the demotion, each member in the
+// cluster updates the given member type on its pool.
+//
+// If the provided context expires before, the promotion is complete,
+// DemoteMember returns the context's error, otherwise it returns any
+// error returned due to the demotion.
 func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 	err := n.preCond(
 		joined(),
