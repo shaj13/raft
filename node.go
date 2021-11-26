@@ -264,6 +264,10 @@ func (n *Node) StepDown(ctx context.Context) error {
 	return n.engine.TransferLeadership(ctx, membs[0].ID())
 }
 
+// Start start the node and accepts incoming requests on the handler or on local node methods.
+// It can be called after Stop to restart the node.
+//
+// Start always returns a non-nil error. After Shutdown, the returned error is ErrNodeStopped.
 func (n *Node) Start(opts ...StartOption) error {
 	cfg := new(startConfig)
 	cfg.apply(opts...)
