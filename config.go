@@ -279,6 +279,18 @@ func WithLogger(lg raftlog.Logger) Option {
 	})
 }
 
+// WithPipelining is the process to send successive requests,
+// over the same persistent connection, without waiting for the answer.
+// This avoids latency of the connection. Theoretically,
+// performance could also be improved if two or more requests were to be packed into the same connection.
+//
+// Note: pipelining spawn 4 goroutines per remote member connection.
+func WithPipelining() Option {
+	return optionFunc(func(c *config) {
+		c.pipelining = true
+	})
+}
+
 // WithJoin send rpc request to join an existing cluster.
 func WithJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
@@ -416,6 +428,7 @@ type config struct {
 	mux              raftengine.Mux
 	fsm              StateMachine
 	logger           raftlog.Logger
+	pipelining       bool
 }
 
 func (c *config) Logger() raftlog.Logger {
@@ -490,6 +503,10 @@ func (c *config) Mux() raftengine.Mux {
 	return c.mux
 }
 
+func (c *config) AllowPipelining() bool {
+	return c.pipelining
+}
+
 func newConfig(opts ...Option) *config {
 	c := &config{
 		rcfg: &raft.Config{
@@ -507,6 +524,7 @@ func newConfig(opts ...Option) *config {
 		snapInterval:     1000,
 		logger:           raftlog.DefaultLogger,
 		statedir:         os.TempDir(),
+		pipelining:       false,
 	}
 
 	for _, opt := range opts {

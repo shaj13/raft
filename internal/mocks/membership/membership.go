@@ -263,6 +263,20 @@ func (m *MockConfig) EXPECT() *MockConfigMockRecorder {
 	return m.recorder
 }
 
+// AllowPipelining mocks base method.
+func (m *MockConfig) AllowPipelining() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllowPipelining")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// AllowPipelining indicates an expected call of AllowPipelining.
+func (mr *MockConfigMockRecorder) AllowPipelining() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllowPipelining", reflect.TypeOf((*MockConfig)(nil).AllowPipelining))
+}
+
 // Context mocks base method.
 func (m *MockConfig) Context() context.Context {
 	m.ctrl.T.Helper()

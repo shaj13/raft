@@ -40,6 +40,7 @@ type Config interface {
 	Reporter() Reporter
 	Logger() raftlog.Logger
 	Dial() transport.Dial
+	AllowPipelining() bool
 }
 
 type Pool interface {

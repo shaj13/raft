@@ -25,7 +25,8 @@ func TestNewRemote(t *testing.T) {
 	cfg.EXPECT().Reporter().Return(nil)
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1))
 	cfg.EXPECT().Context().Return(context.Background())
-	cfg.EXPECT().Logger()
+	cfg.EXPECT().AllowPipelining().Return(true)
+	cfg.EXPECT().Logger().Return(raftlog.DefaultLogger).MaxTimes(2)
 
 	m, err := newRemote(cfg, raftpb.Member{})
 	require.NoError(t, err)
@@ -216,10 +217,9 @@ func TestRemoteProcess(t *testing.T) {
 	r.rc = client
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 	r.active = true
-	r.done = make(chan struct{})
 	r.msgc = make(chan etcdraftpb.Message, 1)
 	r.logger = raftlog.DefaultLogger
-	go r.process(context.TODO())
+	go r.process(r.ctx)
 
 	_ = r.Send(etcdraftpb.Message{})
 

@@ -16,7 +16,16 @@ import (
 )
 
 func newRemote(cfg Config, m raftpb.Member) (Member, error) {
+	connPerPipeline := 1
+	pipelineBufSize := 4096
 	ctx := cfg.Context()
+
+	if cfg.AllowPipelining() {
+		// The size ensures that pipeline does not drop messages when the network
+		// is out of work for less than 1 second in good path.
+		pipelineBufSize = 64
+		connPerPipeline = 4
+	}
 
 	rpc, err := cfg.Dial()(ctx, m.Address)
 	if err != nil {
@@ -29,13 +38,22 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 	mem.cfg = cfg
 	mem.r = cfg.Reporter()
 	mem.dial = cfg.Dial()
-	mem.msgc = make(chan etcdraftpb.Message, 4096)
-	mem.done = make(chan struct{})
+	mem.msgc = make(chan etcdraftpb.Message, pipelineBufSize)
 	mem.active = true
 	mem.activeSince = time.Now()
 	mem.logger = cfg.Logger()
 	mem.raw.Store(m)
-	go mem.process(mem.ctx)
+
+	cfg.Logger().V(5).Infof(
+		"raft.membership: setup pipelining for remote member %x [pipelines: %d, PipelineBufSize: %d]",
+		m.ID,
+		connPerPipeline,
+		pipelineBufSize,
+	)
+
+	for i := 0; i < connPerPipeline; i++ {
+		go mem.process(mem.ctx)
+	}
 
 	return mem, nil
 }
@@ -49,7 +67,7 @@ type remote struct {
 	cfg         Config
 	dial        transport.Dial
 	msgc        chan etcdraftpb.Message
-	done        chan struct{}
+	wg          sync.WaitGroup
 	mu          sync.Mutex // protects following fields
 	raw         atomic.Value
 	active      bool
@@ -139,9 +157,10 @@ func (r *remote) Close() error {
 
 func (r *remote) TearDown(ctx context.Context) error {
 	r.cancel()
-	r.setStatus(false)
-	close(r.msgc)  // ctx.Done no goroutines will write to msgc.
+	close(r.msgc) // ctx.Done no goroutines will write to msgc.
+	r.wg.Wait()
 	r.process(ctx) // drain msgc
+	r.setStatus(false)
 	return r.client().Close()
 }
 
@@ -177,6 +196,9 @@ func (r *remote) client() transport.Client {
 }
 
 func (r *remote) process(ctx context.Context) {
+	r.wg.Add(1)
+	defer r.wg.Done()
+
 	// perr capture the previous error to avoid overflow logs writer with the same error.
 	var perr error
 	for msg := range r.msgc {

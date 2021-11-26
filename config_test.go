@@ -20,6 +20,12 @@ func TestConfig(t *testing.T) {
 		value    func(c *config) interface{}
 	}{
 		{
+			defaults: false,
+			expected: true,
+			opt:      WithPipelining(),
+			value:    func(c *config) interface{} { return c.pipelining },
+		},
+		{
 			defaults: raft.ReadOnlySafe,
 			expected: raft.ReadOnlySafe,
 			opt:      WithLinearizableReadSafe(),
