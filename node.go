@@ -284,6 +284,11 @@ func (n *Node) Leave(ctx context.Context) error {
 	)
 }
 
+// Replicate proposes to replicate the given data to all raft members,
+// in a highly consistent manner. If the provided context expires before,
+// the replication is complete,
+// Replicate returns the context's error, otherwise it returns any
+// error returned due to the replication.
 func (n *Node) Replicate(ctx context.Context, data []byte) error {
 	err := n.preCond(
 		joined(),
@@ -300,6 +305,16 @@ func (n *Node) Replicate(ctx context.Context, data []byte) error {
 	return n.engine.ProposeReplicate(ctx, data)
 }
 
+// UpdateMember proposes to update the given member,
+// It considered complete after reaching a majority.
+// After committing the update, each member in the
+// cluster updates the given member configuration on its pool.
+//
+// If the provided context expires before, the update is complete,
+// UpdateMember returns the context's error, otherwise it returns any
+// error returned due to the update.
+//
+// Note: the member id and type are not updatable.
 func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 	err := n.preCond(
 		joined(),
@@ -322,6 +337,18 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 	return n.engine.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
 }
 
+// RemoveMember proposes to remove the given member from the cluster,
+// It considered complete after reaching a majority.
+// After committing the removal, each member in the
+// cluster remove the given member from its pool.
+//
+// Although, the removed member configuration will remain and
+// only its type will be changed to "RemovedMember".
+// therefore its id is not reusable again, and its cannot rejoin the cluster again.
+//
+// If the provided context expires before, the removal is complete,
+// RemoveMember returns the context's error, otherwise it returns any
+// error returned due to the removal.
 func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 	err := n.preCond(
 		joined(),
