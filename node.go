@@ -163,6 +163,9 @@ func (n *Node) Handler() etransport.Handler {
 	return n.handler
 }
 
+// LinearizableRead implies that once a write completes,
+// all later reads should return the value of that write,
+// or the value of a later write.
 func (n *Node) LinearizableRead(ctx context.Context) error {
 	err := n.preCond(
 		joined(),
@@ -177,6 +180,10 @@ func (n *Node) LinearizableRead(ctx context.Context) error {
 	return n.engine.LinearizableRead(ctx)
 }
 
+// Snapshot is used to manually force node to take a snapshot. Returns a io.ReadCloser
+// that can be used to to read snapshot file.
+// the caller must invoke close method on the returned io.ReadCloser explicitly,
+// Otherwise, the underlying os.File remain open.
 func (n *Node) Snapshot() (io.ReadCloser, error) {
 	err := n.preCond(
 		joined(),
