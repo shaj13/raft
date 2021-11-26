@@ -212,7 +212,7 @@ func (n *Node) Snapshot() (io.ReadCloser, error) {
 	return n.storage.Snapshotter().Reader(meta.Term, meta.Index)
 }
 
-// TransferLeadership propose to transfer leadership to the given member id.
+// TransferLeadership proposes to transfer leadership to the given member id.
 func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 	err := n.preCond(
 		joined(),
@@ -231,7 +231,7 @@ func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 	return n.engine.TransferLeadership(ctx, id)
 }
 
-// Stepdown propose to transfer leadership to the longest active member in the cluster.
+// Stepdown proposes to transfer leadership to the longest active member in the cluster.
 // This must be run on the leader or it will fail.
 func (n *Node) Stepdown(ctx context.Context) error {
 	err := n.preCond(
