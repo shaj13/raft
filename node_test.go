@@ -62,7 +62,7 @@ func TestNodePreConditions(t *testing.T) {
 			},
 		},
 		{
-			call: func(n *Node) error { return n.StepDown(ctx) },
+			call: func(n *Node) error { return n.Stepdown(ctx) },
 			expected: []func(c *Node) error{
 				joined(),
 				notLeader(),
@@ -271,11 +271,11 @@ func TestNodeStepDown(t *testing.T) {
 	n.engine = eng
 	n.pool = pool
 
-	err := n.StepDown(context.TODO())
+	err := n.Stepdown(context.TODO())
 	require.NoError(t, err)
 
 	pool.EXPECT().Members().Return(nil)
-	err = n.StepDown(context.TODO())
+	err = n.Stepdown(context.TODO())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "longest active member")
 }

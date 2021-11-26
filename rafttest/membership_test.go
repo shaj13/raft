@@ -179,7 +179,7 @@ func TestLeaderStepDown(t *testing.T) {
 	otr.waitAll()
 
 	leader := otr.leader()
-	err := leader.raftnode.StepDown(context.Background())
+	err := leader.raftnode.Stepdown(context.Background())
 	require.NoError(t, err)
 
 	newLeader := otr.leader()

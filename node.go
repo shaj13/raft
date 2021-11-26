@@ -230,7 +230,7 @@ func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 	return n.engine.TransferLeadership(ctx, id)
 }
 
-func (n *Node) StepDown(ctx context.Context) error {
+func (n *Node) Stepdown(ctx context.Context) error {
 	err := n.preCond(
 		joined(),
 		notLeader(),
