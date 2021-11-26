@@ -151,6 +151,16 @@ type Node struct {
 	exec func(fns ...func(c *Node) error) error
 }
 
+// Shutdown gracefully shuts down the node without interrupting any
+// active requests. Shutdown works by first closing all open
+// requests listeners, then blocks until all the pending requests
+// are finished, and then shut down.
+// If the provided context expires before the shutdown is complete,
+// Shutdown force the node to shut off, Shutdown returns any
+// error returned from closing the Node's underlying internal(s).
+//
+// When Shutdown is called, Start may immediately return ErrNodeStopped.
+// Make sure the program doesn't exit and waits instead for Shutdown to return.
 func (n *Node) Shutdown(ctx context.Context) error {
 	return n.engine.Shutdown(ctx)
 }
