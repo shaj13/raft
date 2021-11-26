@@ -155,6 +155,10 @@ func (n *Node) Shutdown(ctx context.Context) error {
 	return n.engine.Shutdown(ctx)
 }
 
+// Handler return node transportation handler,
+// that delegated to respond to RPC requests over the wire.
+// the returned handler must be registered with the transportation server,
+// unless the node is registered with a node group.
 func (n *Node) Handler() etransport.Handler {
 	return n.handler
 }
