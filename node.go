@@ -372,6 +372,16 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
 }
 
+// AddMember proposes to add the given member to the cluster,
+// It considered complete after reaching a majority.
+// After committing the addition, each member in the
+// cluster add the given member to its pool.
+//
+// Although, most applications will use the basic join.
+//
+// If the provided context expires before, the add is complete,
+// AddMember returns the context's error, otherwise it returns any
+// error returned due to the add.
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 	err := n.preCond(
 		joined(),
