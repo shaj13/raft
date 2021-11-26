@@ -453,8 +453,29 @@ func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
 	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
 }
 
+// GetMemebr returns member associated to the given id if exist,
+// Otherwise, it return nil and false.
 func (n *Node) GetMemebr(id uint64) (Member, bool) {
 	return n.pool.Get(id)
+}
+
+// Members returns the list of raft Members in the Cluster.
+func (n *Node) Members() []Member {
+	return n.members(func(m Member) bool { return true })
+}
+
+// Whoami returns the id associated with current effective member.
+// It return None, if the node stopped or not yet part of a raft cluster.
+func (n *Node) Whoami() uint64 {
+	s, _ := n.engine.Status()
+	return s.ID
+}
+
+// Leader returns the id of the raft cluster leader, if there any.
+// Otherwise, it return None.
+func (n *Node) Leader() uint64 {
+	s, _ := n.engine.Status()
+	return s.Lead
 }
 
 func (n *Node) members(cond func(m Member) bool) []Member {
@@ -465,20 +486,6 @@ func (n *Node) members(cond func(m Member) bool) []Member {
 		}
 	}
 	return mems
-}
-
-func (n *Node) Members() []Member {
-	return n.members(func(m Member) bool { return true })
-}
-
-func (n *Node) Whoami() uint64 {
-	s, _ := n.engine.Status()
-	return s.ID
-}
-
-func (n *Node) Leader() uint64 {
-	s, _ := n.engine.Status()
-	return s.Lead
 }
 
 func (n *Node) preCond(fns ...func(c *Node) error) error {
