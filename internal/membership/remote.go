@@ -2,6 +2,7 @@ package membership
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -176,17 +177,21 @@ func (r *remote) client() transport.Client {
 }
 
 func (r *remote) process(ctx context.Context) {
+	// perr capture the previous error to avoid overflow logs writer with the same error.
+	var perr error
 	for msg := range r.msgc {
 		if err := ctx.Err(); err != nil {
 			return
 		}
-
 		ctx, cancel := context.WithTimeout(ctx, r.cfg.StreamTimeout())
 		rpc := r.client()
 		err := rpc.Message(ctx, msg)
-		if err != nil {
+		if err != nil && !errors.Is(err, perr) || err != nil && r.logger.V(3).Enabled() {
 			r.logger.Errorf("raft.membership: sending message to member %x: %v", r.ID(), err)
+		} else if err == nil && perr != nil {
+			r.logger.Infof("raft.membership: sending message to member %x succeed", r.ID())
 		}
+		perr = err
 		r.report(msg, err)
 		r.setStatus(err == nil)
 		cancel()
