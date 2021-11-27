@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shaj13/raft/internal/atomic"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 )
 
@@ -99,7 +98,6 @@ func (m *MsgBus) subscribe(id uint64, n int, once bool) *Subscription {
 
 	s := &Subscription{
 		id:     m.subid.Next(),
-		closed: atomic.NewBool(),
 		eid:    id,
 		once:   once,
 		c:      make(chan interface{}, n),
@@ -134,10 +132,11 @@ func (m *MsgBus) delete(id, sid uint64) {
 
 // Subscription represents interest in a given event.
 type Subscription struct {
+	mu     sync.Mutex
 	id     uint64 // subscription id
 	eid    uint64 // event id
 	once   bool
-	closed *atomic.Bool
+	closed bool
 	c      chan interface{}
 	delete func(id, sid uint64)
 }
@@ -154,11 +153,14 @@ func (s *Subscription) Unsubscribe() {
 }
 
 func (s *Subscription) publish(v interface{}) {
-	if s.closed.True() {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
 		return
 	}
 
 	s.c <- v
+	s.mu.Unlock()
 
 	if s.once {
 		s.Unsubscribe()
@@ -166,9 +168,12 @@ func (s *Subscription) publish(v interface{}) {
 }
 
 func (s *Subscription) close() {
-	if s.closed.True() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
 		return
 	}
-	s.closed.Set()
+
+	s.closed = true
 	close(s.c)
 }
