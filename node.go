@@ -140,6 +140,14 @@ func (ng *NodeGroup) Stop() {
 	ng.mux.Stop()
 }
 
+// Node is a controller of the current effective raft member,
+// It also represents the front API to proposes changes into the raft cluster.
+//
+// Node packed with a built-in segmented WAL to provide durability and ensure data integrity.
+// alongside snapshotter that take a snapshot of the state of a system at a particular point in time.
+// Although, the application must have its own backend DB delegated by the state machine interface.
+//
+// Node also maintains a membership pool containing all other raft members.
 type Node struct {
 	handler transport.Handler
 	dial    transport.Dial
