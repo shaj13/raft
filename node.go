@@ -128,7 +128,7 @@ func (ng *NodeGroup) Start() {
 // that is how multiple nodes object representing one single physical node
 // that participate in multiple raft groups. Starting a node with a
 // different id from the previous one will cause a panic.
-// Make sure the program set the node id using option.
+// Make sure the program set the node id using option, if it's not first node.
 func (ng *NodeGroup) Create(groupID uint64, fsm StateMachine, opts ...Option) *Node {
 	n := NewNode(fsm, ng.proto, opts...)
 	ng.router.add(groupID, n.cfg.controller)
@@ -301,6 +301,8 @@ func (n *Node) Start(opts ...StartOption) error {
 	return n.engine.Start(cfg.addr, cfg.operators...)
 }
 
+// Leave proposes to remove current effective member.
+// See the documentation of "RemoveMember" for more information.
 func (n *Node) Leave(ctx context.Context) error {
 	return n.RemoveMember(
 		ctx,
