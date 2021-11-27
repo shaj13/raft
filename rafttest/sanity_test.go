@@ -57,8 +57,7 @@ func TestGroupSanityCheck(t *testing.T) {
 		for j, group := range groups {
 			node := group[i]
 			otr.init(node)
-			ok := ng.Add(uint64(j), node.raftnode)
-			require.True(t, ok)
+			node.raftnode = ng.Create(uint64(j), node.fsm, node.opts...)
 		}
 		go ng.Start()
 		nodeGroups[i] = ng

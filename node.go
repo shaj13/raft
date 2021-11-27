@@ -61,12 +61,6 @@ func NewNode(fsm StateMachine, proto etransport.Proto, opts ...Option) *Node {
 }
 
 // NewNodeGroup returns a new NodeGroup.
-// the provided transportation protocol must be the same for all sub-nodes.
-//
-//	nodeA := raft.New(gRPC, ...)
-//	nodeB := raft.New(gRPC, ...)
-//	ng := raft.NewNodeGroup(gRPC)
-//
 // the returned node group will lazily initialize,
 // from the first node registered within it, So it's recommended to apply
 // the same  HeartbeatTick, ElectionTick, and TickInterval configuration to all sub-nodes.
@@ -81,6 +75,7 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 	cfg.controller = router
 
 	return &NodeGroup{
+		proto:   proto,
 		mux:     mux,
 		handler: nh(cfg),
 		router:  router,
@@ -100,10 +95,11 @@ func NewNodeGroup(proto etransport.Proto) *NodeGroup {
 // only needs to exchange heartbeats once per tick (coalesced heartbeats),
 // no matter how many ranges they have in common.
 //
-// Add, and Remove can run while node group stopped.
-// starting an added node is required a started node group,
+// Create, Remove can run while node group stopped.
+// starting an created node is required a started node group,
 // Otherwise, it will hang until the node group started.
 type NodeGroup struct {
+	proto   etransport.Proto
 	mux     raftengine.Mux
 	handler transport.Handler
 	router  *router
@@ -123,8 +119,7 @@ func (ng *NodeGroup) Start() {
 	ng.mux.Start()
 }
 
-// Add add the given node that associated to the given group id,
-// and reports whether the node were successfully added.
+// Create construct and returns a new node that associated to the given group id,
 //
 // The node and the group are correlated so each group id must have
 // its own node object and each node object must have its own group id.
@@ -133,29 +128,15 @@ func (ng *NodeGroup) Start() {
 // that is how multiple nodes object representing one single physical node
 // that participate in multiple raft groups. Starting a node with a
 // different id from the previous one will cause a panic.
-//
-// 	nodeA = id(1)
-// 	nodeB = id(2)
-// 	nodeGroup.Add(1, nodeA)
-//	nodeGroup.Add(2, nodeB)
-// 	nodeB.Start(...) // panic
-//
-// The provided node must be freshly created and has not been started.
-//
-// 	nodeA := raft.New(...)
-//  nodeB := raft.New(...)
-//  nodeGroup.Add(1, nodeA)
-//	nodeGroup.Add(2, nodeB)
-func (ng *NodeGroup) Add(groupID uint64, n *Node) bool {
-	if _, err := n.engine.Status(); err == nil || n.cfg.groupID != None {
-		return false
-	}
+// Make sure the program set the node id using option.
+func (ng *NodeGroup) Create(groupID uint64, fsm StateMachine, opts ...Option) *Node {
+	n := NewNode(fsm, ng.proto, opts...)
 	ng.router.add(groupID, n.cfg.controller)
 	n.cfg.groupID = groupID
 	n.cfg.mux = ng.mux
 	n.cfg.controller = ng.router
 	n.handler = ng.handler
-	return true
+	return n
 }
 
 // Remove remove node related to the given group id.
@@ -164,7 +145,6 @@ func (ng *NodeGroup) Add(groupID uint64, n *Node) bool {
 //
 // 	nodeGroup.Remove(12)
 // 	node.Shutdown(ctx)
-//
 func (ng *NodeGroup) Remove(groupID uint64) {
 	ng.router.remove(groupID)
 }

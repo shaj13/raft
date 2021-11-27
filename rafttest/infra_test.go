@@ -232,7 +232,6 @@ func (o *orchestrator) init(n *node) {
 	ctx := raft.WithContext(ctxWithRawMember(n.rawMember()))
 	state := raft.WithStateDIR(o.t.TempDir())
 	n.opts = append(n.opts, ctx, state)
-	n.raftnode = raft.NewNode(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
 }
 
 func (o *orchestrator) start(nodes ...*node) {
@@ -244,6 +243,7 @@ func (o *orchestrator) start(nodes ...*node) {
 
 		if n.raftnode == nil {
 			o.init(n)
+			n.raftnode = raft.NewNode(n.fsm, etransport.Proto(transport.GRPC), n.opts...)
 		}
 
 		go func(n *node) {
