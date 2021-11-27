@@ -182,6 +182,8 @@ func (ng *NodeGroup) Stop() {
 // Although, the application must have its own backend DB delegated by the state machine interface.
 //
 // Node also maintains a membership pool containing all other raft members.
+//
+// Multiple goroutines may invoke methods on a Node simultaneously.
 type Node struct {
 	handler transport.Handler
 	dial    transport.Dial
