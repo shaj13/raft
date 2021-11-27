@@ -12,6 +12,7 @@ import (
 	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/internal/storage/disk"
 	"github.com/shaj13/raft/internal/transport"
 	etransport "github.com/shaj13/raft/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -25,6 +26,39 @@ var (
 	// follower or candidate node
 	ErrNotLeader = errors.New("raft: node is not the leader")
 )
+
+// NewNode construct a new node from the given configuration.
+// The returned node is in a stopped state, therefore it must be start explicitly.
+func NewNode(fsm StateMachine, proto etransport.Proto, opts ...Option) *Node {
+	if fsm == nil {
+		panic("raft: cannot create node from nil state machine")
+	}
+
+	newHandler, dialer := transport.Proto(proto).Get()
+	ctrl := new(controller)
+	cfg := newConfig(opts...)
+	cfg.fsm = fsm
+	cfg.controller = ctrl
+	cfg.storage = disk.New(cfg)
+	cfg.dial = dialer(cfg)
+	cfg.pool = membership.New(cfg)
+	cfg.engine = raftengine.New(cfg)
+
+	node := new(Node)
+	node.pool = cfg.pool
+	node.engine = cfg.engine
+	node.storage = cfg.storage
+	node.dial = cfg.dial
+	node.cfg = cfg
+	node.handler = newHandler(cfg)
+
+	ctrl.node = node
+	ctrl.engine = cfg.engine
+	ctrl.pool = cfg.pool
+	ctrl.storage = cfg.storage
+
+	return node
+}
 
 // NewNodeGroup returns a new NodeGroup.
 // the provided transportation protocol must be the same for all sub-nodes.
