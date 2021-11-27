@@ -32,17 +32,17 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 		return nil, err
 	}
 
-	mem := new(remote)
-	mem.ctx, mem.cancel = context.WithCancel(ctx)
-	mem.rc = rpc
-	mem.cfg = cfg
-	mem.r = cfg.Reporter()
-	mem.dial = cfg.Dial()
-	mem.msgc = make(chan etcdraftpb.Message, pipelineBufSize)
-	mem.active = true
-	mem.activeSince = time.Now()
-	mem.logger = cfg.Logger()
-	mem.raw.Store(m)
+	r := new(remote)
+	r.ctx, r.cancel = context.WithCancel(ctx)
+	r.rc = rpc
+	r.cfg = cfg
+	r.r = cfg.Reporter()
+	r.dial = cfg.Dial()
+	r.msgc = make(chan etcdraftpb.Message, pipelineBufSize)
+	r.active = true
+	r.activeSince = time.Now()
+	r.logger = cfg.Logger()
+	r.raw.Store(m)
 
 	cfg.Logger().V(5).Infof(
 		"raft.membership: setup pipelining for remote member %x [pipelines: %d, PipelineBufSize: %d]",
@@ -51,11 +51,15 @@ func newRemote(cfg Config, m raftpb.Member) (Member, error) {
 		pipelineBufSize,
 	)
 
+	r.wg.Add(connPerPipeline)
 	for i := 0; i < connPerPipeline; i++ {
-		go mem.process(mem.ctx)
+		go func() {
+			defer r.wg.Done()
+			r.process(r.ctx)
+		}()
 	}
 
-	return mem, nil
+	return r, nil
 }
 
 // remote represents the remote cluster member.
@@ -196,9 +200,6 @@ func (r *remote) client() transport.Client {
 }
 
 func (r *remote) process(ctx context.Context) {
-	r.wg.Add(1)
-	defer r.wg.Done()
-
 	// perr capture the previous error to avoid overflow logs writer with the same error.
 	var perr error
 	for msg := range r.msgc {

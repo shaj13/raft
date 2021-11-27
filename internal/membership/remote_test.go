@@ -234,10 +234,13 @@ func TestRemoteProcess(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 
+	r.mu.Lock()
 	require.False(t, r.active)
 
 	// reset active to ensure close set remote as inactive
 	r.active = true
+	r.mu.Unlock()
+
 	r.Close()
 	require.False(t, r.active)
 }
