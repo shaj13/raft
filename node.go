@@ -406,6 +406,8 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 // If the provided context expires before, the add is complete,
 // AddMember returns the context's error, otherwise it returns any
 // error returned due to the add.
+//
+// If the provided member id is None, AddMember will assign next available id.
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
 	err := n.preCond(
 		joined(),
