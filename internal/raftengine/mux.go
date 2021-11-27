@@ -199,7 +199,7 @@ func (m *mux) call(ctx context.Context, gid uint64, fn callFunc) error {
 		value: fn,
 	}
 
-	if err := m.push(context.Background(), op); err != nil {
+	if err := m.push(ctx, op); err != nil {
 		return err
 	}
 
@@ -240,19 +240,19 @@ func (m *mux) tick(gid uint64) {
 }
 
 func (m *mux) campaign(ctx context.Context, gid uint64) error {
-	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(ctx, gid, func(rn *raft.RawNode) error {
 		return rn.Campaign()
 	})
 }
 
 func (m *mux) propose(ctx context.Context, gid uint64, data []byte) error {
-	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(ctx, gid, func(rn *raft.RawNode) error {
 		return rn.Propose(data)
 	})
 }
 
 func (m *mux) proposeConfChange(ctx context.Context, gid uint64, cc etcdraftpb.ConfChangeI) error {
-	return m.call(context.Background(), gid, func(rn *raft.RawNode) error {
+	return m.call(ctx, gid, func(rn *raft.RawNode) error {
 		return rn.ProposeConfChange(cc)
 	})
 }
