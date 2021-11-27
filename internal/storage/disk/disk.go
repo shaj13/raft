@@ -29,10 +29,11 @@ func New(cfg Config) storage.Storage {
 	snapdir := filepath.Join(cfg.StateDir(), "snap")
 	waldir := filepath.Join(cfg.StateDir(), "wal")
 	disk := &disk{
-		cfg:     cfg,
-		waldir:  waldir,
-		snapdir: snapdir,
-		shoter:  &snapshotter{snapdir: snapdir},
+		maxsnaps: cfg.MaxSnapshotFiles(),
+		logger:   cfg.Logger(),
+		waldir:   waldir,
+		snapdir:  snapdir,
+		shoter:   &snapshotter{snapdir: snapdir},
 	}
 
 	return disk
@@ -40,18 +41,90 @@ func New(cfg Config) storage.Storage {
 
 // disk implements storage.Storage
 type disk struct {
-	wal     *wal.WAL
-	shoter  *snapshotter
-	gc      *gc
-	cfg     Config
-	waldir  string
-	snapdir string
+	wal      *wal.WAL
+	shoter   *snapshotter
+	logger   raftlog.Logger
+	maxsnaps int
+	waldir   string
+	snapdir  string
 }
 
 func (d *disk) purge() {
-	go func() {
-		d.gc.notifyc <- struct{}{}
-	}()
+	fn := func() error {
+		files, err := list(d.snapdir, snapExt)
+		if err != nil || len(files) < d.maxsnaps || len(files) == 0 {
+			return err
+		}
+
+		// snapshots.
+		var (
+			current = files[0]
+			oldest  string
+		)
+
+		for i, f := range files {
+			if f != current && i >= d.maxsnaps {
+				path := filepath.Join(d.snapdir, f)
+				if err := os.Remove(path); err != nil {
+					return err
+				}
+				continue
+			}
+			oldest = f
+		}
+
+		// oldest snapshot term and index.
+		var st, si uint64
+		_, err = fmt.Sscanf(oldest, format+snapExt, &st, &si)
+		if err != nil {
+			return err
+		}
+
+		files, err = list(d.waldir, walExt)
+		if err != nil {
+			return err
+		}
+
+		mark := -1
+
+		for i, f := range files {
+			// wal sequence and index.
+			var ws, wi uint64
+			_, err = fmt.Sscanf(f, format+walExt, &ws, &wi)
+			if err != nil {
+				return err
+			}
+
+			if wi >= si {
+				mark = i
+			}
+		}
+
+		if mark == 0 && len(files) > 0 {
+			mark = len(files) - 1
+		}
+
+		for i := 0; i < mark; i++ {
+			path := filepath.Join(d.waldir, files[len(files)-i-1])
+			lock, err := fileutil.TryLockFile(path, os.O_WRONLY, fileutil.PrivateFileMode)
+			if err != nil {
+				return err
+			}
+
+			err = os.Remove(path)
+			lock.Close()
+
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	if err := fn(); err != nil {
+		d.logger.Warningf("raft.storage: purging oldest snapshots/WALs files: %v", err)
+	}
 }
 
 // SaveSnapshot saves a given snapshot into the WAL.
@@ -87,7 +160,6 @@ func (d *disk) SaveEntries(st raftpb.HardState, ents []raftpb.Entry) error {
 // Boot return wal metadata, hard-state, entries, and newest snapshot,
 // Otherwise, it create new wal from given metadata alongside snapshots dir.
 func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
-	gc := newGC(d.cfg.Context(), d.cfg.Logger(), d.waldir, d.snapdir, d.cfg.MaxSnapshotFiles())
 	fail := func(err error) ([]byte, raftpb.HardState, []raftpb.Entry, *storage.Snapshot, error) {
 		return []byte{}, raftpb.HardState{}, []raftpb.Entry{}, nil, err
 	}
@@ -115,8 +187,6 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 		}
 
 		d.wal = w
-		d.gc = gc
-		d.gc.Start()
 		return meta, raftpb.HardState{}, []raftpb.Entry{}, nil, nil
 	}
 
@@ -157,9 +227,6 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	}
 
 	d.wal = w
-	d.gc = gc
-	d.gc.Start()
-
 	return meta, st, ents, sf, nil
 }
 
@@ -172,6 +239,5 @@ func (d *disk) Snapshotter() storage.Snapshotter {
 }
 
 func (d *disk) Close() error {
-	d.gc.Close()
 	return d.wal.Close()
 }

@@ -1,7 +1,7 @@
 package disk
 
 import (
-	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,8 +36,6 @@ func TestDiskWalInteraction(t *testing.T) {
 	err = disk.SaveEntries(hs, []raftpb.Entry{})
 	require.NoError(t, err)
 
-	// clsoe disk
-	close(disk.gc.done)
 	disk.Close()
 
 	// open wal for read and check data against waht saved.
@@ -55,7 +53,6 @@ func TestDiskBootMkdir(t *testing.T) {
 	temp := filepath.Join(os.TempDir(), "/test_disk_boot")
 	defer os.RemoveAll(temp)
 	d := new(disk)
-	d.cfg = new(config)
 	d.snapdir = ""
 	d.waldir = ""
 
@@ -111,19 +108,43 @@ func TestDiskExist(t *testing.T) {
 	require.False(t, d.Exist())
 }
 
+func TestDiskPurge(t *testing.T) {
+	dir := createTestDir("purge", t)
+	defer os.RemoveAll(dir)
+
+	files := []string{}
+	for i := 0; i < 5; i++ {
+		name := fmt.Sprintf(format, i, i)
+		snap := name + snapExt
+		wal := name + walExt
+		files = append(files, snap, wal)
+	}
+
+	createTestFiles(dir, files, t)
+
+	// gc := newGC(context.TODO(), raftlog.DefaultLogger, dir, dir, 1)
+	disk := newTestDisk(dir)
+	disk.maxsnaps = 1
+	disk.purge()
+
+	snaps, _ := list(dir, snapExt)
+	wals, _ := list(dir, walExt)
+	require.Equal(t, 1, len(snaps))
+	require.Equal(t, 1, len(wals))
+	require.Equal(t, snaps[0], fmt.Sprintf(format, 4, 4)+snapExt)
+	require.Equal(t, wals[0], fmt.Sprintf(format, 4, 4)+walExt)
+}
+
 func newTestDisk(dir string) *disk {
-	gc := newGC(context.TODO(), raftlog.DefaultLogger, dir, dir, 100)
 	d := new(disk)
-	d.cfg = new(config)
+	d.logger = raftlog.DefaultLogger
 	d.snapdir = dir
 	d.waldir = dir
-	d.gc = gc
 	return d
 }
 
-type config struct{}
-
-func (config) StateDir() (str string)    { return }
-func (config) MaxSnapshotFiles() (i int) { return }
-func (config) Context() context.Context  { return context.TODO() }
-func (config) Logger() raftlog.Logger    { return raftlog.DefaultLogger }
+// type config struct{}
+// func (config) StateDir() (str string)    { return }
+// func (config) MaxSnapshotFiles() (i int) { return }
+// func (config) Context() context.Context  { return context.TODO() }
+// func (config) Logger() raftlog.Logger    { return raftlog.DefaultLogger }
