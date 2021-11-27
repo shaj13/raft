@@ -240,7 +240,7 @@ func (eng *engine) Shutdown(ctx context.Context) error {
 		nopClose(eng.wg.Wait),
 		nopClose(func() { close(eng.snapshotc) }),
 		nopClose(eng.node.Stop),
-		eng.msgbus.Clsoe,
+		eng.msgbus.Close,
 		eng.storage.Close,
 		func() error {
 			return eng.pool.TearDown(ctx)

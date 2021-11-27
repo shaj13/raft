@@ -15,7 +15,7 @@ func TestMsgBus(t *testing.T) {
 	m := New()
 	s1 := m.Subscribe(eventid)
 	s2 := m.SubscribeOnce(onceid)
-	defer m.Clsoe()
+	defer m.Close()
 
 	run := func(id uint64, s1, s2 *Subscription) bool {
 		go func() {

@@ -35,7 +35,7 @@ func (m *MsgBus) SubscribeBuffered(id uint64, n int) *Subscription {
 	return m.subscribe(id, n, false)
 }
 
-// Subscribe creates an async one time subscription for event.
+// SubscribeOnce creates an async one time subscription for event.
 func (m *MsgBus) SubscribeOnce(id uint64) *Subscription {
 	return m.subscribe(id, 1, true)
 }
@@ -57,7 +57,7 @@ func (m *MsgBus) Broadcast(id uint64, v interface{}) {
 }
 
 // Close msgbus and remove all subscription.
-func (m *MsgBus) Clsoe() error {
+func (m *MsgBus) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
