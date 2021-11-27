@@ -100,6 +100,7 @@ func (m *MsgBus) subscribe(id uint64, n int, once bool) *Subscription {
 		id:     m.subid.Next(),
 		eid:    id,
 		once:   once,
+		closed: make(chan struct{}),
 		c:      make(chan interface{}, n),
 		delete: m.delete,
 	}
@@ -132,12 +133,12 @@ func (m *MsgBus) delete(id, sid uint64) {
 
 // Subscription represents interest in a given event.
 type Subscription struct {
-	mu     sync.Mutex
 	id     uint64 // subscription id
 	eid    uint64 // event id
 	once   bool
-	closed bool
 	c      chan interface{}
+	closed chan struct{}
+	sonce  sync.Once
 	delete func(id, sid uint64)
 }
 
@@ -153,14 +154,11 @@ func (s *Subscription) Unsubscribe() {
 }
 
 func (s *Subscription) publish(v interface{}) {
-	s.mu.Lock()
-	if s.closed {
-		s.mu.Unlock()
+	select {
+	case s.c <- v:
+	case <-s.closed:
 		return
 	}
-
-	s.c <- v
-	s.mu.Unlock()
 
 	if s.once {
 		s.Unsubscribe()
@@ -168,12 +166,7 @@ func (s *Subscription) publish(v interface{}) {
 }
 
 func (s *Subscription) close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return
-	}
-
-	s.closed = true
-	close(s.c)
+	s.sonce.Do(func() {
+		close(s.closed)
+	})
 }
