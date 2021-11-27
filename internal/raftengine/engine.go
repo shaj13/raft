@@ -381,8 +381,8 @@ func (eng *engine) Start(addr string, oprs ...Operator) error {
 	eng.snapshotc = make(chan chan error)
 	eng.started.Set()
 
-	go eng.process(eng.proposec)
-	go eng.process(eng.msgc)
+	eng.process(eng.proposec)
+	eng.process(eng.msgc)
 	return eng.eventLoop()
 }
 
@@ -595,19 +595,20 @@ func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 // process the incoming messages from the given chan.
 func (eng *engine) process(c chan etcdraftpb.Message) {
 	eng.processwg.Add(1)
-	defer eng.processwg.Done()
+	go func() {
+		defer eng.processwg.Done()
+		// process must keep processing msg until c closed or ctx.Done(),
+		// for graceful shutdown purposes.
+		for m := range c {
+			if err := eng.ctx.Err(); err != nil {
+				return
+			}
 
-	// process must keep processing msg until c closed or ctx.Done(),
-	// for graceful shutdown purposes.
-	for m := range c {
-		if err := eng.ctx.Err(); err != nil {
-			return
+			if err := eng.node.Step(eng.ctx, m); err != nil {
+				eng.logger.Warningf("raft.engine: process raft message: %v", err)
+			}
 		}
-
-		if err := eng.node.Step(eng.ctx, m); err != nil {
-			eng.logger.Warningf("raft.engine: process raft message: %v", err)
-		}
-	}
+	}()
 }
 
 func (eng *engine) send(msgs []etcdraftpb.Message) {
