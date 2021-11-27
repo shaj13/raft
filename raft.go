@@ -36,6 +36,16 @@ type MemberType = raftpb.MemberType
 // RawMember represents a raft cluster member and holds its metadata.
 type RawMember = raftpb.Member
 
+// Member represents a raft cluster member.
+type Member interface {
+	ID() uint64
+	Address() string
+	ActiveSince() time.Time
+	IsActive() bool
+	Type() MemberType
+	Raw() RawMember
+}
+
 // StateMachine define an interface that must be implemented by
 // application to make use of the raft replicated log.
 type StateMachine = raftengine.StateMachine
