@@ -38,7 +38,7 @@ func TestDiskWalInteraction(t *testing.T) {
 
 	disk.Close()
 
-	// open wal for read and check data against waht saved.
+	// open wal for read and check data against what saved.
 	snaps, _ := wal.ValidSnapshotEntries(nil, dir)
 	w, _ = wal.OpenForRead(nil, dir, walpb.Snapshot{})
 	_, gotHs, _, _ := w.ReadAll()

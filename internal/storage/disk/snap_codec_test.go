@@ -70,7 +70,7 @@ func TestDecodeSnapErr(t *testing.T) {
 		{
 			name:     "it return error when snapshot have invalid crc",
 			file:     "./testdata/crc.snap",
-			contains: ErrCRCMismatch.Error(),
+			contains: errCRCMismatch.Error(),
 		},
 	}
 
@@ -91,7 +91,7 @@ func TestDecodeNewestAvailableSnapshot(t *testing.T) {
 	// Round #2 it return error when no snapshots
 	sf, err = decodeNewestAvailableSnapshot("./testdata/", []walpb.Snapshot{})
 	require.Nil(t, sf)
-	require.Equal(t, ErrNoSnapshot, err)
+	require.Equal(t, errNoSnapshot, err)
 
 	// Round #3 it return latest snapshots
 	expected, _ := snapshotTestFile()

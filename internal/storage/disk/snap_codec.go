@@ -21,10 +21,9 @@ import (
 var crcTable = crc64.MakeTable(crc64.ECMA)
 
 var (
-	ErrEmptySnapshot  = errors.New("raft/storage: empty snapshot file")
-	ErrSnapshotFormat = errors.New("raft/storage: invalid snapshot file format")
-	ErrCRCMismatch    = errors.New("raft/storage: snapshot file corrupted, crc mismatch")
-	ErrNoSnapshot     = errors.New("raft/storage: no available snapshot")
+	errSnapshotFormat = errors.New("raft/storage: invalid snapshot file format")
+	errCRCMismatch    = errors.New("raft/storage: snapshot file corrupted, crc mismatch")
+	errNoSnapshot     = errors.New("raft/storage: no available snapshot")
 )
 
 func snapshotName(term, index uint64) string {
@@ -52,7 +51,7 @@ func decodeNewestAvailableSnapshot(dir string, snaps []walpb.Snapshot) (*storage
 	}
 
 	if len(target) == 0 {
-		return nil, ErrNoSnapshot
+		return nil, errNoSnapshot
 	}
 
 	return decodeSnapshot(filepath.Join(dir, target))
@@ -69,7 +68,7 @@ func peekSnapshot(path string) (etcdraftpb.Snapshot, error) {
 	return sf.Raw, nil
 }
 
-func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
+func encodeSnapshot(path string, s *storage.Snapshot) error {
 	pathtmp := path + ".tmp"
 
 	f, err := os.Create(pathtmp)
@@ -86,8 +85,8 @@ func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
 
 	defer func() {
 		if err != nil {
-			f.Close()
-			os.Remove(pathtmp)
+			_ = f.Close()
+			_ = os.Remove(pathtmp)
 			return
 		}
 
@@ -122,7 +121,7 @@ func encodeSnapshot(path string, s *storage.Snapshot) (err error) {
 	binary.BigEndian.PutUint64(bsize, tsize)
 
 	_, err = fw.Write(bsize)
-	return
+	return err
 }
 
 func decodeSnapshot(path string) (*storage.Snapshot, error) {
@@ -139,7 +138,7 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	bsize := make([]byte, 8)
 	_, err = f.ReadAt(bsize, stat.Size()-8)
 	if err == io.EOF {
-		return nil, ErrSnapshotFormat
+		return nil, errSnapshotFormat
 	}
 
 	if err != nil {
@@ -172,11 +171,11 @@ func decodeSnapshot(path string) (*storage.Snapshot, error) {
 	}
 
 	if !bytes.Equal(state.CRC, crc.Sum(nil)) {
-		return nil, ErrCRCMismatch
+		return nil, errCRCMismatch
 	}
 
 	// Reset file offset to read snap data again.
-	f.Seek(0, 0)
+	_, _ = f.Seek(0, 0)
 	br.Reset(f)
 	lr.N = eod
 

@@ -112,7 +112,7 @@ func (d *disk) purge() {
 			}
 
 			err = os.Remove(path)
-			lock.Close()
+			_ = lock.Close()
 
 			if err != nil {
 				return err
@@ -199,7 +199,7 @@ func (d *disk) Boot(meta []byte) ([]byte, raftpb.HardState, []raftpb.Entry, *sto
 	}
 
 	sf, err := decodeNewestAvailableSnapshot(d.snapdir, walSnaps)
-	if err == ErrNoSnapshot {
+	if err == errNoSnapshot {
 		sf = new(storage.Snapshot)
 	} else if err != nil {
 		return fail(
