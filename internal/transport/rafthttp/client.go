@@ -19,7 +19,6 @@ import (
 const (
 	snapshotHeader = "X-Raft-Snapshot"
 	groupIDHeader  = "X-Raft-Group-ID"
-	memberIDHeader = "X-Raft-Member-ID"
 	messageURI     = "/message"
 	snapshotURI    = "/snapshot"
 	joinURI        = "/join"
@@ -69,21 +68,24 @@ func (c *client) Message(ctx context.Context, m etcdraftpb.Message) error {
 
 func (c *client) Join(ctx context.Context, m raftpb.Member) (*raftpb.JoinResponse, error) {
 	resp := new(raftpb.JoinResponse)
+	// nolint:bodyclose
 	_, err := c.requestProto(ctx, joinURI, &m, resp)
 	return resp, err
 }
 
 func (c *client) PromoteMember(ctx context.Context, msg raftpb.Member) error {
+	// nolint:bodyclose
 	_, err := c.requestProto(ctx, promoteURI, &msg, nil)
 	return err
 }
 
-func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error) {
-	_, err = c.requestProto(ctx, messageURI, &msg, nil)
-	return
+func (c *client) message(ctx context.Context, msg etcdraftpb.Message) error {
+	// nolint:bodyclose
+	_, err := c.requestProto(ctx, messageURI, &msg, nil)
+	return err
 }
 
-func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err error) {
+func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) error {
 	meta := msg.Snapshot.Metadata
 	r, err := c.ctrl.SnapshotReader(c.gid, meta.Term, meta.Index)
 	if err != nil {
@@ -101,6 +103,7 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 	req.Header.Add(snapshotHeader, strconv.FormatUint(meta.Term, 10))
 	req.Header.Add(snapshotHeader, strconv.FormatUint(meta.Index, 10))
 
+	// nolint:bodyclose
 	if _, err := c.roundTrip(ctx, req, nil); err != nil {
 		return err
 	}
@@ -108,7 +111,13 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 	return c.message(ctx, msg)
 }
 
-func (c *client) requestProto(ctx context.Context, uri string, in pbutil.Marshaler, out pbutil.Unmarshaler) (*http.Response, error) {
+func (c *client) requestProto(
+	ctx context.Context,
+	uri string,
+	in pbutil.Marshaler,
+	out pbutil.Unmarshaler,
+) (*http.Response, error) {
+
 	data, err := in.Marshal()
 	if err != nil {
 		return nil, err
@@ -139,7 +148,7 @@ func (c *client) roundTrip(ctx context.Context, req *http.Request, out pbutil.Un
 
 	defer res.Body.Close()
 
-	// return if rpc does not return responce.
+	// return if rpc does not return response.
 	if res.StatusCode == http.StatusNoContent && out == nil {
 		return res, nil
 	}
