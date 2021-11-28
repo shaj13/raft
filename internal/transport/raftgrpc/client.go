@@ -25,12 +25,14 @@ var bufferPool = sync.Pool{
 
 const (
 	snapshotHeader = "X-Raft-Snapshot"
-	memberIDHeader = "X-Raft-Member-ID"
 	groupIDHeader  = "X-Raft-Group-ID"
 )
 
 // Dialer return's grpc dialer.
-func Dialer(dopts func(context.Context) []grpc.DialOption, copts func(context.Context) []grpc.CallOption) transport.Dialer {
+func Dialer(
+	dopts func(context.Context) []grpc.DialOption,
+	copts func(context.Context) []grpc.CallOption,
+) transport.Dialer {
 	return func(cfg transport.Config) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
 			conn, err := grpc.DialContext(ctx, addr, dopts(ctx)...)

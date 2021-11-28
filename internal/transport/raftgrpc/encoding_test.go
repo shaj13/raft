@@ -35,6 +35,7 @@ func TestDecoder(t *testing.T) {
 
 func TestEncoder(t *testing.T) {
 	count := 0
+	// nolint:unparam
 	cb := func(c *pb.Chunk) error {
 		count++
 		assert.LessOrEqual(t, c.Size(), bufio.MaxScanTokenSize)
