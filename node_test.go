@@ -313,29 +313,12 @@ func TestNodeReplicate(t *testing.T) {
 }
 
 func TestNodeRemoveMember(t *testing.T) {
-	var raw *raftpb.Member
-	ctrl := gomock.NewController(t)
-	pool := membershipmock.NewMockPool(ctrl)
-	m1 := membershipmock.NewMockMember(ctrl)
-	eng := raftenginemock.NewMockEngine(ctrl)
-	eng.
-		EXPECT().
-		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
-			raw = m
-			return nil
-		})
-	eng.EXPECT().Status().Return(raft.Status{}, nil)
-	m1.EXPECT().Raw().Return(RawMember{})
-	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
-
-	n := new(Node)
-	n.engine = eng
-	n.pool = pool
-	n.exec = testPreCond
-	err := n.RemoveMember(context.TODO(), 0)
-	require.NoError(t, err)
-	require.Equal(t, RemovedMember, raw.Type)
+	fn := func(raw *raftpb.Member, n *Node) {
+		err := n.RemoveMember(context.TODO(), 0)
+		require.NoError(t, err)
+		require.Equal(t, RemovedMember, raw.Type)
+	}
+	testConfChange(t, fn)
 }
 
 func TestNodeAddMember(t *testing.T) {
@@ -361,29 +344,13 @@ func TestNodeAddMember(t *testing.T) {
 }
 
 func TestNodeDemoteMember(t *testing.T) {
-	var raw *raftpb.Member
-	ctrl := gomock.NewController(t)
-	pool := membershipmock.NewMockPool(ctrl)
-	m1 := membershipmock.NewMockMember(ctrl)
-	eng := raftenginemock.NewMockEngine(ctrl)
-	eng.
-		EXPECT().
-		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
-			raw = m
-			return nil
-		})
-	eng.EXPECT().Status().Return(raft.Status{}, nil)
-	m1.EXPECT().Raw().Return(RawMember{})
-	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
+	fn := func(raw *raftpb.Member, n *Node) {
+		err := n.DemoteMember(context.TODO(), 0)
+		require.NoError(t, err)
+		require.Equal(t, LearnerMember, raw.Type)
+	}
+	testConfChange(t, fn)
 
-	n := new(Node)
-	n.engine = eng
-	n.pool = pool
-	n.exec = testPreCond
-	err := n.DemoteMember(context.TODO(), 0)
-	require.NoError(t, err)
-	require.Equal(t, LearnerMember, raw.Type)
 }
 
 func TestNodeMembers(t *testing.T) {
@@ -778,6 +745,30 @@ func TestNodeGroupHandler(t *testing.T) {
 		handler: expected,
 	}
 	require.Equal(t, expected, ng.handler)
+}
+
+func testConfChange(t *testing.T, fn func(*RawMember, *Node)) {
+	raw := new(RawMember)
+	ctrl := gomock.NewController(t)
+	pool := membershipmock.NewMockPool(ctrl)
+	m1 := membershipmock.NewMockMember(ctrl)
+	eng := raftenginemock.NewMockEngine(ctrl)
+	eng.
+		EXPECT().
+		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
+			raw.Type = m.Type
+			return nil
+		})
+	eng.EXPECT().Status().Return(raft.Status{}, nil)
+	m1.EXPECT().Raw().Return(RawMember{})
+	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
+
+	n := new(Node)
+	n.engine = eng
+	n.pool = pool
+	n.exec = testPreCond
+	fn(raw, n)
 }
 
 func testPreCond(fns ...func(c *Node) error) error {
