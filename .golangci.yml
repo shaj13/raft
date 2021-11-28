@@ -38,7 +38,6 @@ linters-settings:
 issues:
   exclude-use-default: false
   exclude-rules:
-    
     - text: "G304: Potential file inclusion via variable"
       linters:
         - gosec
@@ -47,3 +46,7 @@ issues:
       linters:
         - errcheck
         - gosec
+
+    - linters:
+        - lll
+      source: "^//go:generate "
