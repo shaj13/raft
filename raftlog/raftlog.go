@@ -18,7 +18,7 @@ import (
 )
 
 // DefaultLogger define the standard logger used by the package-level output functions.
-var DefaultLogger Logger = New(0, "", os.Stderr, io.Discard)
+var DefaultLogger = New(0, "", os.Stderr, io.Discard)
 
 const (
 	// infoLog indicates Info severity.
@@ -221,7 +221,7 @@ func Fatal(v ...interface{}) {
 	DefaultLogger.Fatal(v...)
 }
 
-// Fatal logs to the FATAL, ERROR, WARNING, and INFO logs followed by a call to os.Exit(1).
+// Fatalf logs to the FATAL, ERROR, WARNING, and INFO logs followed by a call to os.Exit(1).
 // Arguments are handled in the manner of fmt.Printf.
 // A newline is appended if the last character of format is not
 // already a newline.
@@ -235,7 +235,7 @@ func Panic(v ...interface{}) {
 	DefaultLogger.Panic(v...)
 }
 
-// Panic logs to the PANIC, ERROR, WARNING, and INFO logs followed by a call to panic().
+// Panicf logs to the PANIC, ERROR, WARNING, and INFO logs followed by a call to panic().
 // Arguments are handled in the manner of fmt.Printf.
 // A newline is appended if the last character of format is not
 // already a newline.
@@ -251,7 +251,10 @@ type logger struct {
 
 func (l *logger) output(sev int, s string) {
 	sevStr := severityName[sev]
-	l.ll[sev].Output(2, fmt.Sprintf("%v: %v", sevStr, s))
+	err := l.ll[sev].Output(2, fmt.Sprintf("%v: %v", sevStr, s))
+	if err != nil {
+		Panic(err)
+	}
 }
 
 func (l *logger) Panic(v ...interface{}) {
