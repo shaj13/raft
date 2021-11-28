@@ -109,7 +109,7 @@ func TestRemoteUpdate(t *testing.T) {
 	require.NoError(t, got)
 	require.Equal(t, addr, r.Address())
 
-	// Round #2 it return error whn dial return error
+	// Round #2 it return error when dial return error
 	got = r.Update(raftpb.Member{Address: uaddr})
 	require.Equal(t, err, got)
 	require.Equal(t, addr, r.Address())

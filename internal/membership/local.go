@@ -15,7 +15,7 @@ func newLocal(cfg Config, m raftpb.Member) (Member, error) {
 		r:      cfg.Reporter(),
 		active: time.Now(),
 	}
-	l.Update(m)
+	_ = l.Update(m)
 	return l, nil
 }
 

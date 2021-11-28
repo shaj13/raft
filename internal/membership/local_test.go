@@ -10,7 +10,7 @@ import (
 )
 
 func TestLocal(t *testing.T) {
-	addr := ":50051"
+	addr := ":8080"
 	id := uint64(1)
 	raw := raftpb.Member{ID: 2}
 	l := local{}
