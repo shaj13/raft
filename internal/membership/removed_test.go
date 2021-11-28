@@ -24,8 +24,8 @@ func TestRemoved(t *testing.T) {
 	require.False(t, r.IsActive())
 	require.Equal(t, time.Time{}, r.ActiveSince())
 	require.Equal(t, raftpb.RemovedMember, r.Type())
-	require.Equal(t, r.Send(etcdraftpb.Message{}), ErrRemovedMember)
-	require.Equal(t, r.Update(raftpb.Member{}), ErrRemovedMember)
+	require.Equal(t, r.Send(etcdraftpb.Message{}), errRemovedMember)
+	require.Equal(t, r.Update(raftpb.Member{}), errRemovedMember)
 	require.Equal(t, addr, r.Address())
 	require.Equal(t, addr, r.Raw().Address)
 }

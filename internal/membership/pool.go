@@ -16,6 +16,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// New construc and returns a new pool members.
 func New(cfg Config) Pool {
 	return &pool{
 		cfg:   cfg,

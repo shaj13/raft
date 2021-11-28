@@ -14,6 +14,7 @@ import (
 //go:generate mockgen -package membershipmock  -source internal/membership/types.go -destination internal/mocks/membership/membership.go
 //go:generate mockgen -package membership  -source internal/membership/types.go -destination internal/membership/types_test.go
 
+// Member represents a raft cluster member.
 type Member interface {
 	ID() uint64
 	Address() string
@@ -27,12 +28,14 @@ type Member interface {
 	TearDown(ctx context.Context) error
 }
 
+// Reporter is used to report on a member status.
 type Reporter interface {
 	ReportUnreachable(id uint64)
 	ReportShutdown(id uint64)
 	ReportSnapshot(id uint64, status raft.SnapshotStatus)
 }
 
+// Config define common configuration used by the pool.
 type Config interface {
 	Context() context.Context
 	StreamTimeout() time.Duration
@@ -43,6 +46,7 @@ type Config interface {
 	AllowPipelining() bool
 }
 
+// Pool represents a set of raft Members.
 type Pool interface {
 	NextID() uint64
 	Members() []Member

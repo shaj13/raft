@@ -9,7 +9,7 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-var ErrRemovedMember = errors.New("raft/membership: member was removed")
+var errRemovedMember = errors.New("raft/membership: member was removed")
 
 func newRemoved(_ Config, m raftpb.Member) (Member, error) {
 	return removed{
@@ -31,7 +31,7 @@ func (r removed) Address() string {
 }
 
 func (r removed) Send(etcdraftpb.Message) error {
-	return ErrRemovedMember
+	return errRemovedMember
 }
 
 func (r removed) Type() raftpb.MemberType {
@@ -39,7 +39,7 @@ func (r removed) Type() raftpb.MemberType {
 }
 
 func (r removed) Update(raftpb.Member) error {
-	return ErrRemovedMember
+	return errRemovedMember
 }
 
 func (r removed) Raw() raftpb.Member {
