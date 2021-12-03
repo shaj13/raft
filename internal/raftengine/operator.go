@@ -242,12 +242,12 @@ func (s stateSetup) after(ost *operatorsState) (err error) {
 		}
 	}
 
-	ost.eng.cache.SetHardState(ost.hst)
-	ost.eng.cache.Append(ost.ents)
+	_ = ost.eng.cache.SetHardState(ost.hst)
+	_ = ost.eng.cache.Append(ost.ents)
 	return
 }
 
-func (st stateSetup) String() string {
+func (s stateSetup) String() string {
 	return "StateSetup"
 }
 
@@ -296,7 +296,7 @@ func (s setup) after(ost *operatorsState) (err error) {
 		return m.Type
 	})
 
-	return
+	return nil
 }
 
 func (s setup) String() string {

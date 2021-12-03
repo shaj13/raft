@@ -20,13 +20,18 @@ import (
 )
 
 var (
-	ErrStopped  = errors.New("raft: node not ready yet or has been stopped")
+	// ErrStopped is returned by the Engine methods after a call to
+	// Shutdown or when it has not started.
+	ErrStopped = errors.New("raft: node not ready yet or has been stopped")
+	// ErrNoLeader is returned by the Engine methods when leader lost, or
+	// no elected cluster leader.
 	ErrNoLeader = errors.New("raft: no elected cluster leader")
 )
 
 //go:generate mockgen -package raftenginemock  -source internal/raftengine/engine.go -destination internal/mocks/raftengine/engine.go
 //go:generate mockgen -package raftengine  -source vendor/go.etcd.io/etcd/raft/v3/node.go -destination internal/raftengine/node_test.go
 
+// Engine represents the underlying raft node processor.
 type Engine interface {
 	LinearizableRead(ctx context.Context) error
 	Push(m etcdraftpb.Message) error
@@ -42,6 +47,7 @@ type Engine interface {
 	ReportShutdown(id uint64)
 }
 
+// New construct and return new engine from the provided config.
 func New(cfg Config) Engine {
 	d := &engine{}
 	d.cfg = cfg
@@ -432,7 +438,12 @@ func (eng *engine) eventLoop() error {
 	}
 }
 
-func (eng *engine) proposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) (uint64, error) {
+func (eng *engine) proposeConfChange(
+	ctx context.Context,
+	m *raftpb.Member,
+	t etcdraftpb.ConfChangeType,
+) (uint64, error) {
+
 	buf, err := m.Marshal()
 	if err != nil {
 		return 0, err
