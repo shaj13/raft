@@ -51,7 +51,10 @@ func TestControllerJoin(t *testing.T) {
 				pool.EXPECT().Get(gomock.Any()).Return(nil, false)
 				eng := raftenginemock.NewMockEngine(ctrl)
 				eng.EXPECT().Status().Return(raft.Status{}, nil)
-				eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).Return(ErrNotLeader)
+				eng.
+					EXPECT().
+					ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).
+					Return(ErrNotLeader)
 				n := new(Node)
 				n.exec = testPreCond
 				n.engine = eng

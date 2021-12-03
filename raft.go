@@ -58,8 +58,8 @@ type Option interface {
 	apply(c *config)
 }
 
-// StartOption configures how we start the raft node using the functional options paradigm popularized by Rob Pike and Dave Cheney.
-// If you're unfamiliar with this style,
+// StartOption configures how we start the raft node using the functional options paradigm ,
+// popularized by Rob Pike and Dave Cheney. If you're unfamiliar with this style,
 // see https://commandcenter.blogspot.com/2014/01/self-referential-functions-and-design.html and
 // https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis.
 type StartOption interface {

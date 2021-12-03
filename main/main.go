@@ -61,7 +61,7 @@ func main() {
 	}
 	fsm := new(stateMachine)
 	fsm.kv = map[string]string{}
-	node := raft.New(fsm, transport.GRPC, raft.WithStateDIR(dir), raft.WithSnapshotInterval(2))
+	node := raft.NewNode(fsm, transport.GRPC, raft.WithStateDIR(dir), raft.WithSnapshotInterval(2))
 	go func() {
 		if join != "" {
 			return
@@ -102,24 +102,24 @@ func httpListen(fsm *stateMachine, n *raft.Node) {
 			err := n.LinearizableRead(r.Context())
 			if err != nil {
 				rw.WriteHeader(400)
-				rw.Write([]byte(err.Error()))
+				_, _ = rw.Write([]byte(err.Error()))
 			}
 
 			path := strings.ReplaceAll(r.RequestURI, "/", "")
 			val := fsm.Reead(path)
-			rw.Write([]byte(val))
+			_, _ = rw.Write([]byte(val))
 			return
 		}
 		buf, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			rw.WriteHeader(400)
-			rw.Write([]byte(err.Error()))
+			_, _ = rw.Write([]byte(err.Error()))
 		}
 
 		err = n.Replicate(r.Context(), buf)
 		if err != nil {
 			rw.WriteHeader(400)
-			rw.Write([]byte(err.Error()))
+			_, _ = rw.Write([]byte(err.Error()))
 		}
 	}))
 
