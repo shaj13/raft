@@ -45,7 +45,7 @@ workflows:
   build:
     jobs:
       - lint
-      - tests
+      - cover
       # - bench
       # - release:
       #     requires:
