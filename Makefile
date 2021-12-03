@@ -14,7 +14,11 @@ clean:
 cover: clean 
 	mkdir ${PWD}/cover 
 	go clean -testcache
-	GOFLAGS=-mod=vendor go test ./... -v -cover -coverprofile=${PWD}/cover/coverage.out
+	GOFLAGS=-mod=vendor go test `go list ./... | grep -v github.com/shaj13/raft/rafttest` -timeout 30s -race -v -cover -coverprofile=${PWD}/cover/coverage.out
+
+rafttest:
+	go clean -testcache
+	GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race 
 
 deploy-cover:
 	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
