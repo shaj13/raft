@@ -15,7 +15,7 @@ cover: clean
 	mkdir ${PWD}/cover 
 	go clean -testcache
 	GOFLAGS=-mod=vendor go test ./... -v -cover -coverprofile=${PWD}/cover/coverage.out
-	
+
 deploy-cover:
 	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
 
@@ -23,7 +23,7 @@ lint:
 	./bin/golangci-lint run -c .golangci.yml ./...
 	
 lint-fix: 
-	@FILES="$(shell find . -type f -name '*.go' -not -path "./vendor/*")"; goimports -local "github.com/shaj13/go-guardian/v2" -w $$FILES
+	@FILES="$(shell find . -type f -name '*.go' -not -path "./vendor/*")"; goimports -local "github.com/shaj13/raft" -w $$FILES
 	./bin/golangci-lint run -c .golangci.yml ./... --fix 
 	./bin/golangci-lint run -c .golangci.yml ./... --fix
 
