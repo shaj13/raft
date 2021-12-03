@@ -102,7 +102,7 @@ func (c *client) message(ctx context.Context, msg etcdraftpb.Message) (err error
 
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	buf.Write(data)
+	_, _ = buf.Write(data)
 
 	defer func() {
 		bufferPool.Put(buf)

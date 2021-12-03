@@ -5,7 +5,9 @@ import (
 )
 
 const (
+	// GRPC represents raft transportation using gRPC.
 	GRPC Proto = iota + 1
+	// HTTP represents raft transportation using http.
 	HTTP
 	max
 )

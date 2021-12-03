@@ -98,7 +98,7 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	w.Write(data)
+	_, _ = w.Write(data)
 
 	return http.StatusOK, nil
 }

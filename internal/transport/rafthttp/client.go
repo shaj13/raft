@@ -125,7 +125,7 @@ func (c *client) requestProto(
 
 	b := bufferPool.Get().(*bytes.Buffer)
 	b.Reset()
-	b.Write(data)
+	_, _ = b.Write(data)
 	defer bufferPool.Put(b)
 
 	u := join(c.url, uri)
