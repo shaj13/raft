@@ -523,7 +523,11 @@ func (m members) noFallback() {}
 
 func (m members) before(ost *operatorsState) (err error) {
 	if len(m.membs) >= 1 {
+		id := ost.local.ID
 		ost.local = &m.membs[0]
+		if ost.local.ID == 0 {
+			ost.local.ID = id
+		}
 		ost.membs = append(ost.membs, m.membs[1:]...)
 	}
 	return

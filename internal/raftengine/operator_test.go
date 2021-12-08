@@ -67,12 +67,14 @@ func TestInvoke(t *testing.T) {
 }
 
 func TestMembers(t *testing.T) {
+	raw := new(raftpb.Member)
 	ost := new(operatorsState)
+	ost.local = raw
 
 	// it should not set local or membs.
 	err := Members().before(ost)
 	require.NoError(t, err)
-	require.Nil(t, ost.local)
+	require.Equal(t, raw, ost.local)
 	require.Equal(t, 0, len(ost.membs))
 
 	// it should not set local or membs.
@@ -105,6 +107,7 @@ func TestJoin(t *testing.T) {
 func TestInitCluster(t *testing.T) {
 	nodeStarted := false
 	ost := new(operatorsState)
+	ost.local = new(raftpb.Member)
 	ost.eng = new(engine)
 	ost.hasExistingState = true
 
