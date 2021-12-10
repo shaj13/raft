@@ -230,10 +230,10 @@ func (eng *engine) Shutdown(ctx context.Context) error {
 	// expires before the graceful shutdown is complete.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go func(ctx context.Context) {
+	go func(ctx context.Context, cancel context.CancelFunc) {
 		<-ctx.Done()
-		eng.cancel()
-	}(ctx)
+		cancel()
+	}(ctx, eng.cancel)
 
 	fns := []func() error{
 		nopClose(eng.propwg.Wait),
