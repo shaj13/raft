@@ -159,12 +159,11 @@ func WithSnapshotInterval(i uint64) Option {
 	})
 }
 
-// WithElectionTick is the number of Node.Tick invocations that must pass between
-// elections. That is, if a follower does not receive any message from the
-// leader of current term before ElectionTick has elapsed, it will become
-// candidate and start an election. ElectionTick must be greater than
-// HeartbeatTick. We suggest ElectionTick = 10 * HeartbeatTick to avoid
-// unnecessary leader switching.
+// WithElectionTick is the number of node tick (WithTickInterval) invocations that must
+// pass between elections. That is, if a follower does not receive any message from the
+// leader of current term before ElectionTick has elapsed, it will become candidate and
+// start an election. ElectionTick must be greater than HeartbeatTick. We suggest
+// ElectionTick = 10 * HeartbeatTick to avoid unnecessary leader switching.
 //
 // Default Value: 10.
 func WithElectionTick(tick int) Option {
@@ -173,9 +172,9 @@ func WithElectionTick(tick int) Option {
 	})
 }
 
-// WithHeartbeatTick is the number of Node.Tick invocations that must pass between
-// heartbeats. That is, a leader sends heartbeat messages to maintain its
-// leadership every HeartbeatTick ticks.
+// WithHeartbeatTick is the number of node tick (WithTickInterval) invocations that
+//  must pass between heartbeats. That is, a leader sends heartbeat messages to
+// maintain its leadership every HeartbeatTick ticks.
 //
 // Default Value: 1.
 func WithHeartbeatTick(tick int) Option {
