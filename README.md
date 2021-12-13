@@ -226,11 +226,9 @@ node.Start(raft.WithRestore("<path to snapshot file>"))
  - More detailed development documentation can be found in go docs
  - Fully working single and multiraft cluster example can be found in [Examples Folder](./_examples).
 
-### TODO 
-- [ ] add tcp rpc 
-- [ ] check the conf change v2 in etcd
-- [ ] Repair wall 
-- [ ] add more logs.
+## Contributing to this project
+We welcome contributions. If you find any bugs, potential flaws and edge cases, improvements, new feature suggestions or discussions, please submit issues or pull requests.
+
 
 
 
