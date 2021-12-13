@@ -8,22 +8,23 @@ raft cluster is an example usage of raft library. It provides a simple REST API 
 
 ### Building raft cluster example
 
-Clone `raft` library 
+get `raft` example
 
 ```sh
-cd <directory>/raft/_examples/raft_cluster
-go build -o raftcluster
+mkdir -p raftexample
+cd raftexample
+GOBIN=${PWD} go get github.com/shaj13/raft/_examples/raft
 ```
 
-### Running single node raftcluster
+### Running single node raft
 
-First start a single-member cluster of raftcluster:
+First start a single-member cluster of raft:
 
 ```sh
-raftcluster -state_dir=$TMPDIR/1 -raft :8080 -api :9090 
+./raft -state_dir=$TMPDIR/1 -raft :8080 -api :9090 
 ```
 
-Each raftcluster process maintains a single raft instance and a key-value server.
+Each raft process maintains a single raft instance and a key-value server.
 raft server address (-raft), state dir (-state_dir), and http key-value server address (-api) are passed through the command line.
 
 Next, store a value ("world") to a key ("hello"):
@@ -39,11 +40,11 @@ curl -L http://127.0.0.1:9090/hello
 ```
 
 ### Running a local cluster
-Lets bring two additional raftcluster instances.
+Lets bring two additional raft instances.
 
 ```sh
-raftcluster -state_dir $TMPDIR/2 -raft :8081 -api :9091 -join :8080
-raftcluster -state_dir $TMPDIR/3 -raft :8082 -api :9092 -join :8080
+./raft -state_dir $TMPDIR/2 -raft :8081 -api :9091 -join :8080
+./raft -state_dir $TMPDIR/3 -raft :8082 -api :9092 -join :8080
 ```
 
 Now it's possible to write a key-value pair to any member of the cluster and likewise retrieve it from any member.
@@ -82,3 +83,4 @@ Then remove a node using a DELETE request:
 curl -L http://127.0.0.1:9090/<ID> -X DELETE
 ```
 Node will shut itself down once the cluster has processed this request.
+

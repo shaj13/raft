@@ -14,11 +14,12 @@ E.g, in production the application, shard data based on the availability of disk
 
 ### Building Multi-Raft example
 
-Clone `raft` library 
+get `multiraft` example
 
 ```sh
-cd <directory>/raft/_examples/multiraft
-go build -o multiraft
+mkdir -p raftexample
+cd raftexample
+GOBIN=${PWD} go get github.com/shaj13/raft/_examples/multiraft
 ```
 
 ### Running single node Multi-Raft
@@ -26,7 +27,7 @@ go build -o multiraft
 First start a single-member cluster of multiraft:
 
 ```sh
-multiraft -state_dir=$TMPDIR/1 -raft :8080 -api :9090 -id 1 
+./multiraft -state_dir=$TMPDIR/1 -raft :8080 -api :9090 -id 1 
 ```
 
 Each raftcluster process maintains a 1..N raft instance and a key-value server's.
@@ -48,8 +49,8 @@ curl -L http://127.0.0.1:9090/1/hello
 Lets bring two additional raftcluster instances.
 
 ```sh
-multiraft -state_dir $TMPDIR/2 -raft :8081 -api :9091 -join :8080 -id 2
-multiraft -state_dir $TMPDIR/3 -raft :8082 -api :9092 -join :8080 -id 3 
+./multiraft -state_dir $TMPDIR/2 -raft :8081 -api :9091 -join :8080 -id 2
+./multiraft -state_dir $TMPDIR/3 -raft :8082 -api :9092 -join :8080 -id 3 
 ```
 
 Now it's possible to write a key-value pair to any member of the cluster and likewise retrieve it from any member.
@@ -82,7 +83,7 @@ curl -L http://127.0.0.1:9090/mgmt/groups -d '{"GroupID":2, "IDs":[1,2],"JoinAdd
 
 Now Lets bring one additional multiraft instances to the new group. 
 ```sh 
-multiraft -state_dir $TMPDIR/4 -raft :8083 -api :9093 -join :8080 -initial_group_id 2 -id 4
+./multiraft -state_dir $TMPDIR/4 -raft :8083 -api :9093 -join :8080 -initial_group_id 2 -id 4
 ```
 
 Now it's possible to write a key-value pair to any group member of the cluster and likewise retrieve it from any group member (data sharding).
