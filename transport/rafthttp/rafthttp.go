@@ -1,3 +1,4 @@
+// Package rafthttp implements HTTP transportation layer for raft.
 package rafthttp
 
 import (

@@ -1,3 +1,4 @@
+// Package raftgrpc implements gRPC transportation layer for raft.
 package raftgrpc
 
 import (
