@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package raftpb;
+
+import "gogoproto/gogo.proto";
+import "go.etcd.io/etcd/raft/v3/raftpb/raft.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
+
+message Member {
+	// ID specifies the cluster member id.
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	// Address specifies the address of the cluster member.
+	string addr = 2 [(gogoproto.customname) = "Address" ];
+	// Type used to distinguish members (local, remote, etc).
+	MemberType type = 3;
+	// Context is treated as an opaque payload and can be used to
+	// attach an extra info/data on member. 
+	bytes  context  = 4;
+}
+
+message Replicate {
+	// CID specifies the transaction change id. 
+	uint64 cid = 1 [(gogoproto.customname) = "CID" ];
+	// Data specifies the raw replicate data.
+	bytes  data  = 2;
+}
+
+
+enum MemberType {
+	option (gogoproto.enum_customname) = "MemberType";
+	voter = 0 [(gogoproto.enumvalue_customname) = "VoterMember"];
+	removed = 1 [(gogoproto.enumvalue_customname) = "RemovedMember"];
+	learner = 2 [(gogoproto.enumvalue_customname) = "LearnerMember"];
+	staging = 3 [(gogoproto.enumvalue_customname) = "StagingMember"];
+	local = 4 [(gogoproto.enumvalue_customname) = "LocalMember"];
+
+}
+
+message JoinResponse {
+	// ID specifies the ID assigned to the new member..
+	uint64 id = 1 [(gogoproto.customname) = "ID" ];
+	// Members specifies the cluster pool members.
+	repeated Member members = 2 [(gogoproto.nullable) = false];
+}
+
+message SnapshotState {
+	// Version represents the snapshot file version.
+	enum Version {
+		// V0 is the initial version of the snapshot file.
+		V0 = 0;
+	}
+	// CRC specifies the snapshot crc sum.
+	bytes  CRC  = 1;
+	// Version specifies the snapshot file version.
+	Version version = 2;
+	// Members specifies the cluster pool members.
+	repeated Member members = 3 [(gogoproto.nullable) = false];
+	// Raw specifies the the etcd raftpb snapshot.
+	raftpb.Snapshot Raw = 4 [(gogoproto.nullable) = false];
+}

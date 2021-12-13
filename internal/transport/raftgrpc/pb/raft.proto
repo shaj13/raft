@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package pb;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/empty.proto";
+import "github.com/shaj13/raftkit/internal/raftpb/raft.proto";
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
+
+// Raft defines the RPC communication between raft nodes.
+service Raft {
+    rpc Message (stream Chunk) returns (google.protobuf.Empty) {}
+    rpc Snapshot (stream Chunk) returns (google.protobuf.Empty) {}
+    rpc Join (raftpb.Member) returns (raftpb.JoinResponse) {}
+    rpc PromoteMember(raftpb.Member) returns (google.protobuf.Empty) {}
+}
+
+message Chunk {
+	// Index specifies the chunk index.
+	uint64  index = 1; 
+	// Data specifies the raw chunk data.
+	bytes  data  = 2 ;
+}

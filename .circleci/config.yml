@@ -1,0 +1,67 @@
+version: 2
+jobs:
+  lint:
+    docker:
+      - image: circleci/golang:1.16
+    working_directory: ~/raft
+    steps:
+      - checkout
+      - run: make install
+      - run: make lint
+
+
+  cover:
+    docker:
+      - image: circleci/golang:1.16
+    working_directory: ~/raft
+    steps:
+      - checkout
+      - run: make install
+      - run: make cover
+      - run: make deploy-cover
+
+  rafttest:
+    docker:
+      - image: circleci/golang:1.16
+    working_directory: ~/raft
+    steps:
+      - checkout
+      - run: make install
+      - run: make rafttest
+
+  # TODO(Shaj13): add bench tests.
+  # bench:
+  #   docker:
+  #     - image: circleci/golang:1.13.1
+  #   working_directory: ~/go-guardian
+  #   steps:
+  #     - checkout
+  #     - run: make install
+  #     - run: make bench
+
+  # TODO(Shaj13): do we need auto release?.
+  # release:
+  #   docker:
+  #     - image: circleci/golang:1.13.1
+  #   working_directory: ~/go-guardian
+  #   steps:
+  #     - checkout
+  #     - run: make install
+  #     - run: make release
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - lint
+      - cover
+      - rafttest
+      # - bench
+      # - release:
+      #     requires:
+      #       - lint
+      #       - tests
+      #       - bench
+      #     filters:
+      #       branches:
+      #         only: master
