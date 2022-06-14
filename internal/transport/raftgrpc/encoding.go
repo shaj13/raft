@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
+	"github.com/franklee0817/raft/internal/transport/raftgrpc/pb"
 )
 
 func newEncoder(r io.Reader) *encoder {

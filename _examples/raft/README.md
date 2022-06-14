@@ -13,7 +13,7 @@ get `raft` example
 ```sh
 mkdir -p raftexample
 cd raftexample
-GOBIN=${PWD} go get github.com/shaj13/raft/_examples/raft
+GOBIN=${PWD} go get github.com/franklee0817/raft/_examples/raft
 ```
 
 ### Running single node raft
@@ -83,4 +83,3 @@ Then remove a node using a DELETE request:
 curl -L http://127.0.0.1:9090/<ID> -X DELETE
 ```
 Node will shut itself down once the cluster has processed this request.
-

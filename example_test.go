@@ -4,10 +4,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/shaj13/raft"
-	"github.com/shaj13/raft/transport"
-	"github.com/shaj13/raft/transport/raftgrpc"
-	"github.com/shaj13/raft/transport/rafthttp"
+	"github.com/franklee0817/raft"
+	"github.com/franklee0817/raft/transport"
+	"github.com/franklee0817/raft/transport/raftgrpc"
+	"github.com/franklee0817/raft/transport/rafthttp"
 	"google.golang.org/grpc"
 )
 

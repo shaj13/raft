@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/shaj13/raft"
-	"github.com/shaj13/raft/raftlog"
-	"github.com/shaj13/raft/transport"
-	"github.com/shaj13/raft/transport/raftgrpc"
+	"github.com/franklee0817/raft"
+	"github.com/franklee0817/raft/raftlog"
+	"github.com/franklee0817/raft/transport"
+	"github.com/franklee0817/raft/transport/raftgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -413,6 +413,6 @@ type createGroup struct {
 }
 
 type entry struct {
-	Key   string
+	Key string
 	Value string
 }

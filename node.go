@@ -8,13 +8,13 @@ import (
 	"math"
 	"time"
 
-	"github.com/shaj13/raft/internal/membership"
-	"github.com/shaj13/raft/internal/raftengine"
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/storage"
-	"github.com/shaj13/raft/internal/storage/disk"
-	"github.com/shaj13/raft/internal/transport"
-	etransport "github.com/shaj13/raft/transport"
+	"github.com/franklee0817/raft/internal/membership"
+	"github.com/franklee0817/raft/internal/raftengine"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/internal/storage"
+	"github.com/franklee0817/raft/internal/storage/disk"
+	"github.com/franklee0817/raft/internal/transport"
+	etransport "github.com/franklee0817/raft/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

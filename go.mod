@@ -1,4 +1,4 @@
-module github.com/shaj13/raft
+module github.com/franklee0817/raft
 
 go 1.15
 

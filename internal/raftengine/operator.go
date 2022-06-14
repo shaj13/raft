@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/storage"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/etcd/raft/v3"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
