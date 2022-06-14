@@ -33,6 +33,9 @@ var bufferPool = sync.Pool{
 func Dialer(tr func(context.Context) http.RoundTripper, basePath string) transport.Dialer {
 	return func(cfg transport.Config) transport.Dial {
 		return func(ctx context.Context, addr string) (transport.Client, error) {
+			if !strings.HasPrefix("http://", addr) && !strings.HasPrefix("https://", addr) {
+				addr = "http://" + addr
+			}
 			return &client{
 				transport: tr,
 				gid:       cfg.GroupID(),
