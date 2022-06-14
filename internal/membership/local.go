@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/raftlog"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/raftlog"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

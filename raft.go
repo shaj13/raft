@@ -5,12 +5,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/shaj13/raft/internal/membership"
-	"github.com/shaj13/raft/internal/raftengine"
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/storage"
-	"github.com/shaj13/raft/internal/transport"
-	"github.com/shaj13/raft/raftlog"
+	"github.com/franklee0817/raft/internal/membership"
+	"github.com/franklee0817/raft/internal/raftengine"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/internal/storage"
+	"github.com/franklee0817/raft/internal/transport"
+	"github.com/franklee0817/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
 )
 

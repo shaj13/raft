@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shaj13/raft/internal/storage"
-	"github.com/shaj13/raft/raftlog"
+	"github.com/franklee0817/raft/internal/storage"
+	"github.com/franklee0817/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"

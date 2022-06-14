@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/transport"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/internal/transport"
 	"github.com/stretchr/testify/require"
 )
 

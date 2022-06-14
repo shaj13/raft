@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/transport"
+	"github.com/franklee0817/raft/internal/raftpb"
+	"github.com/franklee0817/raft/internal/transport"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )

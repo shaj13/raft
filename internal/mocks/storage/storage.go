@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	storage "github.com/shaj13/raft/internal/storage"
+	storage "github.com/franklee0817/raft/internal/storage"
 	raftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

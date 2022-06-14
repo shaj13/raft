@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
+	"github.com/franklee0817/raft/internal/transport/raftgrpc/pb"
 	"github.com/stretchr/testify/assert"
 )
 

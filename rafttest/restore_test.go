@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	raft "github.com/shaj13/raft"
-	"github.com/shaj13/raft/internal/raftpb"
+	raft "github.com/franklee0817/raft"
+	"github.com/franklee0817/raft/internal/raftpb"
 	"github.com/stretchr/testify/require"
 )
 
