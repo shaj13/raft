@@ -30,6 +30,11 @@ type Handler struct {
 	logger raftlog.Logger
 }
 
+// WrapHttpHandlerFunc 将handler打包成http的handler func格式
+func (h *Handler) WrapHttpHandlerFunc(fn handlerFunc) http.HandlerFunc {
+	return httpHandler(fn, h.logger)
+}
+
 func (h *Handler) Message(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	msg := new(etcdraftpb.Message)
