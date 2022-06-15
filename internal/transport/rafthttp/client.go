@@ -19,9 +19,9 @@ import (
 const (
 	snapshotHeader = "X-Raft-Snapshot"
 	groupIDHeader  = "X-Raft-Group-ID"
-	messageURI     = "/message"
-	snapshotURI    = "/snapshot"
-	joinURI        = "/join"
+	messageURI     = "/Message"
+	snapshotURI    = "/Snapshot"
+	joinURI        = "/Join"
 	promoteURI     = "/promote"
 )
 

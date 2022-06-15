@@ -30,7 +30,7 @@ type handler struct {
 	logger raftlog.Logger
 }
 
-func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) Message(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	msg := new(etcdraftpb.Message)
 	if code, err := decode(r.Body, msg); err != nil {
@@ -44,12 +44,12 @@ func (h *handler) message(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusNoContent, nil
 }
 
-func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) Snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 
 	vals := r.Header.Values(snapshotHeader)
 	if len(vals) < 2 {
-		return http.StatusBadRequest, errors.New("raft/http: snapshot header missing")
+		return http.StatusBadRequest, errors.New("raft/http: Snapshot header missing")
 	}
 
 	term, err := strconv.ParseUint(vals[0], 0, 64)
@@ -79,14 +79,14 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 	return http.StatusNoContent, nil
 }
 
-func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) Join(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
 		return code, err
 	}
 
-	h.logger.V(2).Infof("raft.http: new member asks to join the cluster on address %s", m.Address)
+	h.logger.V(2).Infof("raft.http: new member asks to Join the cluster on address %s", m.Address)
 
 	resp, err := h.ctrl.Join(r.Context(), gid, m)
 	if err != nil {
@@ -103,7 +103,7 @@ func (h *handler) join(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusOK, nil
 }
 
-func (h *handler) promoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *handler) PromoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
@@ -143,10 +143,10 @@ func httpHandler(h handlerFunc, logger raftlog.Logger) http.HandlerFunc {
 
 func mux(s *handler, basePath string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.message, s.logger))
-	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.snapshot, s.logger))
-	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.join, s.logger))
-	mux.HandleFunc(join(basePath, promoteURI), httpHandler(s.promoteMember, s.logger))
+	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.Message, s.logger))
+	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.Snapshot, s.logger))
+	mux.HandleFunc(join(basePath, joinURI), httpHandler(s.Join, s.logger))
+	mux.HandleFunc(join(basePath, promoteURI), httpHandler(s.PromoteMember, s.logger))
 	return mux
 }
 

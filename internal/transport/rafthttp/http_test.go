@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	transportmock "github.com/franklee0817/raft/internal/mocks/transport"
 	"github.com/franklee0817/raft/internal/raftpb"
 	"github.com/franklee0817/raft/raftlog"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
@@ -66,7 +66,7 @@ func TestJoin(t *testing.T) {
 		err  error
 	}{
 		{
-			name: "it return join resp when joined",
+			name: "it return Join resp when joined",
 			resp: &raftpb.JoinResponse{
 				ID:      11,
 				Members: []raftpb.Member{{ID: 12}},
