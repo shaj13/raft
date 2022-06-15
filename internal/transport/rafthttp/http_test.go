@@ -176,8 +176,8 @@ func TestPromoteMember(t *testing.T) {
 	}
 }
 
-func testClientServer(tb testing.TB) (*httptest.Server, *client, *handler) {
-	srv := new(handler)
+func testClientServer(tb testing.TB) (*httptest.Server, *client, *Handler) {
+	srv := new(Handler)
 	srv.logger = raftlog.DefaultLogger
 	ts := httptest.NewServer(mux(srv, ""))
 

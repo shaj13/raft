@@ -14,10 +14,10 @@ import (
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
-// NewHandlerFunc retur'ns func that create an http transport handler.
+// NewHandlerFunc retur'ns func that create an http transport Handler.
 func NewHandlerFunc(basePath string) transport.NewHandler {
 	return func(cfg transport.Config) transport.Handler {
-		s := &handler{
+		s := &Handler{
 			ctrl:   cfg.Controller(),
 			logger: cfg.Logger(),
 		}
@@ -25,12 +25,12 @@ func NewHandlerFunc(basePath string) transport.NewHandler {
 	}
 }
 
-type handler struct {
+type Handler struct {
 	ctrl   transport.Controller
 	logger raftlog.Logger
 }
 
-func (h *handler) Message(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) Message(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	msg := new(etcdraftpb.Message)
 	if code, err := decode(r.Body, msg); err != nil {
@@ -44,7 +44,7 @@ func (h *handler) Message(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusNoContent, nil
 }
 
-func (h *handler) Snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) Snapshot(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 
 	vals := r.Header.Values(snapshotHeader)
@@ -79,7 +79,7 @@ func (h *handler) Snapshot(w http.ResponseWriter, r *http.Request) (int, error) 
 	return http.StatusNoContent, nil
 }
 
-func (h *handler) Join(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) Join(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
@@ -103,7 +103,7 @@ func (h *handler) Join(w http.ResponseWriter, r *http.Request) (int, error) {
 	return http.StatusOK, nil
 }
 
-func (h *handler) PromoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
+func (h *Handler) PromoteMember(w http.ResponseWriter, r *http.Request) (int, error) {
 	gid := groupID(r)
 	m := new(raftpb.Member)
 	if code, err := decode(r.Body, m); err != nil {
@@ -141,7 +141,7 @@ func httpHandler(h handlerFunc, logger raftlog.Logger) http.HandlerFunc {
 	})
 }
 
-func mux(s *handler, basePath string) http.Handler {
+func mux(s *Handler, basePath string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc(join(basePath, messageURI), httpHandler(s.Message, s.logger))
 	mux.HandleFunc(join(basePath, snapshotURI), httpHandler(s.Snapshot, s.logger))
