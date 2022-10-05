@@ -49,11 +49,9 @@ func WithRoundTripper(tr http.RoundTripper) Option {
 
 // WithBasePath specifies the HTTP path that will serve raft requests.
 // Default: "/_raft/".
-func WithBasePath(tr http.RoundTripper) Option {
+func WithBasePath(basePath string) Option {
 	return optionFunc(func(c *config) {
-		c.tr = func(c context.Context) http.RoundTripper {
-			return tr
-		}
+		c.basePath = basePath
 	})
 }
 
