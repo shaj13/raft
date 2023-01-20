@@ -8,7 +8,7 @@ import (
 
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/raftlog"
-	"go.etcd.io/etcd/pkg/v3/fileutil"
+	"go.etcd.io/etcd/client/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
@@ -134,8 +134,9 @@ func (d *disk) SaveSnapshot(snap raftpb.Snapshot) error {
 	defer d.purge()
 
 	walSnap := walpb.Snapshot{
-		Index: snap.Metadata.Index,
-		Term:  snap.Metadata.Term,
+		Index:     snap.Metadata.Index,
+		Term:      snap.Metadata.Term,
+		ConfState: &snap.Metadata.ConfState,
 	}
 
 	if err := d.wal.SaveSnapshot(walSnap); err != nil {
