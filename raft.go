@@ -9,6 +9,8 @@ import (
 	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
+	"github.com/shaj13/raft/internal/storage/disk"
+	"github.com/shaj13/raft/internal/storage/inmemory"
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/raft/v3"
@@ -80,6 +82,13 @@ type optionFunc func(c *config)
 // apply the configuration to the provided config.
 func (fn optionFunc) apply(c *config) {
 	fn(c)
+}
+
+// TODO(shaj): add docs and make it expermintal.
+func WithInMemoryStoage() Option {
+	return optionFunc(func(c *config) {
+		c.storage = inmemory.New()
+	})
 }
 
 // WithLinearizableReadSafe guarantees the linearizability of the read request by
@@ -173,7 +182,9 @@ func WithElectionTick(tick int) Option {
 }
 
 // WithHeartbeatTick is the number of node tick (WithTickInterval) invocations that
-//  must pass between heartbeats. That is, a leader sends heartbeat messages to
+//
+//	must pass between heartbeats. That is, a leader sends heartbeat messages to
+//
 // maintain its leadership every HeartbeatTick ticks.
 //
 // Default Value: 1.
@@ -364,11 +375,11 @@ func WithRestart() StartOption {
 // WithMembers and WithInitCluster must be applied to all cluster nodes when they are composed,
 // Otherwise, the quorum will be lost and the cluster become unavailable.
 //
-//  Node A:
-//  n.Start(WithInitCluster(), WithMembers(<node A>, <node B>))
+//	Node A:
+//	n.Start(WithInitCluster(), WithMembers(<node A>, <node B>))
 //
-//  Node B:
-//  n.Start(WithInitCluster(), WithMembers(<node B>, <node A>))
+//	Node B:
+//	n.Start(WithInitCluster(), WithMembers(<node B>, <node A>))
 //
 // Note: first member will be assigned to the current node.
 func WithMembers(membs ...RawMember) StartOption {
@@ -387,11 +398,10 @@ func WithAddress(addr string) StartOption {
 
 // WithFallback can be used if other options do not succeed.
 //
-// 	WithFallback(
+//	WithFallback(
 //		WithJoin(),
 //		WithRestart,
 //	)
-//
 func WithFallback(opts ...StartOption) StartOption {
 	return startOptionFunc(func(c *startConfig) {
 		// create new startConfig annd apply all opts,
@@ -538,6 +548,10 @@ func newConfig(opts ...Option) *config {
 
 	for _, opt := range opts {
 		opt.apply(c)
+	}
+
+	if c.storage == nil {
+		c.storage = disk.New(c) // Bind disk storage.
 	}
 
 	return c

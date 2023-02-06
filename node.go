@@ -12,7 +12,6 @@ import (
 	"github.com/shaj13/raft/internal/raftengine"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
-	"github.com/shaj13/raft/internal/storage/disk"
 	"github.com/shaj13/raft/internal/transport"
 	etransport "github.com/shaj13/raft/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
@@ -36,10 +35,10 @@ func NewNode(fsm StateMachine, proto etransport.Proto, opts ...Option) *Node {
 
 	newHandler, dialer := transport.Proto(proto).Get()
 	ctrl := new(controller)
+	// TODO(shaj): find another mechanism for DI.
 	cfg := newConfig(opts...)
 	cfg.fsm = fsm
 	cfg.controller = ctrl
-	cfg.storage = disk.New(cfg)
 	cfg.dial = dialer(cfg)
 	cfg.pool = membership.New(cfg)
 	cfg.engine = raftengine.New(cfg)
@@ -143,8 +142,8 @@ func (ng *NodeGroup) Create(groupID uint64, fsm StateMachine, opts ...Option) *N
 // after the removal, the actual node will become idle,
 // it must coordinate with node shutdown explicitly.
 //
-// 	nodeGroup.Remove(12)
-// 	node.Shutdown(ctx)
+//	nodeGroup.Remove(12)
+//	node.Shutdown(ctx)
 func (ng *NodeGroup) Remove(groupID uint64) {
 	ng.router.remove(groupID)
 }

@@ -14,36 +14,58 @@ import (
 )
 
 func TestSnapshotShare(t *testing.T) {
-	numOfEnt := 5
-	otr := newOrchestrator(t)
-	defer otr.teardown()
-
-	node := otr.create(1)[0]
-	node.withOptions(raft.WithSnapshotInterval(uint64(numOfEnt)))
-	otr.start(node)
-	otr.waitAll()
-	otr.produceData(numOfEnt)
-
-	raw := raftpb.Member{
-		ID:      2,
-		Address: ":2",
+	tests := []struct {
+		name string
+		opts []raft.Option
+	}{
+		{
+			name: "Leader share fs snapshot",
+		},
+		{
+			name: "Leader share in-memory snapshot ",
+			opts: []raft.Option{raft.WithInMemoryStoage()},
+		},
 	}
 
-	joinAddr := node.rawMembers[0].Address
-	// join prev node cluster.
-	node = newNode().withRawMember(raw)
-	node.withStartOptions(raft.WithJoin(joinAddr, time.Second))
-	otr.start(node)
-	otr.wait(node)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			numOfEnt := 5
+			otr := newOrchestrator(t)
+			defer otr.teardown()
 
-	// snapshot must be forwarded, verify data.
-	v := node.fsm.Read(numOfEnt)
-	require.Equal(t, numOfEnt, v)
+			opts := append(tt.opts, raft.WithSnapshotInterval(uint64(numOfEnt)))
+			node := otr.create(1)[0]
+			node.withOptions(opts...)
+			otr.start(node)
+			otr.waitAll()
+			otr.produceData(numOfEnt)
 
-	// verify node 1 snapshot copied to node 2.
-	cfg := otr.loopback.get(raw.Address)
-	_, err := cfg.Controller().SnapshotReader(0, 2, 9)
-	require.NoError(t, err)
+			raw := raftpb.Member{
+				ID:      2,
+				Address: ":2",
+			}
+
+			joinAddr := node.rawMembers[0].Address
+			// join prev node cluster.
+			node = newNode().withRawMember(raw)
+			node.withOptions(opts...)
+			node.withStartOptions(raft.WithJoin(joinAddr, time.Second))
+			otr.start(node)
+			otr.wait(node)
+
+			err := node.raftnode.LinearizableRead(context.TODO())
+			require.NoError(t, err)
+
+			// snapshot must be forwarded, verify data.
+			v := node.fsm.Read(numOfEnt)
+			require.Equal(t, numOfEnt, v)
+
+			// verify node 1 snapshot copied to node 2.
+			cfg := otr.loopback.get(raw.Address)
+			_, err = cfg.Controller().SnapshotReader(0, 2, 9)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestSnapshotRestore(t *testing.T) {

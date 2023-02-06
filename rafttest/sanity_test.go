@@ -150,3 +150,34 @@ func TestRestart(t *testing.T) {
 	v := node.fsm.Read(1)
 	require.Equal(t, 1, v)
 }
+
+func TestInMemoryRaft(t *testing.T) {
+	otr := newOrchestrator(t)
+	defer otr.teardown()
+
+	nodes := otr.create(3)
+
+	for _, n := range nodes {
+		n.withOptions(raft.WithInMemoryStoage())
+	}
+
+	otr.start(nodes...)
+	otr.waitAll()
+	otr.produceData(1)
+
+	node := otr.follower()
+	err := node.raftnode.Shutdown(canceledctx)
+	require.NoError(t, err)
+
+	err = otr.leader().raftnode.Replicate(context.Background(), newBytesEntry(2, 2))
+	require.NoError(t, err)
+
+	node.startOpts = []raft.StartOption{raft.WithInitCluster()}
+	otr.start(node)
+	otr.wait(node)
+
+	err = node.raftnode.LinearizableRead(context.Background())
+	require.NoError(t, err)
+
+	require.Equal(t, 2, node.fsm.Read(2))
+}

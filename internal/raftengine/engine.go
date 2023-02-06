@@ -185,6 +185,22 @@ func (eng *engine) Push(msg etcdraftpb.Message) error {
 		return ErrStopped
 	}
 
+	// The message.Commit isn't equal to this node,
+	// Was the raft log corrupted, truncated, or lost?
+	//
+	// To recover from that case initiate a pre-election
+	// to make new leader sync the node.
+	// https://github.com/etcd-io/raft/issues/18
+	if msg.Type == etcdraftpb.MsgHeartbeat && eng.appliedIndex.Get() != msg.Commit {
+		msg = etcdraftpb.Message{
+			From: msg.To,
+			To:   msg.From,
+			Type: etcdraftpb.MsgPreVote,
+		}
+		eng.send([]etcdraftpb.Message{msg})
+		return nil
+	}
+
 	eng.propwg.Add(1)
 	defer eng.propwg.Done()
 
