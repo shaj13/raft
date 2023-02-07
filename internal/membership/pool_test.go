@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
+	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,6 +94,7 @@ func TestPoolRemove(t *testing.T) {
 	r := NewMockReporter(ctrl)
 	r.EXPECT().ReportShutdown(gomock.Eq(m.ID)).Return()
 	cfg.EXPECT().Reporter().Return(r).MaxTimes(2)
+	cfg.EXPECT().Logger().Return(raftlog.DefaultLogger)
 
 	p := New(cfg)
 	p.Add(*m)
@@ -128,6 +130,7 @@ func testConfig(t *testing.T) *MockConfig {
 	cfg.EXPECT().DrainTimeout().Return(time.Duration(-1)).AnyTimes()
 	cfg.EXPECT().StreamTimeout().Return(time.Duration(-1)).AnyTimes()
 	cfg.EXPECT().Context().Return(context.TODO()).AnyTimes()
+	cfg.EXPECT().Logger().Return(raftlog.DefaultLogger).AnyTimes()
 	return cfg
 }
 
