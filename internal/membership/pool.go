@@ -19,8 +19,9 @@ func init() {
 // New construct and returns a new pool members.
 func New(cfg Config) Pool {
 	return &pool{
-		cfg:   cfg,
-		membs: make(map[uint64]Member),
+		cfg:    cfg,
+		logger: cfg.Logger(),
+		membs:  make(map[uint64]Member),
 		matcher: func(m raftpb.Member) raftpb.MemberType {
 			return m.Type
 		},
