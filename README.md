@@ -1,5 +1,5 @@
-[![GoDoc](https://godoc.org/github.com/shaj13/raft?status.svg)](https://pkg.go.dev/github.com/shaj13/raft)
-[![Go Report Card](https://goreportcard.com/badge/github.com/shaj13/raft)](https://goreportcard.com/report/github.com/shaj13/raft)
+[![GoDoc](https://godoc.org/github.com/rakoo/raft?status.svg)](https://pkg.go.dev/github.com/shaj13/raft)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rakoo/raft)](https://goreportcard.com/report/github.com/shaj13/raft)
 [![Coverage Status](https://coveralls.io/repos/github/shaj13/raft/badge.svg?branch=master)](https://coveralls.io/github/shaj13/raft?branch=master)
 [![CircleCI](https://circleci.com/gh/shaj13/raft/tree/main.svg?style=svg)](https://circleci.com/gh/shaj13/raft/tree/main)
 
@@ -228,7 +228,7 @@ node.Start(raft.WithRestore("<path to snapshot file>"))
 ```
 
 ## Examples and dcos 
- - More detailed development documentation can be found in [go docs](https://pkg.go.dev/github.com/shaj13/raft)
+ - More detailed development documentation can be found in [go docs](https://pkg.go.dev/github.com/rakoo/raft)
  - Fully working single and multiraft cluster example can be found in [Examples Folder](./_examples).
 
 ## Contributing to this project

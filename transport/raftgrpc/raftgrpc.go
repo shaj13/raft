@@ -4,11 +4,11 @@ package raftgrpc
 import (
 	"context"
 
-	itransport "github.com/shaj13/raft/internal/transport"
-	"github.com/shaj13/raft/internal/transport/raftgrpc"
-	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
-	"github.com/shaj13/raft/raftlog"
-	"github.com/shaj13/raft/transport"
+	itransport "github.com/rakoo/raft/internal/transport"
+	"github.com/rakoo/raft/internal/transport/raftgrpc"
+	"github.com/rakoo/raft/internal/transport/raftgrpc/pb"
+	"github.com/rakoo/raft/raftlog"
+	"github.com/rakoo/raft/transport"
 	"google.golang.org/grpc"
 )
 

@@ -1,7 +1,7 @@
 // Package transport provides types for raft transport functions.
 package transport
 
-import "github.com/shaj13/raft/internal/transport"
+import "github.com/rakoo/raft/internal/transport"
 
 const (
 	// GRPC represents raft transportation using gRPC.

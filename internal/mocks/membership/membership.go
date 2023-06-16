@@ -10,10 +10,10 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	membership "github.com/shaj13/raft/internal/membership"
-	raftpb "github.com/shaj13/raft/internal/raftpb"
-	transport "github.com/shaj13/raft/internal/transport"
-	raftlog "github.com/shaj13/raft/raftlog"
+	membership "github.com/rakoo/raft/internal/membership"
+	raftpb "github.com/rakoo/raft/internal/raftpb"
+	transport "github.com/rakoo/raft/internal/transport"
+	raftlog "github.com/rakoo/raft/raftlog"
 	raft "go.etcd.io/etcd/raft/v3"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )

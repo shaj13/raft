@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shaj13/raft/raftlog"
+	"github.com/rakoo/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/client/pkg/v3/fileutil"
 	"go.etcd.io/etcd/raft/v3/raftpb"

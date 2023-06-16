@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	raftengine "github.com/shaj13/raft/internal/raftengine"
-	raftpb "github.com/shaj13/raft/internal/raftpb"
+	raftengine "github.com/rakoo/raft/internal/raftengine"
+	raftpb "github.com/rakoo/raft/internal/raftpb"
 	raft "go.etcd.io/etcd/raft/v3"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )

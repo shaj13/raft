@@ -4,7 +4,7 @@ package pb;
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
-import "github.com/shaj13/raftkit/internal/raftpb/raft.proto";
+import "github.com/rakoo/raftkit/internal/raftpb/raft.proto";
 
 option (gogoproto.marshaler_all) = true;
 option (gogoproto.sizer_all) = true;

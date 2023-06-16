@@ -13,7 +13,7 @@ get `raft` example
 ```sh
 mkdir -p raftexample
 cd raftexample
-GOBIN=${PWD} go get github.com/shaj13/raft/_examples/raft
+GOBIN=${PWD} go get github.com/rakoo/raft/_examples/raft
 ```
 
 ### Running single node raft

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shaj13/raft/raftlog"
+	"github.com/rakoo/raft/raftlog"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/raft/v3"
 )

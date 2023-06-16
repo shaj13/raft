@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	raft "github.com/shaj13/raft"
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/transport"
-	etransport "github.com/shaj13/raft/transport"
+	raft "github.com/rakoo/raft"
+	"github.com/rakoo/raft/internal/raftpb"
+	"github.com/rakoo/raft/internal/transport"
+	etransport "github.com/rakoo/raft/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

@@ -6,11 +6,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/shaj13/raft/internal/membership"
-	"github.com/shaj13/raft/internal/raftengine"
-	"github.com/shaj13/raft/internal/raftpb"
-	"github.com/shaj13/raft/internal/storage"
-	"github.com/shaj13/raft/internal/transport"
+	"github.com/rakoo/raft/internal/membership"
+	"github.com/rakoo/raft/internal/raftengine"
+	"github.com/rakoo/raft/internal/raftpb"
+	"github.com/rakoo/raft/internal/storage"
+	"github.com/rakoo/raft/internal/transport"
 	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 

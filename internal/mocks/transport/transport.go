@@ -10,9 +10,9 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	raftpb "github.com/shaj13/raft/internal/raftpb"
-	transport "github.com/shaj13/raft/internal/transport"
-	raftlog "github.com/shaj13/raft/raftlog"
+	raftpb "github.com/rakoo/raft/internal/raftpb"
+	transport "github.com/rakoo/raft/internal/transport"
+	raftlog "github.com/rakoo/raft/raftlog"
 	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
