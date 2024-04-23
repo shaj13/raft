@@ -143,8 +143,8 @@ func (ng *NodeGroup) Create(groupID uint64, fsm StateMachine, opts ...Option) *N
 // after the removal, the actual node will become idle,
 // it must coordinate with node shutdown explicitly.
 //
-// 	nodeGroup.Remove(12)
-// 	node.Shutdown(ctx)
+//	nodeGroup.Remove(12)
+//	node.Shutdown(ctx)
 func (ng *NodeGroup) Remove(groupID uint64) {
 	ng.router.remove(groupID)
 }
@@ -634,12 +634,13 @@ func memberRemoved(id uint64) func(c *Node) error {
 func addressInUse(mid uint64, addr string) func(c *Node) error {
 	return func(c *Node) error {
 		membs := c.members(func(m Member) bool {
-			return m.Address() == addr && m.ID() != mid
+			return m.Address() == addr && m.ID() != mid && m.Type() != RemovedMember
 		})
 
 		if len(membs) > 0 {
 			return fmt.Errorf("raft: address used by member %x", membs[0].ID())
 		}
+
 		return nil
 	}
 }
