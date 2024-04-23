@@ -618,6 +618,21 @@ func TestPreConditions(t *testing.T) {
 				pool.EXPECT().Members().Return([]membership.Member{mem})
 				mem.EXPECT().ID().Return(uint64(2)).AnyTimes()
 				mem.EXPECT().Address().Return("addr")
+				mem.EXPECT().Type().Return(VoterMember)
+				n.pool = pool
+			},
+		},
+		{
+			fn:       addressInUse(1, "addr"),
+			contains: nilErr.Error(),
+			expect: func(n *Node) {
+				ctrl := gomock.NewController(t)
+				pool := membershipmock.NewMockPool(ctrl)
+				mem := membershipmock.NewMockMember(ctrl)
+				pool.EXPECT().Members().Return([]membership.Member{mem})
+				mem.EXPECT().ID().Return(uint64(2)).AnyTimes()
+				mem.EXPECT().Address().Return("addr")
+				mem.EXPECT().Type().Return(RemovedMember)
 				n.pool = pool
 			},
 		},
