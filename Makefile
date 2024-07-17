@@ -1,10 +1,12 @@
 test:
 	go clean -testcache
-	GOFLAGS=-mod=vendor go test ./... -race 
+	# GOFLAGS=-mod=vendor go test ./... -race 
+	go test ./... -race 
 
 install:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.19.0
-	GO111MODULE=off go get github.com/mattn/goveralls
+	# GO111MODULE=off 
+	go get github.com/mattn/goveralls
 	go mod tidy 
 	go mod vendor
 
@@ -12,13 +14,17 @@ clean:
 	rm -rf ${PWD}/cover 
 
 cover: clean 
+	echo ${PWD}
 	mkdir ${PWD}/cover 
 	go clean -testcache
-	GOFLAGS=-mod=vendor go test `go list ./... | grep -v github.com/shaj13/raft/rafttest` -timeout 30s -race -v -cover -coverprofile=${PWD}/cover/coverage.out
+	# GOFLAGS=-mod=vendor go test `go list ./... | grep -v github.com/shaj13/raft/rafttest` -timeout 30s -race -v -cover -coverprofile=${PWD}/cover/coverage.out
+	go test `go list ./... | grep -v github.com/shaj13/raft/rafttest` -timeout 30s -race -v -cover -coverprofile=${PWD}/cover/coverage.out
+	go tool cover -html coverage.out -o index.html
 
 rafttest: clean
 	go clean -testcache
-	GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race 
+	# GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race 
+	go test github.com/shaj13/raft/rafttest -race 
 
 deploy-cover:
 	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
