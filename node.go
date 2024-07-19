@@ -236,6 +236,24 @@ func (n *Node) Snapshot() (io.ReadCloser, error) {
 	return n.storage.Snapshotter().Reader(meta.Term, meta.Index)
 }
 
+func (n *Node) TermIndex() (uint64, uint64, error) {
+	err := n.preCond(
+		joined(),
+	)
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	snap, err := n.engine.CreateSnapshot()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	meta := snap.Metadata
+	return meta.Term, meta.Index, nil
+}
+
 // TransferLeadership proposes to transfer leadership to the given member id.
 func (n *Node) TransferLeadership(ctx context.Context, id uint64) error {
 	err := n.preCond(
