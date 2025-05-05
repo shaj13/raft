@@ -17,7 +17,7 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 const testGroupID = uint64(1)
@@ -133,7 +133,9 @@ func TestSnapshot(t *testing.T) {
 
 			srv.ctrl = rpcCtrl
 			c.ctrl = rpcCtrl
-			err := c.snapshot(context.Background(), etcdraftpb.Message{})
+			err := c.snapshot(context.Background(), etcdraftpb.Message{
+				Snapshot: new(etcdraftpb.Snapshot),
+			})
 			if tt.err != nil {
 				require.Contains(t, err.Error(), tt.err.Error())
 			} else {

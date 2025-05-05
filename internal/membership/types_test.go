@@ -13,8 +13,8 @@ import (
 	raftpb "github.com/shaj13/raft/internal/raftpb"
 	transport "github.com/shaj13/raft/internal/transport"
 	raftlog "github.com/shaj13/raft/raftlog"
-	v3 "go.etcd.io/etcd/raft/v3"
-	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
+	v3 "go.etcd.io/raft/v3"
+	raftpb0 "go.etcd.io/raft/v3/raftpb"
 )
 
 // MockMember is a mock of Member interface.

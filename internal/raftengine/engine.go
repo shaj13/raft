@@ -15,8 +15,8 @@ import (
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/idutil"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 var (
@@ -29,7 +29,7 @@ var (
 )
 
 //go:generate mockgen -package raftenginemock  -source internal/raftengine/engine.go -destination internal/mocks/raftengine/engine.go
-//go:generate mockgen -package raftengine  -source vendor/go.etcd.io/etcd/raft/v3/node.go -destination internal/raftengine/node_test.go
+//go:generate mockgen -package raftengine  -source vendor/go.etcd.io/raft/v3/node.go -destination internal/raftengine/node_test.go
 
 // Engine represents the underlying raft node processor.
 type Engine interface {

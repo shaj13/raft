@@ -11,7 +11,7 @@ import (
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 // NewHandlerFunc retur'ns func that create an http transport handler.

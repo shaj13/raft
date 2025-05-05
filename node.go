@@ -15,7 +15,7 @@ import (
 	"github.com/shaj13/raft/internal/storage/disk"
 	"github.com/shaj13/raft/internal/transport"
 	etransport "github.com/shaj13/raft/transport"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 var (

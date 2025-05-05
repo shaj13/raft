@@ -13,7 +13,7 @@ import (
 	raftpb "github.com/shaj13/raft/internal/raftpb"
 	transport "github.com/shaj13/raft/internal/transport"
 	raftlog "github.com/shaj13/raft/raftlog"
-	raftpb0 "go.etcd.io/etcd/raft/v3/raftpb"
+	raftpb0 "go.etcd.io/raft/v3/raftpb"
 )
 
 // MockConfig is a mock of Config interface.

@@ -19,9 +19,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/pkg/v3/idutil"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
-	"go.etcd.io/etcd/raft/v3/tracker"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
+	"go.etcd.io/raft/v3/tracker"
 )
 
 func TestNew(t *testing.T) {
@@ -835,7 +835,7 @@ func TestForceSnapshot(t *testing.T) {
 		From: 1,
 		To:   2,
 		Type: etcdraftpb.MsgSnap,
-		Snapshot: etcdraftpb.Snapshot{
+		Snapshot: &etcdraftpb.Snapshot{
 			Metadata: etcdraftpb.SnapshotMetadata{
 				ConfState: etcdraftpb.ConfState{
 					Voters: []uint64{1, 2},

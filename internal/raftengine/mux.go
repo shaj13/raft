@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/shaj13/raft/raftlog"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 const (
@@ -333,6 +333,10 @@ type muxNode struct {
 	readyc <-chan raft.Ready
 	gid    uint64
 	mux    *mux
+}
+
+func (m *muxNode) ForgetLeader(context.Context) error {
+	return nil
 }
 
 func (m *muxNode) Tick() {

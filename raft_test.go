@@ -9,7 +9,7 @@ import (
 
 	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/raft/v3"
+	"go.etcd.io/raft/v3"
 )
 
 func TestConfig(t *testing.T) {
