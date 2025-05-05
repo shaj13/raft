@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogo/protobuf/types"
 	"github.com/golang/mock/gomock"
 	"github.com/shaj13/raft/internal/atomic"
 	"github.com/shaj13/raft/internal/membership"
@@ -250,14 +251,16 @@ func TestProposeConfChange(t *testing.T) {
 	}
 
 	// round #1 it return err when daemon not started
-	err := eng.ProposeConfChange(context.TODO(), nil, etcdraftpb.ConfChangeAddNode)
+	err := eng.ProposeConfChange(context.TODO())
 	require.Equal(t, ErrStopped, err)
 
 	// round #2 it return err whne node return's err
 	expected := errors.New("TestProposeConfChange Error")
 	eng.started.Set()
 	node.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(expected)
-	err = eng.ProposeConfChange(context.TODO(), &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
+	err = eng.ProposeConfChange(context.TODO(), &raftpb.Member{
+		Type: raftpb.VoterMember,
+	})
 	require.Equal(t, expected, err)
 
 	// round #3 it return ctx done
@@ -266,7 +269,7 @@ func TestProposeConfChange(t *testing.T) {
 	eng.node = node
 	ctx, cancel := context.WithCancel(context.TODO())
 	cancel()
-	err = eng.ProposeConfChange(ctx, &raftpb.Member{}, etcdraftpb.ConfChangeAddNode)
+	err = eng.ProposeConfChange(ctx, &raftpb.Member{})
 	require.Equal(t, context.Canceled, err)
 }
 
@@ -642,22 +645,6 @@ func TestPublishConfChange(t *testing.T) {
 				return closedc
 			},
 		},
-		{
-			change: etcdraftpb.ConfChangeRemoveNode,
-			expect: func(ctrl *gomock.Controller, d *engine) <-chan struct{} {
-				c := make(chan struct{})
-				pool := membershipmock.NewMockPool(ctrl)
-				cfg := NewMockConfig(ctrl)
-				pool.EXPECT().Remove(gomock.Any()).DoAndReturn(func(raftpb.Member) error {
-					c <- struct{}{}
-					return ErrStopped
-				}).MinTimes(1)
-				cfg.EXPECT().TickInterval().Return(time.Duration(-1))
-				d.pool = pool
-				d.cfg = cfg
-				return c
-			},
-		},
 	}
 
 	for _, tt := range table {
@@ -671,13 +658,23 @@ func TestPublishConfChange(t *testing.T) {
 			ctx:    context.TODO(),
 		}
 		sub := eng.msgbus.SubscribeOnce(sid)
-		mem := &raftpb.Member{
-			ID: 1,
+		jr := raftpb.MembershipChange{
+			CID: 1,
+			Members: []*raftpb.Member{
+				{
+					ID:        1,
+					CreatedAt: &types.Timestamp{},
+				},
+			},
 		}
-		cc := &etcdraftpb.ConfChange{
-			Type:    tt.change,
-			ID:      sid,
-			Context: pbutil.MustMarshal(mem),
+		cc := &etcdraftpb.ConfChangeV2{
+			Changes: []etcdraftpb.ConfChangeSingle{
+				{
+					Type:   tt.change,
+					NodeID: 1,
+				},
+			},
+			Context: pbutil.MustMarshal(&jr),
 		}
 		ent := etcdraftpb.Entry{
 			Data: pbutil.MustMarshal(cc),

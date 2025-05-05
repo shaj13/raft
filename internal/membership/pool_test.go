@@ -12,6 +12,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPoolPurge(t *testing.T) {
+	p := &pool{
+		membs: map[uint64]Member{},
+	}
+
+	for i := range 10 {
+		p.membs[uint64(i)] = removed{
+			raw: raftpb.Member{
+				ID:   uint64(i),
+				Type: raftpb.RemovedMember,
+			},
+		}
+
+		_, ok := p.Get(uint64(i))
+		require.True(t, ok)
+	}
+
+	p.Purge()
+	for i := range 10 {
+		_, ok := p.Get(uint64(i))
+		require.False(t, ok)
+	}
+}
+
 func TestPoolNewMember(t *testing.T) {
 	m := raftpb.Member{
 		Address: ":5052",

@@ -162,6 +162,18 @@ func (mr *MockConfigMockRecorder) GroupID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupID", reflect.TypeOf((*MockConfig)(nil).GroupID))
 }
 
+func (m *MockConfig) Rejoin() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Rejoin")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+func (mr *MockConfigMockRecorder) Rejoin() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rejoin", reflect.TypeOf((*MockConfig)(nil).Rejoin))
+}
+
 // Logger mocks base method.
 func (m *MockConfig) Logger() raftlog.Logger {
 	m.ctrl.T.Helper()

@@ -56,6 +56,7 @@ type Pool interface {
 	Remove(raftpb.Member) error
 	Snapshot() []raftpb.Member
 	Restore([]raftpb.Member)
+	Purge()
 	RegisterTypeMatcher(func(raftpb.Member) raftpb.MemberType)
 	TearDown(context.Context) error
 }
