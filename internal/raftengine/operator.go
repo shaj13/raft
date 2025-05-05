@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/shaj13/raft/internal/raftpb"
@@ -192,7 +191,7 @@ type fallback struct {
 }
 
 func (f *fallback) before(ost *operatorsState) error {
-	errs := []string{}
+	errs := []error{}
 	for _, op := range f.operators {
 		_, ok := op.(interface {
 			noFallback()
@@ -208,10 +207,10 @@ func (f *fallback) before(ost *operatorsState) error {
 			return nil
 		}
 
-		errs = append(errs, err.Error())
+		errs = append(errs, err)
 	}
 
-	return fmt.Errorf(strings.Join(errs, ", "))
+	return errors.Join(errs...)
 }
 
 func (f *fallback) after(ost *operatorsState) error {

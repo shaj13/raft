@@ -4,7 +4,6 @@ test:
 
 install:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.19.0
-	GO111MODULE=off go get github.com/mattn/goveralls
 	go mod tidy 
 	go mod vendor
 
@@ -21,7 +20,7 @@ rafttest: clean
 	GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race 
 
 deploy-cover:
-	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
+#	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
 
 lint: 
 	./bin/golangci-lint run -c .golangci.yml ./...
