@@ -158,7 +158,7 @@ func TestFallback(t *testing.T) {
 	second.EXPECT().before(gomock.Any()).Return(fmt.Errorf("2"))
 	err = Fallback(first, second).before(nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "1, 2")
+	require.Contains(t, err.Error(), "1\n2")
 
 	first = NewMockOperator(ctrl)
 	first.EXPECT().before(gomock.Any()).MaxTimes(1)
