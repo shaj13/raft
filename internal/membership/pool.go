@@ -121,6 +121,17 @@ func (p *pool) Remove(m raftpb.Member) error {
 	return nil
 }
 
+func (p *pool) Purge() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, mem := range p.membs {
+		if mem.Type() == raftpb.RemovedMember {
+			delete(p.membs, mem.ID())
+		}
+	}
+}
+
 func (p *pool) Snapshot() []raftpb.Member {
 	p.mu.Lock()
 	defer p.mu.Unlock()

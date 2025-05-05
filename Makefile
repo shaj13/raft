@@ -17,7 +17,7 @@ cover: clean
 
 rafttest: clean
 	go clean -testcache
-	GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race 
+	GOFLAGS=-mod=vendor go test github.com/shaj13/raft/rafttest -race -v 
 
 deploy-cover:
 #	goveralls -coverprofile=${PWD}/cover/coverage.out -service=circle-ci -repotoken=$$COVERALLS_TOKEN
@@ -30,16 +30,16 @@ lint-fix:
 	./bin/golangci-lint run -c .golangci.yml ./... --fix 
 	./bin/golangci-lint run -c .golangci.yml ./... --fix
 
-protoc: 
+protoc:
 	docker run \
 	-v ${PWD}/vendor/github.com/gogo/protobuf/gogoproto/:/opt/include/gogoproto/ \
 	-v ${PWD}/vendor/go.etcd.io/raft/v3/raftpb/:/opt/include/go.etcd.io/raft/v3/raftpb/ \
-	-v ${PWD}:/defs \
-	namely/protoc-all -f ./internal/raftpb/raft.proto -l gogo -o .
+	-v ${PWD}/internal/raftpb:/defs/gen/pb-go/raftpb \
+	namely/protoc-all:1.50_0 -i /defs -f gen/pb-go/raftpb/raft.proto -l gogo -o .
 
 	docker run \
 	-v ${PWD}/vendor/github.com/gogo/protobuf/gogoproto/:/opt/include/gogoproto/ \
 	-v ${PWD}/vendor/go.etcd.io/:/opt/include/go.etcd.io/ \
 	-v ${PWD}/internal/raftpb/:/opt/include/github.com/shaj13/raftkit/internal/raftpb/ \
-	-v ${PWD}:/defs \
-	namely/protoc-all -f ./internal/transport/grpc/pb/raft.proto -l gogo -o .
+	-v ${PWD}/internal/transport/raftgrpc/pb:/defs/gen/pb-go/pb \
+	namely/protoc-all:1.50_0 -i /defs -f gen/pb-go/pb/raft.proto -l gogo -o .

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogo/protobuf/types"
 	"github.com/shaj13/raft/internal/atomic"
 	"github.com/shaj13/raft/internal/membership"
 	"github.com/shaj13/raft/internal/msgbus"
@@ -15,6 +16,7 @@ import (
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/raftlog"
 	"go.etcd.io/etcd/pkg/v3/idutil"
+	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/raft/v3"
 	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
@@ -39,7 +41,7 @@ type Engine interface {
 	Status() (raft.Status, error)
 	Shutdown(context.Context) error
 	ProposeReplicate(ctx context.Context, data []byte) error
-	ProposeConfChange(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error
+	ProposeConfChange(context.Context, ...*raftpb.Member) error
 	CreateSnapshot() (etcdraftpb.Snapshot, error)
 	Start(addr string, oprs ...Operator) error
 	ReportUnreachable(id uint64)
@@ -323,7 +325,7 @@ func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 }
 
 // ProposeConfChange proposes a configuration change to the cluster pool members.
-func (eng *engine) ProposeConfChange(ctx context.Context, m *raftpb.Member, cct etcdraftpb.ConfChangeType) error {
+func (eng *engine) ProposeConfChange(ctx context.Context, membs ...*raftpb.Member) error {
 	if eng.started.False() {
 		return ErrStopped
 	}
@@ -331,7 +333,7 @@ func (eng *engine) ProposeConfChange(ctx context.Context, m *raftpb.Member, cct 
 	eng.propwg.Add(1)
 	defer eng.propwg.Done()
 
-	id, err := eng.proposeConfChange(ctx, m, cct)
+	id, err := eng.proposeConfChange(ctx, membs...)
 	if err != nil {
 		return err
 	}
@@ -440,24 +442,39 @@ func (eng *engine) eventLoop() error {
 
 func (eng *engine) proposeConfChange(
 	ctx context.Context,
-	m *raftpb.Member,
-	t etcdraftpb.ConfChangeType,
+	membs ...*raftpb.Member,
 ) (uint64, error) {
 
-	buf, err := m.Marshal()
-	if err != nil {
-		return 0, err
+	cc := new(etcdraftpb.ConfChangeV2)
+	mc := new(raftpb.MembershipChange)
+	mc.CID = eng.idgen.Next()
+
+	for _, m := range membs {
+		m.CreatedAt = types.TimestampNow()
+		mc.Members = append(mc.Members, m)
+
+		switch m.Type {
+		case raftpb.LearnerMember, raftpb.StagingMember:
+			cc.Changes = append(cc.Changes, etcdraftpb.ConfChangeSingle{
+				NodeID: m.ID,
+				Type:   etcdraftpb.ConfChangeAddLearnerNode,
+			})
+		case raftpb.RemovedMember:
+			cc.Changes = append(cc.Changes, etcdraftpb.ConfChangeSingle{
+				NodeID: m.ID,
+				Type:   etcdraftpb.ConfChangeRemoveNode,
+			})
+		case raftpb.VoterMember:
+			cc.Changes = append(cc.Changes, etcdraftpb.ConfChangeSingle{
+				NodeID: m.ID,
+				Type:   etcdraftpb.ConfChangeAddNode,
+			})
+		}
 	}
 
-	cc := etcdraftpb.ConfChange{
-		ID:      eng.idgen.Next(),
-		Type:    t,
-		NodeID:  m.ID,
-		Context: buf,
-	}
-
-	eng.logger.V(1).Infof("raft.engine: propose conf change, change id => %d", cc.ID)
-	return cc.ID, eng.node.ProposeConfChange(ctx, cc)
+	cc.Context = pbutil.MustMarshal(mc)
+	eng.logger.V(1).Infof("raft.engine: propose conf change, change id => %d", mc.CID)
+	return mc.CID, eng.node.ProposeConfChange(ctx, cc)
 }
 
 func (eng *engine) publishReadState(rss []raft.ReadState) {
@@ -520,11 +537,30 @@ func (eng *engine) publishSnapshotFile(sf *storage.Snapshot) error {
 
 func (eng *engine) publishCommitted(ents []etcdraftpb.Entry) {
 	for _, ent := range ents {
-		if ent.Type == etcdraftpb.EntryNormal && len(ent.Data) > 0 {
-			eng.publishReplicate(ent)
-		}
-		if ent.Type == etcdraftpb.EntryConfChange {
+
+		switch ent.Type {
+		case etcdraftpb.EntryConfChangeV2:
 			eng.publishConfChange(ent)
+		case etcdraftpb.EntryConfChange:
+			var cc etcdraftpb.ConfChange
+			pbutil.MustUnmarshal(&cc, ent.Data)
+
+			var mem raftpb.Member
+			pbutil.MustUnmarshal(&mem, cc.Context)
+
+			v2 := cc.AsV2()
+			v2.Context = pbutil.MustMarshal(&raftpb.MembershipChange{
+				CID:     cc.ID,
+				Members: []*raftpb.Member{&mem},
+			})
+
+			ent.Data = pbutil.MustMarshal(&v2)
+			ent.Type = etcdraftpb.EntryConfChangeV2
+			eng.publishConfChange(ent)
+		case etcdraftpb.EntryNormal:
+			if len(ent.Data) > 0 {
+				eng.publishReplicate(ent)
+			}
 		}
 		eng.appliedIndex.Set(ent.Index)
 	}
@@ -554,11 +590,11 @@ func (eng *engine) publishReplicate(ent etcdraftpb.Entry) {
 
 func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 	var err error
-	cc := new(etcdraftpb.ConfChange)
-	mem := new(raftpb.Member)
+	cc := new(etcdraftpb.ConfChangeV2)
+	mc := new(raftpb.MembershipChange)
 
 	defer func() {
-		eng.msgbus.Broadcast(cc.ID, err)
+		eng.msgbus.Broadcast(mc.CID, err)
 		if err != nil {
 			eng.logger.Warningf("raft.engine: publishing conf change: %v", err)
 		}
@@ -568,38 +604,60 @@ func (eng *engine) publishConfChange(ent etcdraftpb.Entry) {
 		return
 	}
 
-	eng.logger.V(1).Infof("raft.engine: publishing conf change, change id => %d", cc.ID)
+	eng.logger.V(1).Infof("raft.engine: publishing conf change, change id => %d", mc.CID)
 
 	if len(cc.Context) == 0 {
+		eng.confState = eng.node.ApplyConfChange(cc)
 		return
 	}
 
-	if err = mem.Unmarshal(cc.Context); err != nil {
+	if err = mc.Unmarshal(cc.Context); err != nil {
 		return
 	}
 
-	switch cc.Type {
-	case etcdraftpb.ConfChangeAddNode, etcdraftpb.ConfChangeAddLearnerNode:
-		err = eng.pool.Add(*mem)
-	case etcdraftpb.ConfChangeUpdateNode:
-		err = eng.pool.Update(*mem)
-	case etcdraftpb.ConfChangeRemoveNode:
-		eng.wg.Add(1)
-		go func(mem raftpb.Member) {
-			defer eng.wg.Done()
-			select {
-			// wait for two ticks then go and remove the member from the pool.
-			// to make sure the commit ack sent before closing connection.
-			case <-time.After(eng.cfg.TickInterval() * 2):
-				if err := eng.pool.Remove(mem); err != nil {
-					eng.logger.Errorf("raft.engine: removing member %x: %v", mem.ID, err)
-				}
-			case <-eng.ctx.Done():
-				return
+	for i, cs := range cc.Changes {
+		mem := mc.Members[i]
+		switch cs.Type {
+		case etcdraftpb.ConfChangeAddNode, etcdraftpb.ConfChangeAddLearnerNode:
+			err = eng.pool.Add(*mem)
+		case etcdraftpb.ConfChangeUpdateNode:
+			err = eng.pool.Update(*mem)
+		case etcdraftpb.ConfChangeRemoveNode:
+			ts, err := types.TimestampFromProto(mem.CreatedAt)
+			if err != nil {
+				eng.logger.Fatalf("raft.engine: failed to parse member created at %v", err)
 			}
-		}(*mem)
-	}
 
+			m, ok := eng.pool.Get(mem.ID)
+			if !ok {
+				eng.logger.Infof("raft.engine: skip removal of unknown member %x", mem.ID)
+				continue
+			}
+
+			if m.ActiveSince().After(ts) && mem.ID == eng.local.ID && eng.cfg.Rejoin() {
+				eng.logger.V(1).Info("raft.engine: skip removal this member has rejoined")
+				continue
+			}
+
+			eng.wg.Add(1)
+			go func(mem raftpb.Member) {
+				defer eng.wg.Done()
+				select {
+				// wait for two ticks then go and remove the member from the pool.
+				// to make sure the commit ack sent before closing connection.
+				case <-time.After(eng.cfg.TickInterval() * 2):
+					if err := eng.pool.Remove(mem); err != nil {
+						eng.logger.Errorf("raft.engine: removing member %x: %v", mem.ID, err)
+					}
+					if eng.cfg.Rejoin() {
+						eng.pool.Purge()
+					}
+				case <-eng.ctx.Done():
+					return
+				}
+			}(*mem)
+		}
+	}
 	eng.confState = eng.node.ApplyConfChange(cc)
 }
 
@@ -696,7 +754,7 @@ func (eng *engine) promotions() {
 	for _, m := range promotions {
 		eng.logger.Infof("raft.engine: promoting staging member %x", m.ID)
 		ctx, cancel := context.WithTimeout(eng.ctx, eng.cfg.TickInterval()*5)
-		_, err := eng.proposeConfChange(ctx, &m, etcdraftpb.ConfChangeAddNode)
+		_, err := eng.proposeConfChange(ctx, &m)
 		if err != nil {
 			eng.logger.Warningf("raft.engine: promoting staging member %x: %v", m.ID, err)
 		}

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gogo/protobuf/types"
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
 	"go.etcd.io/etcd/pkg/v3/pbutil"
@@ -87,6 +88,10 @@ type forceJoin struct {
 }
 
 func (f forceJoin) before(ost *operatorsState) error {
+	if f.addr == "" {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.TODO(), f.timeout)
 	defer cancel()
 
@@ -106,6 +111,7 @@ func (f forceJoin) before(ost *operatorsState) error {
 
 func (f forceJoin) after(ost *operatorsState) error {
 	for _, mem := range ost.membs {
+		(&mem).CreatedAt = types.TimestampNow()
 		if err := ost.eng.pool.Add(mem); err != nil {
 			return err
 		}
@@ -345,7 +351,8 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 
 	// issue remove conf changes.
 	for _, ent := range ents {
-		if ent.Type == etcdraftpb.EntryConfChange {
+		switch ent.Type {
+		case etcdraftpb.EntryConfChange:
 			cc := new(etcdraftpb.ConfChange)
 			pbutil.MustUnmarshal(cc, ent.Data)
 			if cc.NodeID == local.ID || cc.Type == etcdraftpb.ConfChangeRemoveNode {
@@ -356,6 +363,7 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 			pbutil.MustUnmarshal(mem, cc.Context)
 
 			mem.Type = raftpb.RemovedMember
+			mem.CreatedAt = types.TimestampNow()
 			cc.Type = etcdraftpb.ConfChangeRemoveNode
 			cc.Context = pbutil.MustMarshal(mem)
 
@@ -368,6 +376,31 @@ func (f forceNewCluster) after(ost *operatorsState) (err error) {
 
 			ents = append(ents, e)
 			next++
+		case etcdraftpb.EntryConfChangeV2:
+			cc := new(etcdraftpb.ConfChangeV2)
+			mc := new(raftpb.MembershipChange)
+			pbutil.MustUnmarshal(cc, ent.Data)
+			pbutil.MustUnmarshal(mc, cc.Context)
+			for i, cs := range cc.Changes {
+				if cs.NodeID == local.ID || cs.Type == etcdraftpb.ConfChangeRemoveNode {
+					continue
+				}
+
+				cc := &etcdraftpb.ConfChange{
+					NodeID:  cs.NodeID,
+					Type:    etcdraftpb.ConfChangeRemoveNode,
+					Context: pbutil.MustMarshal(mc.Members[i]),
+				}
+
+				e := etcdraftpb.Entry{
+					Type:  etcdraftpb.EntryConfChange,
+					Data:  pbutil.MustMarshal(cc),
+					Term:  hs.Term,
+					Index: next,
+				}
+				ents = append(ents, e)
+				next++
+			}
 		}
 	}
 

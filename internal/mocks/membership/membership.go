@@ -461,6 +461,8 @@ func (m *MockPool) Remove(arg0 raftpb.Member) error {
 	return ret0
 }
 
+func (m *MockPool) Purge() {}
+
 // Remove indicates an expected call of Remove.
 func (mr *MockPoolMockRecorder) Remove(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()

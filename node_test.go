@@ -286,7 +286,7 @@ func TestNodeUpdateMember(t *testing.T) {
 	pool := membershipmock.NewMockPool(ctrl)
 	m1 := membershipmock.NewMockMember(ctrl)
 	eng := raftenginemock.NewMockEngine(ctrl)
-	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(nil)
 	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	m1.EXPECT().Type().Return(LearnerMember)
 	pool.EXPECT().Get(gomock.Any()).Return(m1, true)
@@ -331,7 +331,7 @@ func TestNodeAddMember(t *testing.T) {
 	eng := raftenginemock.NewMockEngine(ctrl)
 	eng.
 		EXPECT().
-		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddLearnerNode)).
+		ProposeConfChange(gomock.Any(), gomock.Any()).
 		Return(nil)
 	eng.EXPECT().Status().Return(raft.Status{}, nil)
 	pool.EXPECT().NextID().Return(id)
@@ -459,7 +459,7 @@ func TestNodePromoteMember(t *testing.T) {
 	}
 	eng = raftenginemock.NewMockEngine(ctrl)
 	eng.EXPECT().Status().Return(st, nil).AnyTimes()
-	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+	eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(nil)
 	n.engine = eng
 	err = n.promoteMember(ctx, 1, false)
 	require.NoError(t, err)
@@ -772,9 +772,9 @@ func testConfChange(t *testing.T, fn func(*RawMember, *Node)) {
 	eng := raftenginemock.NewMockEngine(ctrl)
 	eng.
 		EXPECT().
-		ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, m *raftpb.Member, t etcdraftpb.ConfChangeType) error {
-			raw.Type = m.Type
+		ProposeConfChange(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, m []*raftpb.Member) error {
+			raw.Type = m[0].Type
 			return nil
 		})
 	eng.EXPECT().Status().Return(raft.Status{}, nil)

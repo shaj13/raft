@@ -53,7 +53,7 @@ func TestControllerJoin(t *testing.T) {
 				eng.EXPECT().Status().Return(raft.Status{}, nil)
 				eng.
 					EXPECT().
-					ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeAddNode)).
+					ProposeConfChange(gomock.Any(), gomock.Any()).
 					Return(ErrNotLeader)
 				n := new(Node)
 				n.exec = testPreCond
@@ -74,7 +74,7 @@ func TestControllerJoin(t *testing.T) {
 				pool.EXPECT().Get(gomock.Any()).Return(mem, true).MaxTimes(2)
 				pool.EXPECT().Snapshot().Return(nil)
 				eng.EXPECT().Status().Return(raft.Status{}, nil)
-				eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any(), gomock.Eq(etcdraftpb.ConfChangeUpdateNode)).Return(nil)
+				eng.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).Return(nil)
 				n := new(Node)
 				n.exec = testPreCond
 				n.engine = eng

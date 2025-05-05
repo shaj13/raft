@@ -68,17 +68,17 @@ func (mr *MockEngineMockRecorder) LinearizableRead(ctx interface{}) *gomock.Call
 }
 
 // ProposeConfChange mocks base method.
-func (m_2 *MockEngine) ProposeConfChange(ctx context.Context, m *raftpb.Member, t raftpb0.ConfChangeType) error {
+func (m_2 *MockEngine) ProposeConfChange(ctx context.Context, m ...*raftpb.Member) error {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "ProposeConfChange", ctx, m, t)
+	ret := m_2.ctrl.Call(m_2, "ProposeConfChange", ctx, m)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ProposeConfChange indicates an expected call of ProposeConfChange.
-func (mr *MockEngineMockRecorder) ProposeConfChange(ctx, m, t interface{}) *gomock.Call {
+func (mr *MockEngineMockRecorder) ProposeConfChange(ctx, m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProposeConfChange", reflect.TypeOf((*MockEngine)(nil).ProposeConfChange), ctx, m, t)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProposeConfChange", reflect.TypeOf((*MockEngine)(nil).ProposeConfChange), ctx, m)
 }
 
 // ProposeReplicate mocks base method.

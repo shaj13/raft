@@ -302,7 +302,16 @@ func WithPipelining() Option {
 	})
 }
 
-// WithJoin send rpc request to join an existing cluster.
+func withRejoin() Option {
+	return optionFunc(func(c *config) {
+		c.rejoin = true
+	})
+}
+
+// WithJoin attempts to join the cluster. If the given address is empty,
+// the node starts in join mode and waits for the leader to initiate
+// synchronization. Otherwise, it sends an RPC request to join the
+// existing cluster.
 func WithJoin(addr string, timeout time.Duration) StartOption {
 	return startOptionFunc(func(c *startConfig) {
 		opr := raftengine.Join(addr, timeout)
@@ -439,6 +448,7 @@ type config struct {
 	fsm              StateMachine
 	logger           raftlog.Logger
 	pipelining       bool
+	rejoin           bool
 }
 
 func (c *config) Logger() raftlog.Logger {
@@ -515,6 +525,10 @@ func (c *config) Mux() raftengine.Mux {
 
 func (c *config) AllowPipelining() bool {
 	return c.pipelining
+}
+
+func (c *config) Rejoin() bool {
+	return c.rejoin
 }
 
 func newConfig(opts ...Option) *config {

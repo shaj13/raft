@@ -38,6 +38,7 @@ type Config interface {
 	DrainTimeout() time.Duration
 	GroupID() uint64
 	Logger() raftlog.Logger
+	Rejoin() bool
 }
 
 // StateMachine define an interface that must be implemented by

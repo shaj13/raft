@@ -15,7 +15,6 @@ import (
 	"github.com/shaj13/raft/internal/storage/disk"
 	"github.com/shaj13/raft/internal/transport"
 	etransport "github.com/shaj13/raft/transport"
-	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 var (
@@ -130,6 +129,7 @@ func (ng *NodeGroup) Start() {
 // different id from the previous one will cause a panic.
 // Make sure the program set the node id using option, if it's not first node.
 func (ng *NodeGroup) Create(groupID uint64, fsm StateMachine, opts ...Option) *Node {
+	opts = append(opts, withRejoin())
 	n := NewNode(fsm, ng.proto, opts...)
 	ng.router.add(groupID, n.cfg.controller)
 	n.cfg.groupID = groupID
@@ -331,6 +331,13 @@ func (n *Node) Replicate(ctx context.Context, data []byte) error {
 	return n.engine.ProposeReplicate(ctx, data)
 }
 
+// Membership returns a [Membership] to initiate and apply membership changes.
+func (n *Node) Membership() *Membership {
+	return &Membership{
+		n: n,
+	}
+}
+
 // UpdateMember proposes to update the given member,
 // It considered complete after reaching a majority.
 // After committing the update, each member in the
@@ -342,25 +349,7 @@ func (n *Node) Replicate(ctx context.Context, data []byte) error {
 //
 // Note: the member id and type are not updatable.
 func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
-	err := n.preCond(
-		joined(),
-		notMember(raw.ID),
-		memberRemoved(raw.ID),
-		noLeader(),
-		notType(n.Whoami(), VoterMember),
-		addressInUse(raw.ID, raw.Address),
-		disableForwarding(),
-		available(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	mem, _ := n.GetMemebr(raw.ID)
-	raw.Type = mem.Type()
-
-	return n.engine.ProposeConfChange(ctx, raw, etcdraftpb.ConfChangeUpdateNode)
+	return n.Membership().Update(raw).Propose(ctx)
 }
 
 // RemoveMember proposes to remove the given member from the cluster,
@@ -368,34 +357,15 @@ func (n *Node) UpdateMember(ctx context.Context, raw *RawMember) error {
 // After committing the removal, each member in the
 // cluster remove the given member from its pool.
 //
-// Although, the removed member configuration will remain and
-// only its type will be changed to "RemovedMember".
-// therefore its id is not reusable again, and its cannot rejoin the cluster again.
+// The removed member configuration will still exist, but its type will be set to
+// "RemovedMember". As a result, its ID cannot be reused, and the node cannot rejoin
+// the cluster unless it is part of a node group.
 //
 // If the provided context expires before, the removal is complete,
 // RemoveMember returns the context's error, otherwise it returns any
 // error returned due to the removal.
 func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
-	err := n.preCond(
-		joined(),
-		notMember(id),
-		memberRemoved(id),
-		leader(id),
-		noLeader(),
-		notType(n.Whoami(), VoterMember),
-		disableForwarding(),
-		available(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	mem, _ := n.GetMemebr(id)
-	raw := mem.Raw()
-	raw.Type = raftpb.RemovedMember
-
-	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeRemoveNode)
+	return n.Membership().Remove(id).Propose(ctx)
 }
 
 // AddMember proposes to add the given member to the cluster,
@@ -411,30 +381,7 @@ func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 //
 // If the provided member id is None, AddMember will assign next available id.
 func (n *Node) AddMember(ctx context.Context, raw *RawMember) error {
-	err := n.preCond(
-		joined(),
-		idInUse(raw.ID),
-		addressInUse(raw.ID, raw.Address),
-		noLeader(),
-		notType(n.Whoami(), VoterMember),
-		disableForwarding(),
-		available(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	if raw.ID == None {
-		raw.ID = n.pool.NextID()
-	}
-
-	cct := etcdraftpb.ConfChangeAddNode
-	if raw.Type != VoterMember {
-		cct = etcdraftpb.ConfChangeAddLearnerNode
-	}
-
-	return n.engine.ProposeConfChange(ctx, raw, cct)
+	return n.Membership().Add(raw).Propose(ctx)
 }
 
 // PromoteMember proposes to promote a learner member to a voting member,
@@ -458,27 +405,7 @@ func (n *Node) PromoteMember(ctx context.Context, id uint64) error {
 // DemoteMember returns the context's error, otherwise it returns any
 // error returned due to the demotion.
 func (n *Node) DemoteMember(ctx context.Context, id uint64) error {
-	err := n.preCond(
-		joined(),
-		notMember(id),
-		memberRemoved(id),
-		noLeader(),
-		leader(id),
-		notType(n.Whoami(), VoterMember),
-		notType(id, VoterMember),
-		disableForwarding(),
-		available(),
-	)
-
-	if err != nil {
-		return err
-	}
-
-	mem, _ := n.GetMemebr(id)
-	raw := mem.Raw()
-	(&raw).Type = LearnerMember
-
-	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddLearnerNode)
+	return n.Membership().Demote(id).Propose(ctx)
 }
 
 // GetMemebr returns member associated to the given id if exist,
@@ -583,7 +510,157 @@ func (n *Node) promoteMember(ctx context.Context, id uint64, forwarded bool) err
 
 	(&raw).Type = VoterMember
 
-	return n.engine.ProposeConfChange(ctx, &raw, etcdraftpb.ConfChangeAddNode)
+	return n.engine.ProposeConfChange(ctx, &raw)
+}
+
+// Membership propose changes in cluster membership.
+//
+// It supports both the simple "one-at-a-time" membership change protocol,
+// as well as full Joint Consensus, which allows for arbitrary membership changes
+// (e.g., replacing multiple nodes in a single atomic transition).
+type Membership struct {
+	n     *Node
+	membs []*raftpb.Member
+	errs  []error
+}
+
+// Demote proposes to take away a member vote.
+// It considered complete after reaching a majority.
+// After committing the demotion, each member in the
+// cluster updates the given member type on its pool.
+func (m *Membership) Demote(id uint64) *Membership {
+	err := m.n.preCond(
+		joined(),
+		notMember(id),
+		memberRemoved(id),
+		noLeader(),
+		leader(id),
+		notType(m.n.Whoami(), VoterMember),
+		notType(id, VoterMember),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		m.errs = append(m.errs, err)
+		return m
+	}
+
+	mem, _ := m.n.GetMemebr(id)
+	raw := mem.Raw()
+	(&raw).Type = LearnerMember
+	m.membs = append(m.membs, &raw)
+	return m
+}
+
+// Add proposes to add the given member to the cluster,
+// It considered complete after reaching a majority.
+// After committing the addition, each member in the
+// cluster add the given member to its pool.
+//
+// If the provided raw member id is None, Add will assign next available id.
+//
+// Although, most applications will use the basic join.
+func (m *Membership) Add(raw *RawMember) *Membership {
+	err := m.n.preCond(
+		joined(),
+		idInUse(raw.ID),
+		addressInUse(raw.ID, raw.Address),
+		noLeader(),
+		notType(m.n.Whoami(), VoterMember),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		m.errs = append(m.errs, err)
+		return m
+	}
+
+	if raw.ID == None {
+		raw.ID = m.n.pool.NextID()
+	}
+
+	m.membs = append(m.membs, raw)
+	return m
+}
+
+// RemoveMember proposes to remove the given member from the cluster,
+// It considered complete after reaching a majority.
+// After committing the removal, each member in the
+// cluster remove the given member from its pool.
+//
+// The removed member configuration will still exist, but its type will be set to
+// "RemovedMember". As a result, its ID cannot be reused, and the node cannot rejoin
+// the cluster unless it is part of a node group.
+func (m *Membership) Remove(id uint64) *Membership {
+	err := m.n.preCond(
+		joined(),
+		notMember(id),
+		memberRemoved(id),
+		leader(id),
+		noLeader(),
+		notType(m.n.Whoami(), VoterMember),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		m.errs = append(m.errs, err)
+		return m
+	}
+
+	mem, _ := m.n.GetMemebr(id)
+	raw := mem.Raw()
+	raw.Type = raftpb.RemovedMember
+
+	m.membs = append(m.membs, &raw)
+	return m
+}
+
+// Update proposes to update the given member,
+// It considered complete after reaching a majority.
+// After committing the update, each member in the
+// cluster updates the given member configuration on its pool.
+// Note: the member id and type are not updatable.
+func (m *Membership) Update(raw *RawMember) *Membership {
+	err := m.n.preCond(
+		joined(),
+		notMember(raw.ID),
+		memberRemoved(raw.ID),
+		noLeader(),
+		notType(m.n.Whoami(), VoterMember),
+		addressInUse(raw.ID, raw.Address),
+		disableForwarding(),
+		available(),
+	)
+
+	if err != nil {
+		m.errs = append(m.errs, err)
+		return m
+	}
+
+	mem, _ := m.n.GetMemebr(raw.ID)
+	raw.Type = mem.Type()
+
+	m.membs = append(m.membs, raw)
+	return m
+}
+
+// Propose the membership changes, which are considered complete once a
+// majority is reached.
+//
+// After the proposal is committed, each cluster member updates its pool
+// with the proposed changes.
+//
+// It returns an error if the context expires before the proposal process
+// is complete, or any error resulting from the proposal itself.
+func (m *Membership) Propose(ctx context.Context) error {
+	if len(m.errs) > 0 {
+		return errors.Join(m.errs...)
+	}
+
+	return m.n.engine.ProposeConfChange(ctx, m.membs...)
 }
 
 func joined() func(c *Node) error {
