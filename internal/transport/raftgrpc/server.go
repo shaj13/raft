@@ -12,7 +12,7 @@ import (
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/internal/transport/raftgrpc/pb"
 	"github.com/shaj13/raft/raftlog"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )

@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/shaj13/raft/internal/raftpb"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 //go:generate mockgen -package storagemock -source internal/storage/types.go -destination internal/mocks/storage/storage.go

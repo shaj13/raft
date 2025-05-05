@@ -7,7 +7,7 @@ import (
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
-	raftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	raftpb "go.etcd.io/raft/v3/raftpb"
 	io "io"
 	math "math"
 	math_bits "math/bits"

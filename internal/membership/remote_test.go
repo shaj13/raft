@@ -11,8 +11,8 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/raftlog"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 func TestNewRemote(t *testing.T) {

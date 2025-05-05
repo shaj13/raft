@@ -7,8 +7,8 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/raftlog"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 //go:generate mockgen -package membershipmock  -source internal/membership/types.go -destination internal/mocks/membership/membership.go

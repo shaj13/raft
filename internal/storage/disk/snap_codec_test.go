@@ -10,8 +10,8 @@ import (
 	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/stretchr/testify/require"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
-	"go.etcd.io/etcd/server/v3/wal/walpb"
+	"go.etcd.io/etcd/server/v3/storage/wal/walpb"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 func TestSnapshotCodec(t *testing.T) {

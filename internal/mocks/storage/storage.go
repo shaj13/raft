@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	storage "github.com/shaj13/raft/internal/storage"
-	raftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	raftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 // MockSnapshotter is a mock of Snapshotter interface.

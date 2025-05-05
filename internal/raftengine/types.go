@@ -11,8 +11,8 @@ import (
 	"github.com/shaj13/raft/internal/storage"
 	"github.com/shaj13/raft/internal/transport"
 	"github.com/shaj13/raft/raftlog"
-	"go.etcd.io/etcd/raft/v3"
-	etcdraftpb "go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/raft/v3"
+	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
 
 //go:generate mockgen -package raftengine  -source internal/raftengine/types.go -destination internal/raftengine/types_test.go
