@@ -770,7 +770,11 @@ func disableForwarding() func(c *Node) error {
 
 func notType(id uint64, t MemberType) func(c *Node) error {
 	return func(c *Node) error {
-		mem, _ := c.GetMemebr(id)
+		mem, ok := c.GetMemebr(id)
+		if !ok {
+			return fmt.Errorf("raft: unknown memebr (%x)", id)
+		}
+
 		if mt := mem.Type(); mt != t {
 			return fmt.Errorf("raft: memebr (%x) is a %s not a %s", id, mt, t)
 		}

@@ -73,3 +73,15 @@ message MembershipChange {
 	// Members specifies the cluster pool members.
 	repeated Member members = 2 [(gogoproto.nullable) = true];
 }
+
+message Heartbeat {
+	// GID specifies the group ID.
+	uint64 gid = 1 [(gogoproto.customname) = "GID" ];
+	// msg specifies the the etcd raftpb heartbeat msg.
+	raftpb.Message msg = 2 [(gogoproto.nullable) = false];
+}
+
+message CoalescedHeartbeat {
+	// Heartbeats per node.
+	repeated Heartbeat Heartbeats = 1 [(gogoproto.nullable) = false];
+}

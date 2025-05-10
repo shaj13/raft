@@ -244,10 +244,10 @@ func (eng *engine) Shutdown(ctx context.Context) error {
 			close(eng.msgc)
 			eng.processwg.Wait()
 		}),
+		nopClose(eng.node.Stop),
 		nopClose(eng.cancel),
 		nopClose(eng.wg.Wait),
 		nopClose(func() { close(eng.snapshotc) }),
-		nopClose(eng.node.Stop),
 		eng.msgbus.Close,
 		eng.storage.Close,
 		func() error {

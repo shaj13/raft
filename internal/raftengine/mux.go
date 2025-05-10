@@ -2,9 +2,10 @@ package raftengine
 
 import (
 	"context"
-	"encoding/json"
 
+	"github.com/shaj13/raft/internal/raftpb"
 	"github.com/shaj13/raft/raftlog"
+	"go.etcd.io/etcd/pkg/v3/pbutil"
 	"go.etcd.io/raft/v3"
 	etcdraftpb "go.etcd.io/raft/v3/raftpb"
 )
@@ -105,7 +106,7 @@ func (m *mux) Start() {
 				if n.rn.HasReady() {
 					rd := n.rn.Ready()
 					advcs[gid] = rd
-					n.readyc <- hb.suppress(rd)
+					n.readyc <- hb.suppress(gid, rd)
 				}
 			}
 		}
@@ -397,7 +398,6 @@ func (m *muxNode) Stop() {
 
 func newHeartbeats() *heartbeats {
 	return &heartbeats{
-		pending: map[string]struct{}{},
 		step: func(ns *nodeState, m etcdraftpb.Message) {
 			_ = ns.rn.Step(m)
 		},
@@ -410,37 +410,29 @@ func newHeartbeats() *heartbeats {
 // no matter how many raft nodes they have in common.
 type heartbeats struct {
 	id      uint64
-	pending map[string]struct{}
+	pending []raftpb.Heartbeat
 	// abstracted for testing purposes.
 	step func(*nodeState, etcdraftpb.Message)
 }
 
-func (h *heartbeats) suppress(rd raft.Ready) raft.Ready {
+func (h *heartbeats) suppress(gid uint64, rd raft.Ready) raft.Ready {
 	for i := 0; i < len(rd.Messages); i++ {
 		msg := rd.Messages[i]
 		switch msg.Type {
-		case etcdraftpb.MsgHeartbeat:
-			// record heartbeats by context,
-			// typically ctx is embty unless there a safe read index request.
-			// individual ctx coalesced later.
-			// Same as etcd.Raft https://github.com/etcd-io/etcd/blob/main/raft/read_only.go#L68.
-			h.pending[string(msg.Context)] = struct{}{}
-			fallthrough
-		case etcdraftpb.MsgHeartbeatResp:
-			// MsgHeartbeatResp must be ignored from being pend, otherwise,
-			// the number of heartbeats will be doubled,
-			// instead, the fanout should respond accordingly.
-			// i.e
-			// incorrect flow:
+		case etcdraftpb.MsgHeartbeatResp, etcdraftpb.MsgHeartbeat:
 			// node A ->  heartbeats -> node B (coalesced)
 			// node B ->  heartbeats -> node A (coalesced)
 			// node B ->  heartbeats resp -> node A (fanout)
 			// correct flow:
 			// node A ->  heartbeats -> node B (coalesced)
 			// node B ->  heartbeats resp -> node A (fanout)
-
+			//
 			// suppress both MsgHeartbeatResp & MsgHeartbeat.
 			// individual heartbeats coalesced later.
+			h.pending = append(h.pending, raftpb.Heartbeat{
+				GID: gid,
+				Msg: msg,
+			})
 			rd.Messages = append(rd.Messages[:i], rd.Messages[i+1:]...)
 			i--
 		}
@@ -453,135 +445,52 @@ func (h *heartbeats) coalesced(nodes map[uint64]*nodeState) {
 		return
 	}
 
-	// sent avoid sending the heartbeat to the same node
-	// that is participating in multiple consensus groups.
-	// i.e Nodes A,B groups C,D
-	// node A send msg once to B either in C or D.
-	sent := make(map[uint64]struct{})
-	// don't heartbeat yourself.
-	sent[h.id] = struct{}{}
-
-	cc := new(coalescedContext)
-	for ctx := range h.pending {
-		cc.Buffers = append(cc.Buffers, []byte(ctx))
+	nodeshb := map[uint64][]raftpb.Heartbeat{}
+	for _, b := range h.pending {
+		nodeshb[b.Msg.To] = append(nodeshb[b.Msg.To], b)
 	}
 
-	bcc, err := json.Marshal(cc)
-	if err != nil {
-		raftlog.Warningf("raft: marshal coalesced heartbeats context: %v", err)
-	}
+	groups := map[uint64][]etcdraftpb.Message{}
 
-	for _, node := range nodes {
-		cfg := node.rn.Status().Config
-		msgs := []etcdraftpb.Message{}
-		for _, v := range []map[uint64]struct{}{
-			cfg.Voters.IDs(),
-			cfg.Learners,
-		} {
-			for id := range v {
-				if _, ok := sent[id]; ok {
-					continue
+	for id, msgs := range nodeshb {
+		for gid, node := range nodes {
+			cfg := node.rn.Status().Config
+			if _, ok := cfg.Voters.IDs()[id]; ok {
+				cb := &raftpb.CoalescedHeartbeat{
+					Heartbeats: msgs,
 				}
 
-				sent[id] = struct{}{}
-
-				mh := etcdraftpb.Message{
+				m := etcdraftpb.Message{
 					From:    h.id,
 					To:      id,
 					Type:    etcdraftpb.MsgHeartbeat,
-					Context: bcc,
+					Context: pbutil.MustMarshal(cb),
 				}
-				msgs = append(msgs, mh)
+				groups[gid] = append(groups[gid], m)
+				break
 			}
 		}
+	}
 
-		node.readyc <- raft.Ready{
-			Messages: msgs,
-		}
+	for gid, msgs := range groups {
+		node := nodes[gid]
+		go func(msgs []etcdraftpb.Message) {
+			node.readyc <- raft.Ready{
+				Messages: msgs,
+			}
+		}(msgs)
 	}
 
 	// reset the heartbeats state.
-	h.pending = map[string]struct{}{}
+	h.pending = h.pending[:0]
 }
 
 func (h *heartbeats) fanout(nodes map[uint64]*nodeState, msg etcdraftpb.Message) {
-	var (
-		node    *nodeState
-		success bool
-	)
+	var cb raftpb.CoalescedHeartbeat
+	pbutil.MustUnmarshal(&cb, msg.Context)
 
-	defer func() {
-		if !success && raftlog.V(8).Enabled() {
-			str := raft.DescribeMessage(msg, nil)
-			raftlog.V(8).Infof("raft: not fanning out msg: %s", str)
-		}
-	}()
-
-	isResp := msg.Type == etcdraftpb.MsgHeartbeatResp
-	ctx := msg.Context
-
-	cc := new(coalescedContext)
-	if err := json.Unmarshal(ctx, cc); err != nil {
-		raftlog.Warningf("raft: unmarshal coalesced heartbeats context: %v", err)
+	for _, hb := range cb.Heartbeats {
+		n := nodes[hb.GID]
+		h.step(n, hb.Msg)
 	}
-
-	for _, n := range nodes {
-		// ok allow sends the given heartbeat to all groups which believe that
-		// their leader resides on the sending node.
-		ok := (n.lead == msg.From || n.lead == raft.None) && !isResp
-		// resp sends the given heartbeat response to all groups
-		// which overlap with the sender's groups and consider themselves leader.
-		okResp := n.lead == h.id && isResp
-
-		// assign a node to reply to the given heartbeat.
-		// the assigned node must recognize the sender.
-		//
-		// Note: when a node is barely fresh the leader id may not exist in the conf state.
-		_, found := n.rn.Status().Config.Voters.IDs()[msg.From]
-		if ok || found {
-			node = n
-		}
-
-		if !(ok || okResp) {
-			continue
-		}
-
-		for _, ctx := range cc.Buffers {
-			m := etcdraftpb.Message{
-				From:    msg.From,
-				To:      msg.To,
-				Type:    msg.Type,
-				Context: ctx,
-			}
-			h.step(n, m)
-		}
-
-		success = true
-	}
-
-	if isResp {
-		return
-	}
-
-	if node == nil {
-		raftlog.Warningf("raft: ignored heartbeat from unknown member %x", msg.From)
-		return
-	}
-
-	// must respond whether the msg forwarded to any groups or not.
-	node.readyc <- raft.Ready{
-		Messages: []etcdraftpb.Message{
-			{
-				From:    msg.To,
-				To:      msg.From,
-				Type:    etcdraftpb.MsgHeartbeatResp,
-				Context: ctx,
-			},
-		},
-	}
-}
-
-// coalescedContext hold heartbeats context if any.
-type coalescedContext struct {
-	Buffers [][]byte
 }
