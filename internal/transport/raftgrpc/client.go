@@ -137,13 +137,6 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 		return err
 	}
 
-	defer func() {
-		_, rerr := stream.CloseAndRecv()
-		if err == nil {
-			err = rerr
-		}
-	}()
-
 	enc := newEncoder(r)
 	err = enc.Encode(func(c *pb.Chunk) error {
 		return stream.Send(c)
@@ -151,6 +144,10 @@ func (c *client) snapshot(ctx context.Context, msg etcdraftpb.Message) (err erro
 
 	if err != nil {
 		return
+	}
+
+	if _, err := stream.CloseAndRecv(); err != nil {
+		return err
 	}
 
 	return c.message(ctx, msg)
