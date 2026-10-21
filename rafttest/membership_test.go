@@ -26,6 +26,14 @@ func TestUpdateMember(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, n := range nodes {
+		// UpdateMember returns once the proposing node applied the change;
+		// the others apply it asynchronously. A linearizable read waits until
+		// this node has applied everything committed so far.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := n.raftnode.LinearizableRead(ctx)
+		cancel()
+		require.NoError(t, err)
+
 		mem, ok := n.raftnode.GetMemebr(raw.ID)
 		require.True(t, ok)
 		require.Equal(t, info, mem.Raw().Context)
