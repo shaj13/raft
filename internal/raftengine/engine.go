@@ -145,8 +145,17 @@ func (eng *engine) LinearizableRead(ctx context.Context) error {
 		return nil
 	}
 
+	sub := eng.msgbus.SubscribeOnce(index)
+	defer sub.Unsubscribe()
+
+	// check again after subscribing.
+	// current node is up to date.
+	if index <= eng.appliedIndex.Get() {
+		return nil
+	}
+
 	// wait until leader index applied into this node.
-	return eng.wait(ctx, index)
+	return eng.waitSub(ctx, sub)
 }
 
 // ReportUnreachable reports the given node is not reachable for the last send.
@@ -314,6 +323,9 @@ func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 		return err
 	}
 
+	sub := eng.msgbus.SubscribeOnce(r.CID)
+	defer sub.Unsubscribe()
+
 	eng.logger.V(1).Infof("raft.engine: propose replicate data, change id => %d", r.CID)
 
 	if err := eng.node.Propose(ctx, buf); err != nil {
@@ -321,7 +333,7 @@ func (eng *engine) ProposeReplicate(ctx context.Context, data []byte) error {
 	}
 
 	// wait for changes to be done
-	return eng.wait(ctx, r.CID)
+	return eng.waitSub(ctx, sub)
 }
 
 // ProposeConfChange proposes a configuration change to the cluster pool members.
@@ -333,13 +345,17 @@ func (eng *engine) ProposeConfChange(ctx context.Context, membs ...*raftpb.Membe
 	eng.propwg.Add(1)
 	defer eng.propwg.Done()
 
-	id, err := eng.proposeConfChange(ctx, membs...)
-	if err != nil {
+	id := eng.idgen.Next()
+
+	sub := eng.msgbus.SubscribeOnce(id)
+	defer sub.Unsubscribe()
+
+	if err := eng.proposeConfChange(ctx, id, membs...); err != nil {
 		return err
 	}
 
 	// wait for changes to be done
-	return eng.wait(ctx, id)
+	return eng.waitSub(ctx, sub)
 }
 
 // CreateSnapshot begin a snapshot and return snap metadata.
@@ -442,12 +458,13 @@ func (eng *engine) eventLoop() error {
 
 func (eng *engine) proposeConfChange(
 	ctx context.Context,
+	cid uint64,
 	membs ...*raftpb.Member,
-) (uint64, error) {
+) error {
 
 	cc := new(etcdraftpb.ConfChangeV2)
 	mc := new(raftpb.MembershipChange)
-	mc.CID = eng.idgen.Next()
+	mc.CID = cid
 
 	for _, m := range membs {
 		m.CreatedAt = types.TimestampNow()
@@ -474,7 +491,7 @@ func (eng *engine) proposeConfChange(
 
 	cc.Context = pbutil.MustMarshal(mc)
 	eng.logger.V(1).Infof("raft.engine: propose conf change, change id => %d", mc.CID)
-	return mc.CID, eng.node.ProposeConfChange(ctx, cc)
+	return eng.node.ProposeConfChange(ctx, cc)
 }
 
 func (eng *engine) publishReadState(rss []raft.ReadState) {
@@ -754,8 +771,7 @@ func (eng *engine) promotions() {
 	for _, m := range promotions {
 		eng.logger.Infof("raft.engine: promoting staging member %x", m.ID)
 		ctx, cancel := context.WithTimeout(eng.ctx, eng.cfg.TickInterval()*5)
-		_, err := eng.proposeConfChange(ctx, &m)
-		if err != nil {
+		if err := eng.proposeConfChange(ctx, eng.idgen.Next(), &m); err != nil {
 			eng.logger.Warningf("raft.engine: promoting staging member %x: %v", m.ID, err)
 		}
 		cancel()
@@ -874,10 +890,7 @@ func (eng *engine) createSnapshot() error {
 	return nil
 }
 
-func (eng *engine) wait(ctx context.Context, id uint64) error {
-	sub := eng.msgbus.SubscribeOnce(id)
-	defer sub.Unsubscribe()
-
+func (eng *engine) waitSub(ctx context.Context, sub *msgbus.Subscription) error {
 	select {
 	case v := <-sub.Chan():
 		if v != nil {

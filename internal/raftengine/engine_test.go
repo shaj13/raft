@@ -855,3 +855,53 @@ func TestForceSnapshot(t *testing.T) {
 	require.True(t, ok)
 	ctrl.Finish()
 }
+
+// The commit signal of a proposal can be published before Propose returns to the
+// proposer: here the node commits and applies it during Propose. The proposer must
+// still see it, not wait for its context to expire. Before this fix it could miss
+// it: Propose subscribed only after proposing, and the message bus drops a signal
+// nobody is subscribed to.
+func TestProposeSeesACommitPublishedBeforeProposeReturns(t *testing.T) {
+	newEngine := func(node raft.Node) *engine {
+		eng := &engine{
+			logger:  raftlog.DefaultLogger,
+			idgen:   idutil.NewGenerator(1, time.Now()),
+			node:    node,
+			started: atomic.NewBool(),
+			msgbus:  msgbus.New(),
+			ctx:     context.TODO(),
+		}
+		eng.started.Set()
+		return eng
+	}
+
+	t.Run("replicate", func(t *testing.T) {
+		node := NewMockNode(gomock.NewController(t))
+		eng := newEngine(node)
+		node.EXPECT().Propose(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, data []byte) error {
+			r := new(raftpb.Replicate)
+			require.NoError(t, r.Unmarshal(data))
+			eng.msgbus.Broadcast(r.CID, nil) // committed and applied already
+			return nil
+		})
+
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+		defer cancel()
+		require.NoError(t, eng.ProposeReplicate(ctx, []byte("data")))
+	})
+
+	t.Run("conf change", func(t *testing.T) {
+		node := NewMockNode(gomock.NewController(t))
+		eng := newEngine(node)
+		node.EXPECT().ProposeConfChange(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, cc etcdraftpb.ConfChangeI) error {
+			mc := new(raftpb.MembershipChange)
+			pbutil.MustUnmarshal(mc, cc.(*etcdraftpb.ConfChangeV2).Context)
+			eng.msgbus.Broadcast(mc.CID, nil) // committed and applied already
+			return nil
+		})
+
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+		defer cancel()
+		require.NoError(t, eng.ProposeConfChange(ctx, &raftpb.Member{Type: raftpb.VoterMember}))
+	})
+}
